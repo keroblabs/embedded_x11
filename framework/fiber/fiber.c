@@ -256,10 +256,7 @@ static fiber_t *fiber_create_common(fiber_func_t func, void *arg,
     f->state      = FIBER_STATE_READY;
     f->owns_stack = owns_stack;
 
-    /* Top of stack = highest address, rounded DOWN to port alignment. */
-    uintptr_t top = (uintptr_t)stack_buf + stack_size;
-    top &= ~(uintptr_t)(FIBER_PORT_STACK_ALIGN - 1u);
-    f->sp = fiber_port_init_stack((void *)top, func, arg);
+    f->sp = fiber_port_init_stack(stack_buf, stack_size, func, arg);
 
     ring_insert_after_locked(g_current, f);
     fiber_port_irq_unlock(prev);

@@ -29,11 +29,12 @@
  * period_ms = number of 1 ms ticks between preemption switches.     */
 void     fiber_port_init(uint32_t period_ms);
 
-/* Forge an initial saved-context frame at the top of `stack_top`
- * (highest address of the stack buffer) such that the very first
- * dispatch to this fiber lands in `entry(arg)`.  Returns the SP
- * value to store in fiber_t::sp.                                     */
-void    *fiber_port_init_stack(void *stack_top,
+/* Forge an initial saved-context frame inside the stack region
+ * `[stack_base, stack_base + stack_size)` such that the very first
+ * dispatch to this fiber lands in `entry(arg)`.  The port computes
+ * the top and rounds it to FIBER_PORT_STACK_ALIGN internally.
+ * Returns the SP value to store in fiber_t::sp.                     */
+void    *fiber_port_init_stack(void *stack_base, size_t stack_size,
                                fiber_func_t entry, void *arg);
 
 /* Pend a low-priority software interrupt that will drive the
