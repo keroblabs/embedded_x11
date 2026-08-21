@@ -138,8 +138,8 @@ Break the DDX's coupling to a backend‑named directory and to the ad‑hoc `hal
 
 | File | Edit | Mechanism |
 |---|---|---|
-| `framework/library/hal_display.h` | New; the framebuffer contract | New |
-| `framework/library/hal_input.h` | New; the input contract, **carrying the existing `CMD_*` / `KEY_DATA_*` / `MOUSE_BUTTON_*` constants verbatim** | New |
+| `hal/hal_display.h` | New; the framebuffer contract | New |
+| `hal/hal_input.h` | New; the input contract, **carrying the existing `CMD_*` / `KEY_DATA_*` / `MOUSE_BUTTON_*` constants verbatim** | New |
 | `linux_hosted/sdl_drivers/hal_display_sdl.c` | New; adapts `lcd_driver_*` → `hal_display_*` | New |
 | `linux_hosted/sdl_drivers/hal_input_sdl.c` | New; adapts `keypad_driver_*` + `mouse_driver_*` → `hal_input_*` | New |
 | `linux_hosted/sdl_drivers/hal_mock.c` | New; a null backend for link‑isolation testing | New |

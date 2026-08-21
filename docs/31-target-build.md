@@ -415,7 +415,7 @@ Levers 3–5 are behavioural changes and each needs a decision entry.
 ## 9. Boot Sequence
 
 ```c
-/* framework/wmb_boot.c — this configuration's host; see D-42 */
+/* linux_hosted/wmb_boot/wmb_boot.c — this configuration's host; see D-42 */
 int main(void)
 {
     platform_early_init();                 /* clocks, UART, memory controller */
@@ -458,7 +458,7 @@ suspended for an unbounded interval, and never assumes it owns the CPU.
 and inside the windowing set:
 
 ```c
-/* framework/wmb_x11/wmb_main.c */
+/* transport/x11/wmb_main.c */
 int wmb_main(const wmb_config_t *cfg)
 {
     if (!cfg) cfg = &wmb_default_config;

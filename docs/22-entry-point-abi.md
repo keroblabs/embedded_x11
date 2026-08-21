@@ -77,7 +77,7 @@ compile environment differs from stock Xlib.
 ### 3.2 Structure
 
 ```c
-/* framework/wmb_api/wmb_api.h — shipped to applications */
+/* transport/api/wmb_api.h — shipped to applications */
 #ifndef WMB_API_H
 #define WMB_API_H
 
@@ -257,7 +257,7 @@ cannot implement as a no‑op.
 ### 4.1 Section placement
 
 ```c
-/* framework/wmb_api/wmb_api_table.c */
+/* transport/api/wmb_api_table.c */
 __attribute__((section(".wmb_api"), used))
 const wmb_api_t wmb_api = {
     .magic   = WMB_API_MAGIC,
@@ -271,7 +271,7 @@ const wmb_api_t wmb_api = {
 ```
 
 ```ld
-/* framework/wmb_api/wmb.ld — linker fragment */
+/* transport/api/wmb.ld — linker fragment */
 SECTIONS
 {
     . = WMB_LOAD_BASE;
@@ -307,7 +307,7 @@ Called from the wrapper's constructor or from the first `XOpenDisplay`. A valida
 The WMB image is built non‑PIC and loaded at a fixed base:
 
 ```
--fno-pic -fno-pie -no-pie -Wl,-T,framework/wmb_api/wmb.ld -Wl,--defsym,WMB_LOAD_BASE=0x80100000
+-fno-pic -fno-pie -no-pie -Wl,-T,transport/api/wmb.ld -Wl,--defsym,WMB_LOAD_BASE=0x80100000
 ```
 
 `WMB_LOAD_BASE` and `WMB_API_ADDRESS` are the same number and are supplied by one CMake variable, `WMB_LOAD_BASE`, so they cannot drift.
@@ -332,7 +332,7 @@ WRAP9(Window,    XCreateSimpleWindow, Display *, Window, int, int,
 ```
 
 Generated from a single table so that `wmb_api.h`, `wrappers.c` and the slot count cannot get out of step. The generator (`tools/gen_wmb_api.py`) reads
-`framework/wmb_api/api.def` and emits all three.
+`transport/api/api.def` and emits all three.
 
 ### 5.2 Macro replacements
 

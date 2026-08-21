@@ -43,7 +43,8 @@ budget.
 |---|---|---|---|
 | TinyX | [`42-tinyx-module-plan.md`](42-tinyx-module-plan.md) | `tinyx/` above the DDX — `dix`, `mi`, `fb`, `miext`, extensions, all of `os/` | **P4, P5 (server half)**, P6 |
 | KDrive + backends | [`43-kdrive-module-plan.md`](43-kdrive-module-plan.md) | The platform contract, `tinyx/kdrive/`, `linux_hosted/` and `<target>_native/` device ports | **P1, P9 (port)** |
-| Framework | [`44-framework-module-plan.md`](44-framework-module-plan.md) | `framework/`, `libX11/`, the fiber ports, the external ABI, the boot host | **P2, P3, P5 (client half), P8** |
+| Framework | [`44-framework-module-plan.md`](44-framework-module-plan.md) | `framework/`, `hal/` (contract headers it implements), the fiber ports, the hosted memory + time impls | **P2, P3, P9 (fiber port)**, P8 measurement |
+| Transport | [`46-transport-module-plan.md`](46-transport-module-plan.md) | `transport/`, the two `libX11/` guards, the external ABI, `wmb_boot.c` | **P5 (client half), P6, P8 (ABI)** |
 | JWM | [`45-jwm-module-plan.md`](45-jwm-module-plan.md) | `jwm/` and its glue | **P7** |
 
 **The numbering is not a work order.** Bring‑up runs bottom‑up — [`43-`](43-kdrive-module-plan.md) and [`44-`](44-framework-module-plan.md) first
@@ -354,7 +355,7 @@ exists because [`21-`](21-inprocess-transport.md) §5.7 is otherwise likely to b
 
 | Item | Deliverable |
 |---|---|
-| `framework/wmb_api/api.def` + generator | [`22-`](22-entry-point-abi.md) §5.1 |
+| `transport/api/api.def` + generator | [`22-`](22-entry-point-abi.md) §5.1 |
 | `wmb_api.h`, `wmb_api_table.c` | [`22-`](22-entry-point-abi.md) §3, §4.1 |
 | **A5 enumeration** — generate the exhaustive list of `Display`‑dereferencing macros from `X11/Xlib.h` → `docs/xlib-display-macros.txt` | [`91-`](91-open-questions.md) Q20 |
 | `wrapper/libX11-app/` + macro compat header, driven by that list | [`22-`](22-entry-point-abi.md) §5 |

@@ -24,14 +24,14 @@ classic `libXfont` sources).
 Almost nothing. That statement is deliberate and it is the honest starting point:
 
 - `framework/CMakeLists.txt` defines a **single executable target**, `wmb_tima_build`, which compiles the SDL backend (`sdl_library/`, `sdl_drivers/`), two
-  heap helpers, the five files of the Tima KDrive DDX (`tinyx/kdrive/tima/`), and a six‑line stub `main()` in `framework/wmb_x11/wmb_main.c`.
+  heap helpers, the five files of the Tima KDrive DDX (`tinyx/kdrive/tima/`), and a six‑line stub `main()` in `transport/x11/wmb_main.c`.
 - It does **not** compile or link any part of `tinyx/dix`, `tinyx/os`, `tinyx/mi`, `tinyx/fb`, `tinyx/kdrive/src`, `libX11/`, or `jwm/`. There is no built
   binary anywhere in `build/` or `build_local/`.
 - `framework/fiber/` contains a complete, portable cooperative fiber core (`fiber.c`, `fiber_sync.c`, `hal_task.c` and its headers) **and a working hosted
   port** in `linux_hosted/fiber_linux/`. Both are exercised by the smoke programs under `linux_hosted/`, one of which — `sdl_fiber_example_v2/` — is a
   running proof of concept of the in‑process transport's client–server handshake ([`21-`](21-inprocess-transport.md) §11). The preemption tick is
   deliberately disarmed ([`90-`](90-decisions.md) D‑47).
-- `framework/wmb_x11/wmb_io.c` contains a first sketch of the in‑process transport (`wmb_sync_handler`, `_XGetRequest`, `_XReply`) — 277 lines that have
+- `transport/x11/wmb_io.c` contains a first sketch of the in‑process transport (`wmb_sync_handler`, `_XGetRequest`, `_XReply`) — 277 lines that have
   never been compiled.
 - `tinyx/kdrive/tima/tima_kdrive_system.c` wires `KdOsFuncs`, `InitCard`, `InitOutput`, `InitInput`, `OsVendorInit` and the `ddx*` stubs. The cooperative
   wait hook the whole design depends on — `tima_WaitForEvents()` — does not exist.

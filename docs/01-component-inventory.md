@@ -126,8 +126,8 @@ possible outcome, and running the same allocator in both places makes the hosted
 
 | File | Est. LOC | Disposition | Notes |
 |---|---:|---|---|
-| `framework/wmb_boot.c` | ~40 | NEW | This configuration's **host**, and the `main()`. Owns: early platform init → `heap_init` → `fiber_runtime_init()` → `wmb_main()` → park. Outside the windowing set ([`90-`](90-decisions.md) D‑42) |
-| `framework/wmb_x11/wmb_main.c` | ~80 | REWRITE | `wmb_main()` / `wmb_shutdown()` — display and input bring‑up, WMB's fiber creation, the readiness gate ([`90-`](90-decisions.md) D‑43). Replaces the 6‑line stub of the same name |
+| `linux_hosted/wmb_boot/wmb_boot.c` | ~40 | NEW | This configuration's **host**, and the `main()`. Owns: early platform init → `heap_init` → `fiber_runtime_init()` → `wmb_main()` → park. Outside the windowing set ([`90-`](90-decisions.md) D‑42) |
+| `transport/x11/wmb_main.c` | ~80 | REWRITE | `wmb_main()` / `wmb_shutdown()` — display and input bring‑up, WMB's fiber creation, the readiness gate ([`90-`](90-decisions.md) D‑43). Replaces the 6‑line stub of the same name |
 
 **Only one `main()` may exist in the image.** `tinyx/dix/main.c:227` currently defines one. Its resolution is a settled decision — see
 [`90-decisions.md`](90-decisions.md) D‑07.
@@ -140,10 +140,10 @@ Five headers. This is *the entire surface* between WMB and the machine. Full sig
 
 | File | Est. LOC | Disposition | Provides |
 |---|---:|---|---|
-| `framework/library/hal_display.h` | 55 | **DONE** | `hal_framebuffer_t`, `hal_pixfmt_t`, `hal_display_init/shutdown/get_fb/flush/set_power` |
-| `framework/library/hal_input.h` | 90 | **DONE** | `hal_input_dev_t`, `hal_input_init/shutdown/has_data/read_byte/control/pump`, and the `HAL_CMD_*` / `HAL_KEY_*` / `HAL_MOUSE_BUTTON_*` / `HAL_SC_*` wire constants |
-| `framework/library/hal_task.h` | 60 | **DONE** | `hal_task_runtime_init/create/destroy/self/name/yield/wait/wake`, `hal_yield_timeout` |
-| `framework/library/hal_time.h` | 35 | **DONE** | `hal_tick_ms`, `hal_tick_us`, and `hal_wallclock_s` behind `WMB_HAS_WALLCLOCK` ([`90-`](90-decisions.md) D‑30) |
+| `hal/hal_display.h` | 55 | **DONE** | `hal_framebuffer_t`, `hal_pixfmt_t`, `hal_display_init/shutdown/get_fb/flush/set_power` |
+| `hal/hal_input.h` | 90 | **DONE** | `hal_input_dev_t`, `hal_input_init/shutdown/has_data/read_byte/control/pump`, and the `HAL_CMD_*` / `HAL_KEY_*` / `HAL_MOUSE_BUTTON_*` / `HAL_SC_*` wire constants |
+| `hal/hal_task.h` | 60 | **DONE** | `hal_task_runtime_init/create/destroy/self/name/yield/wait/wake`, `hal_yield_timeout` |
+| `hal/hal_time.h` | 35 | **DONE** | `hal_tick_ms`, `hal_tick_us`, and `hal_wallclock_s` behind `WMB_HAS_WALLCLOCK` ([`90-`](90-decisions.md) D‑30) |
 | `framework/library/wmb_os.h` | ~80 | NEW | Console write, abort/exit, allocator hooks, optional file I/O — the libc floor |
 
 All four completed headers compile standalone under `-ffreestanding -nostdinc` (gate PC‑V1 / S8).
@@ -352,14 +352,14 @@ pristine checkout — never guessed, and never copied in wholesale ([`90-`](90-d
 
 | File | Est. LOC | Disposition | Notes |
 |---|---:|---|---|
-| `framework/wmb_x11/wmb_transport.c` | ~280 | NEW | Replaces `xcb_io.c`. Grows from the existing 277‑line `wmb_io.c` sketch |
-| `framework/wmb_x11/wmb_open.c` | ~140 | NEW | In‑process `XOpenDisplay`: build `Display`, register `ClientRec`, install `dpy->synchandler` |
-| `framework/wmb_x11/wmb_close.c` | ~60 | NEW | Teardown |
-| `framework/wmb_x11/wmb_setup.c` | ~120 | NEW | Synthesise the `xConnSetup` blob that `XOpenDisplay` normally reads off the wire |
-| `framework/wmb_x11/Xlibint_wmb.h` | 43 (exists) | CARRY | Local Xlib internal overrides |
-| `framework/wmb_x11/wmb_io.h` | 0 (empty) | NEW | Currently a zero‑byte file. Must be written |
+| `transport/x11/wmb_transport.c` | ~280 | NEW | Replaces `xcb_io.c`. Grows from the existing 277‑line `wmb_io.c` sketch |
+| `transport/x11/wmb_open.c` | ~140 | NEW | In‑process `XOpenDisplay`: build `Display`, register `ClientRec`, install `dpy->synchandler` |
+| `transport/x11/wmb_close.c` | ~60 | NEW | Teardown |
+| `transport/x11/wmb_setup.c` | ~120 | NEW | Synthesise the `xConnSetup` blob that `XOpenDisplay` normally reads off the wire |
+| `transport/x11/Xlibint_wmb.h` | 43 (exists) | CARRY | Local Xlib internal overrides |
+| `transport/x11/wmb_io.h` | 0 (empty) | NEW | Currently a zero‑byte file. Must be written |
 
-### 9.2 Existing sketch — `framework/wmb_x11/wmb_io.c`
+### 9.2 Existing sketch — `transport/x11/wmb_io.c`
 
 277 lines, never compiled. Contains a working‑looking `wmb_sync_handler()` that sets `client->requestBuffer = dpy->buffer` and calls
 `client->requestVector[opcode](client)`, plus `_XGetRequest` and a `WmbState` struct. **It assumes a single global client** (`static WmbState wmb_state`),
@@ -372,9 +372,9 @@ For applications that are *separate binaries* rather than in‑tree fibers. Full
 
 | File | Est. LOC | Disposition | Notes |
 |---|---:|---|---|
-| `framework/wmb_api/wmb_api.h` | ~180 | NEW | The `wmb_api_t` vtable definition, shipped to applications |
-| `framework/wmb_api/wmb_api_table.c` | ~80 | NEW | The vtable instance, placed in a dedicated section |
-| `framework/wmb_api/wmb.ld` | ~30 | NEW | Linker fragment pinning that section to a fixed address |
+| `transport/api/wmb_api.h` | ~180 | NEW | The `wmb_api_t` vtable definition, shipped to applications |
+| `transport/api/wmb_api_table.c` | ~80 | NEW | The vtable instance, placed in a dedicated section |
+| `transport/api/wmb.ld` | ~30 | NEW | Linker fragment pinning that section to a fixed address |
 | `wrapper/libX11-app/wrappers.c` | ~220 | NEW | The redistributable thin wrapper library: one line per entry point |
 
 ## 11. C8 — Applications
@@ -422,7 +422,7 @@ The build in [`30-host-build.md`](30-host-build.md) §4 defines exactly these gr
 | Group | Contents | Files | ~LOC |
 |---|---|---:|---:|
 | `WMB_RUNTIME` | `framework/fiber/` + selected port + `framework/library/heap*` + `buffer` + `pipe` + `lists` | 16 | 2,500 |
-| `WMB_HAL` | `hal_*.h` + selected backend adapters | 9 | 900 |
+| `WMB_HAL` | `hal/*.h` + selected backend adapters | 9 | 900 |
 | `WMB_BACKEND_SDL` | `linux_hosted/sdl_drivers/` + `linux_hosted/sdl_library/` | 9 | 1,420 |
 | `TINYX_DIX` | `tinyx/dix/*.c` | 25 | 26,685 |
 | `TINYX_OS` | `log.c`, `oscolor.c`, `strlcat.c`, `strlcpy.c`, `osinit.c`, `utils.c` + the three `*_wmb.c` stubs | 9 | 4,100 |
@@ -433,8 +433,8 @@ The build in [`30-host-build.md`](30-host-build.md) §4 defines exactly these gr
 | `TINYX_KDRIVE` | `kdrive/src/` minus `kmap.c` | 6 | 3,480 |
 | `TINYX_DDX` | `kdrive/tima/` | 4 | 1,088 |
 | `LIBX11_API` | `libX11/src/` minus the excluded set | ~245 | ~34,000 |
-| `WMB_TRANSPORT` | `framework/wmb_x11/` | 6 | 900 |
-| `WMB_API` | `framework/wmb_api/` | 2 | 260 |
+| `WMB_TRANSPORT` | `transport/x11/` | 6 | 900 |
+| `WMB_API` | `transport/api/` | 2 | 260 |
 | `JWM` | `jwm/src/` + the new glue | 52 | 26,500 |
 | `WMB_APPS` | `apps/` | 2 | 180 |
 

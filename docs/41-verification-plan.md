@@ -51,7 +51,7 @@ These run on every build and take seconds. They are the backbone of the verifica
 
 | ID | Gate | Command | From |
 |---|---|---|---|
-| S1 | No backend leakage above the contract | `grep -rl 'SDL\|sdl_\|hal_drivers\.h' tinyx/ libX11/src/ jwm/src/ framework/wmb_x11/ framework/wmb_api/` → empty | [`03-`](03-target-architecture.md) L1 |
+| S1 | No backend leakage above the contract | `grep -rl 'SDL\|sdl_\|hal_drivers\.h' tinyx/ libX11/src/ jwm/src/ transport/` → empty | [`03-`](03-target-architecture.md) L1 |
 | S2 | No POSIX headers in the compiled set | `grep -rl 'include *<sys/\|include *<linux/\|include *<netinet/\|include *<pthread\.h>\|include *<dlfcn\.h>\|include *<netdb\.h>' $(cmake_source_list)` → empty | [`10-`](10-os-dependency-census.md) |
 | S3 | Only sanctioned guard macros in upstream files | `grep -rhoE '#if(n?def)? +WMB_[A-Z_]+' tinyx libX11 jwm X11/Xlibint.h \| sort -u` → exactly the five | [`11-`](11-portability-plan.md) §8.6 |
 | S4 | No excluded file in any source list | script diffs CMake lists against the ledger | [`01-`](01-component-inventory.md) §13 |
@@ -61,7 +61,7 @@ These run on every build and take seconds. They are the backbone of the verifica
 | S8 | Contract headers are freestanding | compile each alone with `-ffreestanding -nostdinc` | [`12-`](12-platform-contract.md) PC‑V1 |
 | S9 | Vtable artefacts are generated, not hand‑edited | regenerate from `api.def`, `git diff` → empty | [`22-`](22-entry-point-abi.md) E‑V1 |
 | S10 | **The windowing set is detachable** | link `libtinyx.a libx11_wmb.a libjwm.a libwmb_api.a` against contract stubs + runtime substrate, with no backend and no `wmb_boot.o` → resolves | [`03-`](03-target-architecture.md) L7, [`90-`](90-decisions.md) D‑42 |
-| S11 | **The framework is shareable** | `grep -rn '#include' framework/fiber framework/library \| grep -E 'tinyx\|libX11\|jwm\|wmb_x11\|wmb_api\|Xlib\|dix'` → empty | [`03-`](03-target-architecture.md) L8 |
+| S11 | **The framework is shareable** | `grep -rn '#include' framework/ \| grep -E 'tinyx\|libX11\|jwm\|transport\|Xlib\|dix'` → empty | [`03-`](03-target-architecture.md) L8 |
 | S12 | **`framework/` is platform‑free** | `grep -rl 'SDL\|<linux/\|clock_gettime\|ucontext\|termios' framework/ --include=*.c --include=*.h` → empty | [`03-`](03-target-architecture.md) L9 |
 
 ### 3.2 Symbol gates

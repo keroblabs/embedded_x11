@@ -76,14 +76,14 @@ Nine rules. Each is mechanically checkable and each has a gate in [`41-verificat
 
 | # | Rule | Gate |
 |---|---|---|
-| L1 | **Nothing above the platform contract names a platform.** No `SDL`, no `<linux/*>`, no target register names in `tinyx/`, `libX11/`, `jwm/`, or `framework/wmb_*`. | `grep -rl "SDL\|<linux/" tinyx libX11 jwm framework/wmb_x11 framework/wmb_api` empty |
+| L1 | **Nothing above the platform contract names a platform.** No `SDL`, no `<linux/*>`, no target register names in `tinyx/`, `libX11/`, `jwm/`, or `transport/`. | `grep -rl "SDL\|<linux/" tinyx libX11 jwm transport` empty |
 | L2 | **Nothing above the contract blocks.** All waiting is `hal_yield_timeout()`. No `select`, `poll`, `sleep`, `usleep`, `nanosleep`, `pthread_cond_wait`. | Symbol gate on the link |
 | L3 | **The contract is the only downward interface.** A DDX file may include `hal_*.h`; it may not include a backend header. | `grep -rl "sdl_\|hal_drivers.h" tinyx/` empty |
 | L4 | **Exactly one backend is linked.** Selected by the build profile, never by runtime dispatch. | CMake source list |
-| L5 | **Exactly one `main()`.** In `framework/wmb_boot.c`. This is a property of the *whole‑system configuration*, not of WMB: `wmb_boot.c` sits outside the windowing set and WMB itself is entered through `wmb_main()` ([`90-`](90-decisions.md) D‑42, D‑43). | `nm --defined-only \| grep ' T main$'` returns exactly one, from `wmb_boot.o` |
+| L5 | **Exactly one `main()`.** In `linux_hosted/wmb_boot/wmb_boot.c` on the hosted build, `<target>_native/wmb_boot/wmb_boot.c` on the target build. This is a property of the *whole‑system configuration*, not of WMB: `wmb_boot.c` sits outside the windowing set and WMB itself is entered through `wmb_main()` ([`90-`](90-decisions.md) D‑42, D‑43). | `nm --defined-only \| grep ' T main$'` returns exactly one, from `wmb_boot.o` |
 | L6 | **Upstream trees are patched only behind macros.** Every edit is exportable and replayable. | Patch manifest, [`11-`](11-portability-plan.md) §9 |
-| L7 | **The windowing set is detachable.** `jwm`, `tinyx`, `libX11`, `framework/wmb_x11`, `framework/wmb_api` reference only the platform contract, the application ABI and the runtime substrate — never the backend, never the host. | The set links against contract stubs + substrate with no backend and no `wmb_boot.o` |
-| L8 | **The framework depends on nothing above it.** No file in `framework/fiber/` or `framework/library/` may include or name anything from `tinyx/`, `libX11/`, `jwm/`, `framework/wmb_x11/` or `framework/wmb_api/`. It must stay shareable by components that are not WMB. | `grep -rn '#include' framework/fiber framework/library \| grep -E 'tinyx\|libX11\|jwm\|wmb_x11\|wmb_api\|Xlib\|dix'` empty |
+| L7 | **The windowing set is detachable.** `jwm`, `tinyx`, `libX11`, `transport/x11`, `transport/api` reference only the platform contract, the application ABI and the runtime substrate — never the backend, never the host. | The set links against contract stubs + substrate with no backend and no `wmb_boot.o` |
+| L8 | **The framework depends on nothing above it.** No file in `framework/` may include or name anything from `tinyx/`, `libX11/`, `jwm/`, `transport/` or `Xlib`. It must stay shareable by components that are not WMB. | `grep -rn '#include' framework/ \| grep -E 'tinyx\|libX11\|jwm\|transport\|Xlib\|dix'` empty |
 | L9 | **`framework/` is platform‑free; every port lives in its own tree.** `framework/` holds only what compiles on *every* profile. A platform's implementation of the contract lives in a sibling port tree — `linux_hosted/` for the hosted SDL port, `<target>_native/` for an embedded target — and a port tree may depend on `framework/`, never the reverse. | `grep -rl 'SDL\|<linux/\|clock_gettime\|ucontext' framework/` empty (excluding `framework/CMakeLists.txt`) |
 
 ### 3.1 Where a file goes
@@ -92,13 +92,13 @@ L9 makes the placement question mechanical, and it is the rule that decides how 
 
 | Kind of file | Tree | Example |
 |---|---|---|
-| Contract header | `framework/library/` | `hal_display.h`, `hal_time.h` |
-| Portable runtime | `framework/fiber/`, `framework/library/` | `fiber.c`, `heap.c`, `buffer.c` |
-| Windowing set | `tinyx/`, `libX11/`, `jwm/`, `framework/wmb_x11/` | — |
+| Contract header | `hal/` | `hal_display.h`, `hal_input.h`, `hal_task.h`, `hal_time.h`, `hal_alloc.h` |
+| Portable runtime | `framework/fiber/`, `framework/library/` | `fiber.c`, `heap.c`, `buffer.c`, `heap_mngr.c` |
+| Windowing set | `tinyx/`, `libX11/`, `jwm/`, `transport/` | — |
 | **Hosted port** | `linux_hosted/<module>/` | `system_linux/hal_time_hosted.c`, `sdl_drivers/hal_display_sdl.c`, `fiber_linux/fiber_port.c` |
 | **Target port** | `<target>_native/<module>/` | `system_<target>/hal_time_<target>.c`, `display_<target>/hal_display_<target>.c` |
 
-The two port trees are **peers**, not a general case and a special case. Neither is privileged, and the contract headers in `framework/library/` are
+The two port trees are **peers**, not a general case and a special case. Neither is privileged, and the contract headers in `hal/` are
 identical for both. Porting to a new platform is therefore "write a sibling of `linux_hosted/`", which is a directory with a known shape and a known file
 list ([`31-`](31-target-build.md) §4.6) rather than an open‑ended search through the tree for things to change.
 
@@ -179,7 +179,7 @@ Second, `Dispatch()` is a per‑request *contract*, not a loop around `ProcVecto
 keeps that file **unmodified** — D‑14's preference order applied to the busiest file in the tree.
 
 Running all server code on **one dedicated fiber** gives the dispatcher the invariant it assumes — exactly one request in flight — *structurally*, rather
-than as a rule imposed on 78 kLOC of upstream code. The existing sketch in `framework/wmb_x11/wmb_io.c` does the opposite (direct call on the client stack)
+than as a rule imposed on 78 kLOC of upstream code. The existing sketch in `transport/x11/wmb_io.c` does the opposite (direct call on the client stack)
 and is superseded.
 
 ## 5. Build Profiles

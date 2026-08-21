@@ -100,9 +100,9 @@ does cost budget — one file, `kinput.c`, guard #8.
 
 | # | Item | Deliverable | Spec |
 |--:|---|---|---|
-| K1‑1 | `framework/library/hal_display.h` | New | [`12-`](12-platform-contract.md) §4 |
-| K1‑2 | `framework/library/hal_input.h`, **carrying the existing `CMD_*` / `KEY_DATA_*` / `MOUSE_BUTTON_*` constants verbatim** | New | [`12-`](12-platform-contract.md) §5 |
-| K1‑3 | `framework/library/hal_time.h`, `wmb_os.h` | New | [`12-`](12-platform-contract.md) §7, §8 |
+| K1‑1 | `hal/hal_display.h` | New | [`12-`](12-platform-contract.md) §4 |
+| K1‑2 | `hal/hal_input.h`, **carrying the existing `CMD_*` / `KEY_DATA_*` / `MOUSE_BUTTON_*` constants verbatim** | New | [`12-`](12-platform-contract.md) §5 |
+| K1‑3 | `hal/hal_time.h`, `hal/wmb_os.h` | New | [`12-`](12-platform-contract.md) §7, §8 |
 | K1‑4 | `linux_hosted/sdl_drivers/hal_display_sdl.c` — adapts `lcd_driver_*` | New | [`12-`](12-platform-contract.md) §10 |
 | K1‑5 | `linux_hosted/sdl_drivers/hal_input_sdl.c` — adapts `keypad_driver_*` + `mouse_driver_*` | New | ″ |
 | K1‑6 | `linux_hosted/system_linux/hal_time_hosted.c` (+ `wmb_os_hosted.c`) | New | ″ |

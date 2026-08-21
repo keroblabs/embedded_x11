@@ -50,13 +50,13 @@ Four numbers define the problem: **13 client symbols, 21 server symbols, 1 heade
 ## 3. Client Side — `libX11`
 
 The mechanism mirrors the server side, and for the same reason ([`90-`](90-decisions.md) D‑49): **one transport per build, selected by the source list.**
-`xcb_io.c` and `x11_xcb.c` are not compiled, `xcb_disp.c` is reduced to a stub, and `framework/wmb_x11/wmb_transport.c` defines the *same* `_X*` symbols
+`xcb_io.c` and `x11_xcb.c` are not compiled, `xcb_disp.c` is reduced to a stub, and `transport/x11/wmb_transport.c` defines the *same* `_X*` symbols
 the 245 API files already call — `_XGetRequest`, `_XReply`, `_XRead`, `_XFlush` and the rest. **Nothing is renamed to `wmb_*`**; that prefix belongs only to
 internals the API files never see (`wmb_sync_handler`, `wmb_dispatch`, `WmbDisplay`). The `xcb_*` names disappear because their files are gone, which is
 exactly what obligation T2 (§8) checks.
 
 One asymmetry with §4 is deliberate: the server‑side replacements live beside their originals in `tinyx/os/`, but the client‑side replacement lives
-**outside** `libX11/`, in `framework/wmb_x11/`. The upstream tree therefore gains no WMB‑owned files, and the only `libX11/` edits are the two guarded ones
+**outside** `libX11/`, in `transport/x11/`. The upstream tree therefore gains no WMB‑owned files, and the only `libX11/` edits are the two guarded ones
 in [`11-`](11-portability-plan.md) §8.2.
 
 ### 3.1 `libX11/src/xcb_io.c` — the thirteen
@@ -268,11 +268,11 @@ forbids. It is dead code that pays its rent by not needing to be touched.
 
 | File | Est. LOC | Covers |
 |---|---:|---|
-| `framework/wmb_x11/wmb_transport.c` | 280 | The 13 client symbols |
-| `framework/wmb_x11/wmb_open.c` | 140 | `XOpenDisplay` in‑process variant, client registration |
-| `framework/wmb_x11/wmb_close.c` | 60 | `XCloseDisplay` |
-| `framework/wmb_x11/wmb_setup.c` | 120 | Synthesised `xConnSetup` |
-| `framework/wmb_x11/wmb_queue.c` | 150 | Request slots + ready bitmask, reply slots, event queues, the completion predicate |
+| `transport/x11/wmb_transport.c` | 280 | The 13 client symbols |
+| `transport/x11/wmb_open.c` | 140 | `XOpenDisplay` in‑process variant, client registration |
+| `transport/x11/wmb_close.c` | 60 | `XCloseDisplay` |
+| `transport/x11/wmb_setup.c` | 120 | Synthesised `xConnSetup` |
+| `transport/x11/wmb_queue.c` | 150 | Request slots + ready bitmask, reply slots, event queues, the completion predicate |
 | `tinyx/os/io_wmb.c` | 160 | The 7 server I/O symbols |
 | `tinyx/os/connection_wmb.c` | 120 | The 13 connection symbols |
 | `tinyx/os/waitfor_wmb.c` | 90 | `WaitForSomething` |

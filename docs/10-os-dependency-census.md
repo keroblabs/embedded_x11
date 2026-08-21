@@ -152,7 +152,7 @@ SD3 is the highest‑risk item in this document. It is easy to write a `WaitForS
 
 Zero POSIX includes. Zero SDL includes. Already portable in the sense that matters. **One layering defect**: all four `.c` files include `hal_drivers.h`,
 which lives in `linux_hosted/sdl_drivers/` — i.e. the DDX is coupled to a *directory named for a backend*, even though it is not coupled to SDL itself. Fixed
-by moving the contract to `framework/library/hal_*.h` ([`12-`](12-platform-contract.md)).
+by moving the contract to `hal/hal_*.h` ([`12-`](12-platform-contract.md)).
 
 ## 5. `tinyx/Xext/` and the Rest of the Server
 

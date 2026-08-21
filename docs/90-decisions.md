@@ -61,7 +61,7 @@ upstream's `Dispatch()` loop, unmodified.
 
 | Alternative | Why rejected |
 |---|---|
-| Direct call from the client fiber — what `framework/wmb_x11/wmb_io.c` sketches today | Fourteen sites in the code we compile suspend a client *inside* a request handler and rely on the dispatcher to resume it later — `ClientSleep`, `IgnoreClient`, `ResetCurrentRequest`. A call on the client's own stack has nowhere to put that wait. Census in D‑46 |
+| Direct call from the client fiber — what `transport/x11/wmb_io.c` sketches today | Fourteen sites in the code we compile suspend a client *inside* a request handler and rely on the dispatcher to resume it later — `ClientSleep`, `IgnoreClient`, `ResetCurrentRequest`. A call on the client's own stack has nowhere to put that wait. Census in D‑46 |
 | Run the server on the main thread with clients as callbacks | Inverts control; JWM's event loop cannot be expressed that way |
 
 **Briefly superseded by D‑45, reinstated by D‑46.** D‑45's audit of this entry's *original* wording was correct on its own terms — `InsertFakeRequest`
@@ -205,7 +205,7 @@ by a different route; D‑46 restores the original clause.)
 ### D‑07 — `dix/main.c`'s `main()` becomes a fiber entry point · SETTLED
 
 `main(int, char**, char**)` at `tinyx/dix/main.c:227` is guarded and renamed to `TinyX_ServerFiber(void *)`. The single `main()` in the image is
-`framework/wmb_boot.c`.
+`linux_hosted/wmb_boot/wmb_boot.c`.
 
 | Alternative | Why rejected |
 |---|---|
@@ -267,7 +267,7 @@ checking is worth more than that.
 
 ### D‑42 — WMB is a detachable component with three boundaries · SETTLED · configuration PROVISIONAL
 
-The reusable payload is **the windowing set**: `jwm/`, `tinyx/`, `libX11/`, `framework/wmb_x11/`, `framework/wmb_api/`. It must be portable into another
+The reusable payload is **the windowing set**: `jwm/`, `tinyx/`, `libX11/`, `transport/x11/`, `transport/api/`. It must be portable into another
 project without dragging this project's boot, backend or build assumptions with it. Three boundaries define it, and nothing in the windowing set may
 reference anything outside them.
 
@@ -277,7 +277,7 @@ reference anything outside them.
 | **Application ABI** | Upward | `wmb_api.h` / the vtable ([`22-`](22-entry-point-abi.md)) | Other components call in |
 | **Lifecycle** | Inward | `wmb_main()` (+ optional `wmb_shutdown()`) — D‑43 | Whoever hosts WMB calls it |
 
-The lifecycle boundary is the new one, and it is what makes the other two mean anything. **WMB does not own `main()`.** `framework/wmb_boot.c` is the
+The lifecycle boundary is the new one, and it is what makes the other two mean anything. **WMB does not own `main()`.** `linux_hosted/wmb_boot/wmb_boot.c` is the
 *whole‑system configuration's host* — one file, outside the windowing set, which every current profile happens to link. A different system supplies its own
 host and calls `wmb_main()` (D‑43).
 
@@ -314,7 +314,7 @@ Terminology, because these documents have been using one word for three things:
 ### D‑43 — `wmb_main()` is WMB's single entry point · SETTLED
 
 ```c
-/* framework/wmb_x11/wmb_main.c */
+/* transport/x11/wmb_main.c */
 
 /* Bring WMB up.  Returns 0 once the server is dispatching, the window
  * manager is running and clients may connect; negative on failure.
@@ -932,16 +932,16 @@ Recorded so that reading `docs_old/` does not resurrect them.
 
 | Old decision | Where it came from | Superseded by |
 |---|---|---|
-| Direct `ProcVector` call from the client fiber; global `WmbState` | `framework/wmb_x11/wmb_io.c`, and the prior `XCB_STUB_ARCHITECTURE.md` | **D‑05** for the global state, **D‑04** for the direct call. D‑45 briefly reinstated the direct call; D‑46 retired it again, this time with the census that says why |
+| Direct `ProcVector` call from the client fiber; global `WmbState` | `transport/x11/wmb_io.c`, and the prior `XCB_STUB_ARCHITECTURE.md` | **D‑05** for the global state, **D‑04** for the direct call. D‑45 briefly reinstated the direct call; D‑46 retired it again, this time with the census that says why |
 | Dispatch on the calling client's stack; no request queue | **D‑45** | **D‑46** — fourteen sites suspend a client from inside a request handler, and `Dispatch()`'s per‑request contract is larger than the call it replaces |
 | A named target OS ("Tima OS") as a design input | `docs_old/active/PROJECT_KNOWLEDGE_BASE.md` | [`00-`](00-introduction.md) §4.3 — the target is a *contract*, not a product. The name survives only as a directory label |
-| `hal_drivers.h` in `linux_hosted/sdl_drivers/` as the DDX's interface | Current tree | **D‑13** + [`12-`](12-platform-contract.md); the contract moves to `framework/library/hal_*.h` |
+| `hal_drivers.h` in `linux_hosted/sdl_drivers/` as the DDX's interface | Current tree | **D‑13** + [`12-`](12-platform-contract.md); the contract moves to `hal/hal_*.h` |
 | A "dual bridge" (X11 socket + WMB bridge) as an architectural feature | `docs_old/active/HOST_BUILD_DUAL_BRIDGE.md` | [`03-`](03-target-architecture.md) §7 — both are **scaffolding**, compiled out on target, and never a proof |
 | Milestone scheme M0–M6 | `docs_old/active/PROJECT_KNOWLEDGE_BASE.md` §6 | [`40-`](40-implementation-plan.md) phases P1–P9 |
 | Phase scheme "Phase 1–7" | `docs_old/active/IMPLEMENTATION_PLAN.md` | Same |
 | `-D_USE_LINUX` | `framework/CMakeLists.txt` | **D‑18** |
 | Custom Xlib rewrite | `docs_old/archive_docs2/CUSTOM_XLIB.md` | **D‑03** |
-| Writing `libX11/src/wmb_transport.c` inside the libX11 tree | `docs_old/active/CLIENT_SERVER_TRANSPORT_REMOVAL.md` §7 | The transport lives in `framework/wmb_x11/`, keeping `libX11/` free of WMB‑owned files and costing zero patch budget |
+| Writing `libX11/src/wmb_transport.c` inside the libX11 tree | `docs_old/active/CLIENT_SERVER_TRANSPORT_REMOVAL.md` §7 | The transport lives in `transport/x11/`, keeping `libX11/` free of WMB‑owned files and costing zero patch budget |
 | No filesystem on target, as an architectural prohibition | **D‑17** | **D‑34** — it is an optional capability, defaulted off, not an exclusion |
 
 ## 9. Decision Index

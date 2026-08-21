@@ -194,7 +194,7 @@ surface JWM consumes is nailed down by an executable client rather than by inspe
 |---|---|---|
 | JWM sources | `jwm/src/*.c` under the same J7‑2/J7‑4/J7‑5/J7‑6 guards used by full P7 | Written in P7 (shared) |
 | Fiber runtime | [`framework/fiber/`](../framework/fiber/) + [`linux_hosted/fiber_linux/`](../linux_hosted/fiber_linux/) | **Working** |
-| HAL contract | [`framework/library/hal_task.h`](../framework/library/hal_task.h) (nine functions, PC‑V5..PC‑V7) | **Frozen** |
+| HAL contract | [`hal/hal_task.h`](../hal/hal_task.h) (nine functions, PC‑V5..PC‑V7) | **Frozen** |
 | Harness `wmb_main` variant | ~80 LOC — inits the runtime, spawns one JWM fiber, loops on `hal_task_yield` | New |
 | Stub `wmb_app_table` | ~30 LOC — two or three entries with observable side effects (e.g. `log_hello`, `toggle_flag_and_exit`) | New |
 | Xlib | Stock system `libX11.so.6` — encodes to the wire, sends over a Unix socket | System |

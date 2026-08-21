@@ -18,7 +18,7 @@ end to end.
 | OS layer | all of `tinyx/os/`, including the three `*_wmb.c` replacements | — |
 | Generated config | `cmake/dix-config.h.in`, `cmake/kdrive-config.h.in` | `kdrive-config.h`'s KDrive‑facing macros are reviewed by [`43-`](43-kdrive-module-plan.md) |
 | DDX and KDrive framework | — | `tinyx/kdrive/` → [`43-`](43-kdrive-module-plan.md) |
-| Client half of the transport | — | `framework/wmb_x11/`, `libX11/` → [`44-`](44-framework-module-plan.md) |
+| Client half of the transport | — | `transport/x11/`, `libX11/` → [`46-`](46-transport-module-plan.md) |
 | The request queue | — | `wmb_queue.c` is a framework artefact ([`01-`](01-component-inventory.md) §12, group `WMB_TRANSPORT`); this module *consumes* it |
 
 **Rule of thumb:** if the file lives under `tinyx/` and is not under `tinyx/kdrive/`, it is this module's.
