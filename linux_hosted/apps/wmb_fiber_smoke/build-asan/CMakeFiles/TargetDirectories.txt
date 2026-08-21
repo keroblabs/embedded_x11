@@ -1,3 +1,0 @@
-/home/wifi/projects/x11_window/linux_hosted/apps/wmb_fiber_smoke/build-asan/CMakeFiles/wmb_fiber_smoke.dir
-/home/wifi/projects/x11_window/linux_hosted/apps/wmb_fiber_smoke/build-asan/CMakeFiles/edit_cache.dir
-/home/wifi/projects/x11_window/linux_hosted/apps/wmb_fiber_smoke/build-asan/CMakeFiles/rebuild_cache.dir

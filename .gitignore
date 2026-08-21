@@ -1,6 +1,7 @@
-# CMake build trees (top-level and per-example)
+# CMake build trees (top-level, per-example, and per-sanitizer variants)
 build/
 build_local/
+build-*/
 
 # Object files and dependency files
 *.o
