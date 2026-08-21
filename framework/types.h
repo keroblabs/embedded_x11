@@ -3,13 +3,15 @@
 
 ////////////////////////////////////////////////////////////////////////////////////////
 
-#include <stdlib.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
 #include <stdint.h>
 #include <math.h>
 #include <time.h>
+
+#include "hal_alloc.h"
 
 #ifdef TIMA_USE_CONFIG
 #include "config_tima.h"
@@ -122,8 +124,8 @@ typedef int ( *ptr_print_t )( const char *fmt, ... );
 void * sys_malloc( uint32_t size );
 void sys_free( void * ptr );
 
-#define MMALLOC         malloc
-#define MFREE           free
+#define MMALLOC         wmb_alloc
+#define MFREE           wmb_free
 
 ////////////////////////////////////////////////////////////////////////////////////////
 
