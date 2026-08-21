@@ -25,8 +25,6 @@ add_executable(sdl_fiber_example_v2
     ${SOURCE_FILES_SYSTEM_LINUX}
     ${SOURCE_FILES_SDL_LIBRARY}
     ${SOURCE_FILES_SDL_DRIVERS}
-    ${FRAMEWORK_ROOT}/library/heap_mngr.c
-    ${FRAMEWORK_ROOT}/library/buffer.c
 )
 
 target_include_directories(sdl_fiber_example_v2 PRIVATE
