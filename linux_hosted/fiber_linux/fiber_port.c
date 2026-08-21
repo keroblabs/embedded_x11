@@ -79,6 +79,22 @@ typedef struct port_ctx {
 static port_ctx_t   g_boot_ctx;
 static port_ctx_t  *g_current_ctx = &g_boot_ctx;
 
+/* Trampoline the port pushes onto every fresh fiber's context via
+ * makecontext.  On first entry the new fiber must call
+ * __sanitizer_finish_switch_fiber to pair the __sanitizer_start_switch_
+ * fiber the outgoing fiber made just before swapcontext.  Passing NULL
+ * says "no previous fake-stack to restore" - correct for a fresh
+ * fiber.  Then hand off to the generic trampoline which never returns. */
+static void port_trampoline(void)
+{
+#ifdef WMB_ASAN_FIBER
+    __sanitizer_finish_switch_fiber(NULL, NULL, NULL);
+#endif
+    fiber_trampoline();
+    /* fiber_trampoline never returns; if it did, spin defensively. */
+    for (;;) { }
+}
+
 /* --------------------------------------------------------------------
  * Port contract
  * -------------------------------------------------------------------- */
@@ -123,7 +139,7 @@ void *fiber_port_init_stack(void *stack_base, size_t stack_size,
     ctx->stack_bottom = stack_base;
     ctx->stack_size   = ctx->uctx.uc_stack.ss_size;
 
-    PORT_MAKECONTEXT(&ctx->uctx, (void (*)(void))fiber_trampoline, 0);
+    PORT_MAKECONTEXT(&ctx->uctx, (void (*)(void))port_trampoline, 0);
     return ctx;
 }
 
