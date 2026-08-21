@@ -11,7 +11,6 @@
 #include "fiber_config.h"
 #include "fiber_internal.h"
 #include "intr_handler.h"
-#include "heap.h"
 #include "hal_time.h"
 
 #include <stddef.h>
@@ -50,13 +49,6 @@ static uint8_t       g_in_notify       = 0u;
  * and not the notifier.  Without this a test-and-acquire predicate
  * claims the resource for the wrong fiber. */
 static struct fiber *g_predicate_fiber = NULL;
-
-/* Dedicated heap for fiber-owned stacks.  Keeps the runtime free of
- * any libc-malloc dependency on bare-metal targets that lack a
- * _sbrk() implementation.  Sized for the worst case of FIBER_MAX
- * fibers all using FIBER_DEFAULT_STACK plus heap bookkeeping.       */
-static uint8_t fiber_heap_mem[FIBER_HEAP_SIZE];
-static heap_t  fiber_heap;
 
 /* --------------------------------------------------------------------
  * FCB pool helpers (called under irq_lock)
@@ -104,7 +96,7 @@ static void ring_unlink_locked(struct fiber *f)
 static void zombie_reclaim_locked(struct fiber *z)
 {
     if (z->owns_stack && z->stack_base) {
-        heap_free(&fiber_heap, z->stack_base);
+        fiber_port_free_stack(z->stack_base, z->stack_size);
     }
     ring_unlink_locked(z);
     fcb_release_locked(z);
@@ -233,7 +225,6 @@ void fiber_runtime_init(uint32_t preemption_ms)
     g_preemption_ticks = (preemption_ms > 0u) ? preemption_ms : 1u;
     g_tick_counter     = 0;
 
-    heap_init(&fiber_heap, fiber_heap_mem, sizeof(fiber_heap_mem));
     fiber_port_init(preemption_ms);
 }
 
@@ -278,23 +269,15 @@ static fiber_t *fiber_create_common(fiber_func_t func, void *arg,
 fiber_t *fiber_create(fiber_func_t func, void *arg, size_t stack_size)
 {
     if (stack_size == 0u) stack_size = FIBER_DEFAULT_STACK;
-    /* Over-allocate to absorb alignment rounding done by the common
-     * path.  heap_malloc returns word-aligned blocks; the common
-     * path rounds the top down to FIBER_PORT_STACK_ALIGN.          */
-    void *buf = heap_malloc(&fiber_heap,
-                            (uint32_t)(stack_size + FIBER_PORT_STACK_ALIGN));
-    if (!buf) return NULL;
 
-    uintptr_t aligned = ((uintptr_t)buf + (FIBER_PORT_STACK_ALIGN - 1u))
-                        & ~(uintptr_t)(FIBER_PORT_STACK_ALIGN - 1u);
-    fiber_t *f = fiber_create_common(func, arg, (void *)aligned,
-                                     stack_size, 1u);
+    void *stack = fiber_port_alloc_stack(stack_size);
+    if (!stack) return NULL;
+
+    fiber_t *f = fiber_create_common(func, arg, stack, stack_size, 1u);
     if (!f) {
-        heap_free(&fiber_heap, buf);
+        fiber_port_free_stack(stack, stack_size);
         return NULL;
     }
-    /* Remember the un-aligned heap base so destroy can free it. */
-    f->stack_base = buf;
     return f;
 }
 

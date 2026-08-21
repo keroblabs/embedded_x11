@@ -21,6 +21,8 @@
 
 #include <stddef.h>
 #include <string.h>
+#include <sys/mman.h>
+#include <unistd.h>
 
 #if defined(FIBER_USE_LIBUCONTEXT)
 #include <libucontext/libucontext.h>
@@ -111,4 +113,64 @@ uint32_t fiber_port_irq_lock(void)
 void fiber_port_irq_unlock(uint32_t prev)
 {
     intr_global_set_enabled(prev ? TRUE : FALSE);
+}
+
+/* --------------------------------------------------------------------
+ * Stack allocation with a guard page
+ * --------------------------------------------------------------------
+ * Layout returned to the generic layer:
+ *
+ *   low addr  [ guard page (PROT_NONE)           ]   <- overflow SIGSEGVs here
+ *             [ usable stack, rounded up to page ]
+ *   high addr [ (return + size)                  ]
+ *
+ * Stack grows down on every architecture the hosted port supports, so
+ * an overflow sees the guard page before it corrupts anything else.
+ * -------------------------------------------------------------------- */
+
+static size_t port_page_size(void)
+{
+    static size_t cached = 0;
+    if (cached == 0u) {
+        long ps = sysconf(_SC_PAGESIZE);
+        cached  = (ps > 0) ? (size_t)ps : 4096u;
+    }
+    return cached;
+}
+
+static size_t port_stack_map_size(size_t size)
+{
+    size_t page    = port_page_size();
+    size_t rounded = (size + (page - 1u)) & ~(page - 1u);
+    return rounded + page;      /* usable + one guard page */
+}
+
+void *fiber_port_alloc_stack(size_t size)
+{
+    if (size == 0u) return NULL;
+
+    size_t page  = port_page_size();
+    size_t total = port_stack_map_size(size);
+
+    void *base = mmap(NULL, total,
+                      PROT_READ | PROT_WRITE,
+                      MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+    if (base == MAP_FAILED) {
+        return NULL;
+    }
+    if (mprotect(base, page, PROT_NONE) != 0) {
+        (void)munmap(base, total);
+        return NULL;
+    }
+    return (void *)((unsigned char *)base + page);
+}
+
+void fiber_port_free_stack(void *stack, size_t size)
+{
+    if (stack == NULL) return;
+
+    size_t page  = port_page_size();
+    size_t total = port_stack_map_size(size);
+    void  *base  = (void *)((unsigned char *)stack - page);
+    (void)munmap(base, total);
 }

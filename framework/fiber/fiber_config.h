@@ -22,14 +22,6 @@
 #define FIBER_CANARY               0xDEADBEEFu
 #endif
 
-#ifndef FIBER_HEAP_SIZE
-/* Dedicated heap for heap-backed fiber stacks (fiber_create()).
- * Sized for the worst case of FIBER_MAX fibers each consuming
- * FIBER_DEFAULT_STACK plus per-block bookkeeping overhead.  Tune
- * down if you only use fiber_create_static().                       */
-#define FIBER_HEAP_SIZE            (FIBER_MAX * (FIBER_DEFAULT_STACK + 64u))
-#endif
-
 #ifndef FIBER_MUTEX_MAX
 /* Maximum number of fiber_mutex_t objects allocatable via
  * fiber_mutex_create().  Statically allocated, no heap.            */

@@ -57,4 +57,14 @@ void *fiber_sched_swap(void *cur_sp);
  * frame puts this function's address into the resume PC slot.        */
 void  fiber_trampoline(void);
 
+/* Allocate a stack of at least `size` bytes, aligned to
+ * FIBER_PORT_STACK_ALIGN.  The port may add a guard page, canary or
+ * any other bracketing - the generic layer only sees the usable
+ * region [return, return + size).  Returns NULL on failure.         */
+void *fiber_port_alloc_stack(size_t size);
+
+/* Free a stack previously returned by fiber_port_alloc_stack.
+ * `size` is the same value that was passed to alloc.                */
+void  fiber_port_free_stack(void *stack, size_t size);
+
 #endif /* _fiber_port_h_ */
