@@ -1,0 +1,13 @@
+# CMake build trees (top-level and per-example)
+build/
+build_local/
+
+# Object files and dependency files
+*.o
+*.d
+
+# Editor / IDE
+.vscode/
+
+# OS
+.DS_Store
