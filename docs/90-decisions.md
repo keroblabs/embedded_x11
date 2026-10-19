@@ -61,7 +61,7 @@ upstream's `Dispatch()` loop, unmodified.
 
 | Alternative | Why rejected |
 |---|---|
-| Direct call from the client fiber — what `transport/x11/wmb_io.c` sketches today | Fourteen sites in the code we compile suspend a client *inside* a request handler and rely on the dispatcher to resume it later — `ClientSleep`, `IgnoreClient`, `ResetCurrentRequest`. A call on the client's own stack has nowhere to put that wait. Census in D‑46 |
+| Direct call from the client fiber — as illustrated by the retired `transport/x11/wmb_io.c` in Git history | Fourteen sites in the code we compile suspend a client *inside* a request handler and rely on the dispatcher to resume it later — `ClientSleep`, `IgnoreClient`, `ResetCurrentRequest`. A call on the client's own stack has nowhere to put that wait. Census in D‑46 |
 | Run the server on the main thread with clients as callbacks | Inverts control; JWM's event loop cannot be expressed that way |
 
 **Briefly superseded by D‑45, reinstated by D‑46.** D‑45's audit of this entry's *original* wording was correct on its own terms — `InsertFakeRequest`
@@ -185,7 +185,7 @@ remaining on the foreign‑task post path.
 
 | Alternative | Why rejected |
 |---|---|
-| `static WmbState wmb_state` — what `wmb_io.c` does today | Breaks the moment JWM and one application coexist, which is the minimum useful configuration |
+| `static WmbState wmb_state` — what the retired `wmb_io.c` prototype did | Breaks the moment JWM and one application coexist, which is the minimum useful configuration |
 
 **Consequences:** [`21-`](21-inprocess-transport.md) §3.1. Reusing the `dpy->xcb` slot avoids any change to the `Display` layout and therefore costs no
 patch budget.
@@ -932,7 +932,7 @@ Recorded so that reading `docs_old/` does not resurrect them.
 
 | Old decision | Where it came from | Superseded by |
 |---|---|---|
-| Direct `ProcVector` call from the client fiber; global `WmbState` | `transport/x11/wmb_io.c`, and the prior `XCB_STUB_ARCHITECTURE.md` | **D‑05** for the global state, **D‑04** for the direct call. D‑45 briefly reinstated the direct call; D‑46 retired it again, this time with the census that says why |
+| Direct `ProcVector` call from the client fiber; global `WmbState` | the retired `transport/x11/wmb_io.c` (Git history), and the prior `XCB_STUB_ARCHITECTURE.md` | **D‑05** for the global state, **D‑04** for the direct call. D‑45 briefly reinstated the direct call; D‑46 retired it again, this time with the census that says why |
 | Dispatch on the calling client's stack; no request queue | **D‑45** | **D‑46** — fourteen sites suspend a client from inside a request handler, and `Dispatch()`'s per‑request contract is larger than the call it replaces |
 | A named target OS ("Tima OS") as a design input | `docs_old/active/PROJECT_KNOWLEDGE_BASE.md` | [`00-`](00-introduction.md) §4.3 — the target is a *contract*, not a product. The name survives only as a directory label |
 | `hal_drivers.h` in `linux_hosted/sdl_drivers/` as the DDX's interface | Current tree | **D‑13** + [`12-`](12-platform-contract.md); the contract moves to `hal/hal_*.h` |

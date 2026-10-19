@@ -179,7 +179,7 @@ Second, `Dispatch()` is a per‑request *contract*, not a loop around `ProcVecto
 keeps that file **unmodified** — D‑14's preference order applied to the busiest file in the tree.
 
 Running all server code on **one dedicated fiber** gives the dispatcher the invariant it assumes — exactly one request in flight — *structurally*, rather
-than as a rule imposed on 78 kLOC of upstream code. The existing sketch in `transport/x11/wmb_io.c` does the opposite (direct call on the client stack)
+than as a rule imposed on 78 kLOC of upstream code. The retired sketch (formerly `transport/x11/wmb_io.c`, retained in Git history) did the opposite (direct call on the client stack)
 and is superseded.
 
 ## 5. Build Profiles

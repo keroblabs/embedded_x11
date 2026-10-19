@@ -21,23 +21,24 @@ classic `libXfont` sources).
 
 ### 1.1 What the tree does today
 
-Almost nothing. That statement is deliberate and it is the honest starting point:
+The hosted fiber and HAL foundations are runnable, but the X11 stack has not yet been assembled:
 
-- `framework/CMakeLists.txt` defines a **single executable target**, `wmb_tima_build`, which compiles the SDL backend (`sdl_library/`, `sdl_drivers/`), two
-  heap helpers, the five files of the Tima KDrive DDX (`tinyx/kdrive/tima/`), and a six‑line stub `main()` in `transport/x11/wmb_main.c`.
-- It does **not** compile or link any part of `tinyx/dix`, `tinyx/os`, `tinyx/mi`, `tinyx/fb`, `tinyx/kdrive/src`, `libX11/`, or `jwm/`. There is no built
-  binary anywhere in `build/` or `build_local/`.
+- The top-level `CMakeLists.txt` builds the framework, hosted fiber/system ports, optional SDL backends, and smoke/demo executables.
+  `transport/x11/wmb_main.c` now reserves the portable lifecycle entry point without exporting a competing `main()`.
+- The build does **not** yet compile or link `tinyx/dix`, `tinyx/os`, `tinyx/mi`, `tinyx/fb`, `tinyx/kdrive/src`, `libX11/`, or `jwm/`
+  into a complete WMB image.
 - `framework/fiber/` contains a complete, portable cooperative fiber core (`fiber.c`, `fiber_sync.c`, `hal_task.c` and its headers) **and a working hosted
   port** in `linux_hosted/fiber_linux/`. Both are exercised by the smoke programs under `linux_hosted/`, one of which — `sdl_fiber_example_v2/` — is a
   running proof of concept of the in‑process transport's client–server handshake ([`21-`](21-inprocess-transport.md) §11). The preemption tick is
   deliberately disarmed ([`90-`](90-decisions.md) D‑47).
-- `transport/x11/wmb_io.c` contains a first sketch of the in‑process transport (`wmb_sync_handler`, `_XGetRequest`, `_XReply`) — 277 lines that have
-  never been compiled.
+- The obsolete `transport/x11/wmb_io.c` direct-dispatch sketch and its empty header were removed from the working tree. They remain in Git history;
+  P5 will implement per-`Display` state and server-fiber dispatch according to [`21-`](21-inprocess-transport.md) and D-46.
+  `transport/api/wmb_app_table.h` is retained as the application-launch contract.
 - `tinyx/kdrive/tima/tima_kdrive_system.c` wires `KdOsFuncs`, `InitCard`, `InitOutput`, `InitInput`, `OsVendorInit` and the `ddx*` stubs. The cooperative
   wait hook the whole design depends on — `tima_WaitForEvents()` — does not exist.
 
 So: the **components are present**, a **design has been argued at length** (see `docs_old/`, ~33.6 kLOC of prior planning across four generations of
-documents), and **nothing has been assembled**. This project starts by fixing that.
+documents), and **the X11 stack has not yet been assembled**. The next integration work starts by fixing that.
 
 ### 1.2 Why this is not a normal X11 port
 

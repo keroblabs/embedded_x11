@@ -1,44 +1,42 @@
-#ifndef _WMB_X11_XLIBINT_WMB_H_
-#define _WMB_X11_XLIBINT_WMB_H_
+/*
+ * Xlibint_wmb.h - private hooks for the future in-process Xlib transport.
+ *
+ * This is an internal declaration header, NOT an alternative Xlibint.h.
+ * The WMB_INPROC-gated Data() change belongs in X11/Xlibint.h when P5
+ * integrates libX11 (docs/21-inprocess-transport.md section 3.5).
+ *
+ * The former header replaced Xmalloc/Xrealloc/Xcalloc using a global
+ * wmb_heap_data and replaced Data() with an unchecked buffer write.
+ * Those overrides were unsafe and have been removed.  Allocation
+ * ownership must be settled as part of the P5 libX11 integration.
+ *
+ * No implementation of _XBufferGrow exists yet.  Do not enable the
+ * WMB_INPROC Data() path until wmb_transport.c implements and tests it.
+ */
+#ifndef WMB_X11_XLIBINT_WMB_H
+#define WMB_X11_XLIBINT_WMB_H
 
-#include "heap.h"
-#include "wmb_io.h"
+#include <stddef.h>
+#include <X11/Xlib.h>
 
-extern heap_t wmb_heap_data;
-
-#ifdef Xmalloc
-#undef Xmalloc
+#ifdef __cplusplus
+extern "C" {
 #endif
 
-#define Xmalloc(size)           heap_malloc(&wmb_heap_data, (size))
+/*
+ * Ensure at least additional_bytes of capacity beyond dpy->bufptr.
+ *
+ * Return 0 on success and a negative value on failure.  On failure
+ * preserve dpy->buffer, dpy->bufptr and dpy->bufmax unchanged; callers
+ * must NOT write after a failed grow.
+ *
+ * The buffer may move on success.  P5 must audit Xlib call sites that
+ * retain request pointers across a Data() call (TR-1 / D-46).
+ */
+int _XBufferGrow(Display *dpy, size_t additional_bytes);
 
-#ifdef Xrealloc
-#undef Xrealloc
-#endif
-
-#define Xrealloc(ptr, size)     heap_realloc(&wmb_heap_data, (ptr), (size))
-
-#ifdef Xcalloc
-#undef Xcalloc
-#endif
-
-#define Xcalloc(nelem, size)    heap_calloc(&wmb_heap_data, (nelem), (size))
-
-#ifdef Data
-#undef Data
-#endif
-
-#define Data(dpy, data, len) {\
-    if (dpy->bufptr + (len) <= dpy->bufmax) {\
-        memcpy(dpy->bufptr, data, (size_t)(len));\
-        dpy->bufptr += ((size_t)((len) + 3) & (size_t)~3);\
-    } else {\
-        _XBufferOverflow(dpy, (len));\
-        memcpy(dpy->bufptr, data, (size_t)(len));\
-        dpy->bufptr += ((size_t)((len) + 3) & (size_t)~3);\
-    }\
+#ifdef __cplusplus
 }
+#endif
 
-void _XBufferOverflow(Display *dpy, long needed);
-
-#endif // _WMB_X11_XLIBINT_WMB_H_
+#endif /* WMB_X11_XLIBINT_WMB_H */

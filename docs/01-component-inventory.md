@@ -127,7 +127,7 @@ possible outcome, and running the same allocator in both places makes the hosted
 | File | Est. LOC | Disposition | Notes |
 |---|---:|---|---|
 | `linux_hosted/wmb_boot/wmb_boot.c` | ~40 | NEW | This configuration's **host**, and the `main()`. Owns: early platform init → `heap_init` → `fiber_runtime_init()` → `wmb_main()` → park. Outside the windowing set ([`90-`](90-decisions.md) D‑42) |
-| `transport/x11/wmb_main.c` | ~80 | REWRITE | `wmb_main()` / `wmb_shutdown()` — display and input bring‑up, WMB's fiber creation, the readiness gate ([`90-`](90-decisions.md) D‑43). Replaces the 6‑line stub of the same name |
+| `transport/x11/wmb_main.c` | ~80 | IMPLEMENT (reserved path) | The obsolete `void main(void)` stub has been removed. Implement portable `wmb_main()` / `wmb_shutdown()` here per D-43 after server readiness exists; the host's `main()` belongs in `linux_hosted/wmb_boot/` |
 
 **Only one `main()` may exist in the image.** `tinyx/dix/main.c:227` currently defines one. Its resolution is a settled decision — see
 [`90-decisions.md`](90-decisions.md) D‑07.
@@ -352,20 +352,20 @@ pristine checkout — never guessed, and never copied in wholesale ([`90-`](90-d
 
 | File | Est. LOC | Disposition | Notes |
 |---|---:|---|---|
-| `transport/x11/wmb_transport.c` | ~280 | NEW | Replaces `xcb_io.c`. Grows from the existing 277‑line `wmb_io.c` sketch |
+| `transport/x11/wmb_transport.c` | ~280 | NEW (P5) | Replaces `xcb_io.c`. Implement from Document 21/D-46, **not** the retired direct-`ProcVector` sketch |
 | `transport/x11/wmb_open.c` | ~140 | NEW | In‑process `XOpenDisplay`: build `Display`, register `ClientRec`, install `dpy->synchandler` |
 | `transport/x11/wmb_close.c` | ~60 | NEW | Teardown |
 | `transport/x11/wmb_setup.c` | ~120 | NEW | Synthesise the `xConnSetup` blob that `XOpenDisplay` normally reads off the wire |
-| `transport/x11/Xlibint_wmb.h` | 43 (exists) | CARRY | Local Xlib internal overrides |
-| `transport/x11/wmb_io.h` | 0 (empty) | NEW | Currently a zero‑byte file. Must be written |
+| `transport/x11/Xlibint_wmb.h` | declarations (exists) | KEEP / ADAPT | Declares the future checked `_XBufferGrow` hook; the unsafe allocation and `Data()` macro overrides were removed |
+| `transport/x11/wmb_x11_internal.h` | — | NEW (P5) | Per-`Display` state specified in Document 21 §3.1; replaces the intended role of the empty `wmb_io.h` |
 
-### 9.2 Existing sketch — `transport/x11/wmb_io.c`
+### 9.2 Retired sketch — `transport/x11/wmb_io.c` (Git history only)
 
-277 lines, never compiled. Contains a working‑looking `wmb_sync_handler()` that sets `client->requestBuffer = dpy->buffer` and calls
-`client->requestVector[opcode](client)`, plus `_XGetRequest` and a `WmbState` struct. **It assumes a single global client** (`static WmbState wmb_state`),
-which is wrong the moment JWM and an application coexist. It is a starting point, not a design. See
-[`21-inprocess-transport.md`](21-inprocess-transport.md) §4.
-
+The uncompiled 277-line prototype directly called `client->requestVector[opcode](client)` and stored a global `WmbState`.
+Both choices conflict with D-46 and D-05. It was removed from the working tree along with its empty `wmb_io.h`;
+it remains in Git history for reference, **not** as the implementation starting point. P5 uses the per-`Display` state
+and dedicated-server-fiber queue described in [`21-inprocess-transport.md`](21-inprocess-transport.md).
+The old `void main(void)` in `wmb_main.c` was likewise removed while reserving that path for the D-43 lifecycle.
 ## 10. C7 — Entry‑Point ABI
 
 For applications that are *separate binaries* rather than in‑tree fibers. Fully specified in [`22-entry-point-abi.md`](22-entry-point-abi.md).

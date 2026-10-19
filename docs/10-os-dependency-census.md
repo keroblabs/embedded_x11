@@ -222,7 +222,7 @@ Additionally, ten optional external libraries are auto‑detected by `jwm/config
 | `library/heap.c` | — | — | Clean |
 | `library/buffer.c` | — | — | Clean |
 | `fiber/fiber.c` | — | — | Clean. Needs an arch port that *will* be platform‑specific by design |
-| `wmb_x11/wmb_io.c` | `Xlibint.h`, `dixstruct.h`, `Xxcbint.h` | — | Clean of POSIX, but architecturally superseded |
+| `transport/x11/wmb_io.c` (retired; Git history) | `Xlibint.h`, `dixstruct.h`, `Xxcbint.h` | — | Former sketch had no direct POSIX dependencies, but violated D-46 and was removed |
 | `CMakeLists.txt` | `-D_USE_LINUX` | — | **Must be removed.** Nothing should key off "is this Linux" |
 
 The `-D_USE_LINUX` define in `framework/CMakeLists.txt:30` is worth calling out: it is exactly the shape of dependency this project exists to eliminate.

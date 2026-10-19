@@ -35,8 +35,8 @@ Five decisions shape everything. Each is recorded with its rationale in [`90-dec
 
 | # | Decision | Rejected alternative | Why |
 |---|---|---|---|
-| **D‑04** | **All server code runs on one dedicated fiber.** A client fiber never calls `ProcVector` on its own stack | Direct call from the client fiber (what `transport/x11/wmb_io.c` sketches today) | Fourteen sites in the code we compile suspend a client *inside* a request handler and rely on the dispatcher to resume it — `ClientSleep`, `IgnoreClient`, `ResetCurrentRequest`. A direct call has nowhere to put that wait. Census in [`90-`](90-decisions.md) D‑46 |
-| **D‑05** | **Per‑`Display` state, never global** | `static WmbState wmb_state` (the current sketch) | JWM + N applications each have a `Display` |
+| **D‑04** | **All server code runs on one dedicated fiber.** A client fiber never calls `ProcVector` on its own stack | Direct call from the client fiber (retired `wmb_io.c` prototype, available in Git history) | Fourteen sites in the code we compile suspend a client *inside* a request handler and rely on the dispatcher to resume it — `ClientSleep`, `IgnoreClient`, `ResetCurrentRequest`. A direct call has nowhere to put that wait. Census in [`90-`](90-decisions.md) D‑46 |
+| **D‑05** | **Per‑`Display` state, never global** | `static WmbState wmb_state` (retired prototype, Git history) | JWM + N applications each have a `Display` |
 | **D‑06** | **The request buffer is `dpy->buffer` and is not copied** | Copy into a server‑owned buffer | Zero‑copy is the entire point; the buffer is stable because the client fiber is suspended while the server reads it |
 | **D‑08** | **Replies and events are copied into per‑client slots** | Zero‑copy on the return path too | The server's reply lives on the server fiber's stack. It must be copied before the server fiber continues |
 | **D‑09** | **The X11 wire format is preserved end to end** | Bypass encoding and call `dix` functions directly | Preserving the format means the 245 Xlib API files, the `swapreq`/`swaprep` machinery, XKB, and every extension work unchanged. Bypassing it means rewriting Xlib |
