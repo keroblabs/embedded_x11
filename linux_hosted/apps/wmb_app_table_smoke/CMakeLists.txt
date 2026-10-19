@@ -1,0 +1,3 @@
+add_executable(wmb_app_table_smoke ${CMAKE_CURRENT_LIST_DIR}/wmb_app_table_smoke.c)
+target_link_libraries(wmb_app_table_smoke PRIVATE wmb_transport_api)
+target_compile_options(wmb_app_table_smoke PRIVATE -Wall -Wextra)

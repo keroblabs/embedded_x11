@@ -26,6 +26,19 @@ add_library(wmb_hal INTERFACE)
 target_include_directories(wmb_hal INTERFACE ${HAL_INCLUDE_PATH})
 
 # ---------------------------------------------------------------------
+# wmb_transport_api: interface library for the transport module's
+# public contract headers (docs/45-jwm-module-plan.md I5, D-I5-5).
+# Consumers pick up wmb_app_table.h and any future transport-side
+# contracts by linking this target.  Implementation lives elsewhere
+# (docs/46-transport-module-plan.md); this only exports the include
+# path plus the hal_task.h dependency the contract needs.
+# ---------------------------------------------------------------------
+add_library(wmb_transport_api INTERFACE)
+target_include_directories(wmb_transport_api INTERFACE
+    ${CMAKE_CURRENT_LIST_DIR}/transport/api)
+target_link_libraries(wmb_transport_api INTERFACE wmb_hal)
+
+# ---------------------------------------------------------------------
 # wmb_framework: fiber runtime + library primitives.  No platform, no
 # X11.  L8 and L9 in docs/44-framework-module-plan.md hold structurally
 # for this target - see hal/, transport/ and linux_hosted/ for the
@@ -131,6 +144,7 @@ endif()
 # ---------------------------------------------------------------------
 add_subdirectory(linux_hosted/apps/wmb_fiber_smoke)
 add_subdirectory(linux_hosted/apps/wmb_task_smoke)
+add_subdirectory(linux_hosted/apps/wmb_app_table_smoke)
 add_subdirectory(linux_hosted/fiber_example)
 if(WMB_HAVE_SDL)
     add_subdirectory(linux_hosted/sdl_fiber_example)

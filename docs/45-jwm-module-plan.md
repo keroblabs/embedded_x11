@@ -15,10 +15,11 @@ a menu. [`40-`](40-implementation-plan.md) remains the authority on phase order;
 |---|---|---|
 | The WM | all of `jwm/src/` | — |
 | Build glue | `jwm/CMakeLists.txt`, `jwm_namespace.h`, `jwm_entry.c`, `jwm_entry.h` | — |
+| Harness | `linux_hosted/jwm_standalone/` | — |
 | Configuration | The hard‑coded JWM configuration that replaces `.jwmrc` | — |
-| Xlib | — | `libX11/` and the transport → [`44-`](44-framework-module-plan.md) |
-| The launch table | `command.c`'s call into `wmb_app_table` | `wmb_app_table` itself → [`44-`](44-framework-module-plan.md) |
-| Readiness gate | — | `wmb_main()` releases the client fibers → [`44-`](44-framework-module-plan.md) |
+| Xlib | — | `libX11/` and the transport → [`46-`](46-transport-module-plan.md) |
+| The launch table | `command.c`'s call into `wmb_app_table` | `wmb_app_table` itself → [`46-`](46-transport-module-plan.md) |
+| Readiness gate | — | `wmb_main()` releases the client fibers → [`46-`](46-transport-module-plan.md) |
 
 **Six files hold JWM's entire POSIX footprint**: `command.c`, `event.c`, `font.c`, `main.c`, `misc.c`, `timing.c`. Everything else — 44 files, the
 whole window‑management core — **is pure Xlib and is not touched.**
@@ -76,15 +77,99 @@ filesystem, a font config path, or a second rendering stack.
 
 ### 3.1 Preconditions
 
-P7 does not start until **P5 and P6 are both green** ([`40-`](40-implementation-plan.md) §11). Concretely, this module needs:
+The two acts of §4.7 have very different preconditions. **Act A (the standalone harness, §4.8)** needs the framework, one contract header from the
+transport module, and stock system Xlib — nothing more. **Act B (the full‑P7 crossover)** needs the transport module's `libx11_wmb.a` and the tinyx
+server. The window manager team's day‑one blocker is a single header from [`46-`](46-transport-module-plan.md); everything else it needs for J7‑0 is
+either shipped or in‑tree.
 
-| From | What |
-|---|---|
-| [`44-`](44-framework-module-plan.md) | `XOpenDisplay` returning a real `Display*`; the event path delivering `Expose` and input; `hal_yield_timeout`; `wmb_app_table`; the readiness gate in `wmb_main()` |
-| [`42-`](42-tinyx-module-plan.md) | Grab flow control in `io_wmb.c` / `connection_wmb.c`; `XGrabServer` actually blocking other clients |
-| [`43-`](43-kdrive-module-plan.md) | Real pointer and keyboard events, with working button‑release and wheel handling (D2, D3) |
+#### 3.1.1 Code inputs the window manager team consumes
 
-**A JWM integration started before those are true will spend its time debugging other modules.**
+| # | Input | Owner | State | Needed for |
+|---|---|---|---|---|
+| I1 | `libwmb_framework.a` + `libwmb_fiber_linux.a` + `libwmb_system_linux.a` — the runtime substrate | [`44-`](44-framework-module-plan.md) | **DONE** — top‑level `CMakeLists.txt`, commits 1–8 | A + B |
+| I2 | `hal/hal_task.h` — the nine cooperative‑wait functions (`hal_task_create`, `hal_yield_timeout`, `hal_task_wake`, `hal_task_wait`, …) | [`44-`](44-framework-module-plan.md) | **DONE** — frozen contract, PC‑V5..PC‑V7 | A + B |
+| I3 | `libX11/include/X11/` — client‑side Xlib headers (`Xlib.h`, `Xlibint.h`, `Xutil.h`, `Xresource.h`, …) | upstream, in tree | **In tree**, carried unmodified | A + B |
+| I4 | `X11/` (workspace root) — protocol and support headers (`X.h`, `Xproto.h`, `Xatom.h`, `keysym.h`, `cursorfont.h`, …) | upstream, in tree | **In tree** | A + B |
+| I5 | `wmb_app_table` **contract header** — the `wmb_app_t` struct and the `wmb_app_table[]` / `wmb_app_table_size` externs. **Header only**; §4.8.4's stub is the first implementation | [`46-`](46-transport-module-plan.md) | **MISSING — the one blocker for J7‑0** | A + B |
+| I6 | Stock system Xlib (`libX11-dev` / `libX11.so.6`) + `xserver-xephyr` (developer) / `xvfb` (CI) | System | Assumed present | A only |
+| I7 | `libx11_wmb.a` — `libX11/src/` rebuilt under `WMB_INPROC` with the two `libX11/` guards | [`46-`](46-transport-module-plan.md), P5 + P6 | Not yet built | B only |
+| I8 | `libtinyx.a` — the server, including grab flow control in `io_wmb.c` / `connection_wmb.c` | [`42-`](42-tinyx-module-plan.md), P4 + P5 + P6 | Not yet built | B only |
+| I9 | Real `wmb_main()` with the readiness gate; real pointer + keyboard backends (D2, D3) | [`46-`](46-transport-module-plan.md), [`43-`](43-kdrive-module-plan.md) | Not yet built | B only |
+
+**`libjwm.a` compiles against headers only** — I1–I5. No `.a` from another module is needed to produce the archive: every guard in `event.c`,
+`command.c`, `main.c`, `misc.c`, `timing.c` and `jwm.h` resolves against a declaration, not a symbol.
+
+#### 3.1.2 Do we need `libx11_wmb.a` before starting?
+
+**No.** `libx11_wmb.a` is the in‑tree libX11 that the transport module builds by compiling `libX11/src/` (~245 files, ~34 kLOC) under `WMB_INPROC` with
+the two guards of [`46-`](46-transport-module-plan.md) §5. This module does not build it, does not depend on it for the archive `libjwm.a`, and does not
+depend on it for the harness. The harness links `libjwm.a` against **stock system `libX11.so.6`** (§4.8.1). That is the whole point of Act A: guards
+#11–#13 and the event‑loop rewrite land behaviourally, on a well‑understood client library, **before** the transport becomes a variable.
+
+`libx11_wmb.a` is required at §4.7 step 8 — Act B, the crossover — and it is delivered there by [`46-`](46-transport-module-plan.md), not authored
+here. The window manager team is a consumer of it, not an author.
+
+#### 3.1.3 What actually blocks J7‑0 today
+
+Only I5. The framework libraries ship, the HAL contract is frozen, the X11 headers are in tree, and the system provides Xephyr / Xvfb. Before this
+module writes its first line of glue, [`46-`](46-transport-module-plan.md) must publish a header — `transport/api/wmb_app_table.h` or the equivalent —
+declaring:
+
+```c
+#include <hal_task.h>          /* for hal_task_t */
+
+typedef int (*wmb_app_main_t)(int argc, char **argv);   /* the C main() shape */
+
+typedef struct {
+    const char     *name;
+    wmb_app_main_t  entry;
+    size_t          stack_bytes;
+} wmb_app_t;
+
+extern const wmb_app_t wmb_app_table[];
+extern const size_t    wmb_app_table_size;
+
+const wmb_app_t *wmb_app_lookup(const char *name);                          /* NULL on miss */
+hal_task_t      *wmb_app_launch(const wmb_app_t *app,
+                                int argc, char **argv);                     /* creates the fiber */
+```
+
+so J7‑6's `command.c` guard and §4.8.4's stub compile against the same declarations, and so an incompatible change to the real launch table breaks
+the harness at build time rather than at deployment. **One header, no implementation** — the implementation lands with the rest of the transport in P7.
+This is the concrete artefact §4.8.4's "executable specification" claim rests on.
+
+**A JWM integration that starts Act B before I7–I9 are true will spend its time debugging other modules.** The original warning applies to the
+crossover, not to J7‑0.
+
+#### 3.1.4 Closing I5 — the concrete steps
+
+Finishing I5 is small in code and short on decisions. The design work happens first; once it is settled the header is ~20 LOC and a five‑line CMake
+fragment.
+
+**Decisions (transport ↔ this module, before typing any code).** Each row states the problem the decision solves, then this module's recommended
+answer.
+
+| # | Decision | Problem | This module's ask |
+|---|---|---|---|
+| D‑I5‑1 | Entry‑point signature | The `wmb_app_t.entry` field is a function pointer. Its signature determines what "an in‑tree app" looks like at the source level, and whether the caller can drop into `hal_task_create` directly or needs an adapter | Use `main()`'s shape: `int (*)(int argc, char **argv)`. JWM's own `Jwm_Main` (`main` renamed, §4.4) already has this signature, and every in‑tree app looks like a standalone C `main()`. WMB does not have to pass arguments today — an empty argv is acceptable — but the interface is kept for later. Cost: one transport‑side trampoline that unpacks a heap argv slab and calls the entry, so `hal_task_create` (which wants `void(*)(void *)`) can drive it. Written once inside `wmb_app_launch` (artefact 1), not per app. **`Jwm_Main` itself spawns whatever internal fibers JWM needs** — that is JWM's concern, not the launch table's |
+| D‑I5‑2 | Who splits the command string | JWM's config strings are shell‑style: `<StartupCommand>xterm -e vi</StartupCommand>`. With no shell in WMB, someone has to split that string into a program name and an `argv` before the entry point can be called. Two candidates: JWM's `command.c` before it calls into the transport, or the transport inside an overloaded `wmb_app_launch(const char *command)` | JWM tokenises. `command.c` splits on whitespace and calls `wmb_app_launch(app, argc, argv)` with the split already done. Keeps the transport contract free of a string parser and keeps §4.8.4's stub trivial — each stub app receives an already‑parsed argv, like any C `main()` |
+| D‑I5‑3 | How JWM finds an entry by name | JWM's `command.c` starts with a name (`"xterm"`) and needs the matching `wmb_app_t *`. Two APIs are possible: expose `wmb_app_table[]` and let JWM walk it, or provide a `wmb_app_lookup(name)` that does the walk internally | Provide `const wmb_app_t *wmb_app_lookup(const char *name)`. Encapsulates the table; gives one place to add case‑folding, aliasing (`"term"` → `"xterm"`), or later plumbing (metrics, permission checks) without touching every caller |
+| D‑I5‑4 | What happens when a name isn't in the table | e.g. JWM's config says `<StartupCommand>doesnt-exist</StartupCommand>` and no `wmb_app_t` matches. Behaviour options: return `NULL` and let the caller decide, or hard‑fail (`abort` / trap) inside the transport, or do nothing silently | `wmb_app_lookup` returns `NULL`. JWM logs the miss at the call site, where it has context — which config line, which menu item — that the transport does not. §4.3's "fails visibly" is that log line, not a transport abort. A silent no‑op is explicitly not allowed |
+| D‑I5‑5 | Where the header lives | JWM must `#include` the contract, so it needs a stable public path. `transport/` currently contains only `transport/x11/` (client‑side implementation) and a `.gitkeep`. The question is which directory owns the transport module's **public** headers, distinct from the transport's own source | `transport/api/wmb_app_table.h`. Create `transport/api/` as a peer of `transport/x11/`. `transport/x11/` stays implementation‑only; `transport/api/` is what external consumers `#include` — mirroring how `hal/` (contract) sits outside `framework/` (implementation) |
+
+**Artefacts:**
+
+1. `transport/api/wmb_app_table.h` — the `wmb_app_main_t` typedef, the `wmb_app_t` struct, the two externs, `wmb_app_lookup`, and `wmb_app_launch(const wmb_app_t *, int argc, char **argv)` which does the D‑I5‑1 trampoline and calls `hal_task_create`. ~20 LOC.
+2. Top‑level `CMakeLists.txt` addition: an interface library `wmb_transport_api` exporting `transport/api/` as its public include path. Consumers pick it up with `target_link_libraries(... wmb_transport_api)`.
+3. A one‑TU compile‑only smoke test (~20 LOC) that `#include`s the header, instantiates a two‑entry `wmb_app_table[]` with a `log_hello` entry (`int log_hello(int, char **)`), and calls `wmb_app_lookup("log_hello")`. Proves the header is includable and the struct usable, and doubles as the seed for §4.8.4's stub.
+
+**Sign‑off:**
+
+- [`46-`](46-transport-module-plan.md) confirms the API matches what `linux_hosted/wmb_boot/` will populate in P7 (this module's stub is retired entry‑for‑entry then).
+- [`44-`](44-framework-module-plan.md) confirms `wmb_app_launch`'s trampoline correctly bridges `wmb_app_main_t` (`int(*)(argc, argv)`) to `hal_task_create`'s `hal_task_entry_t` (`void(*)(void *)`) — argv slab lifetime, stack sizing, and what happens when the entry returns.
+
+**After I5 closes, this module executes §4.1's J7‑1..J7‑4 to produce `libjwm.a`** — the CMakeLists, the namespace header, the fiber entry adapter,
+and the `jwm.h` include guard. I5 removes the interface blocker; the archive still has to be built. §4.7 Act A step 1 gives the order.
 
 ## 4. Phase P7 — Integration
 
@@ -126,7 +211,7 @@ still has to be recorded before P6 closes, but it no longer blocks anything.
 ### 4.3 The launch table replaces `fork`
 
 `command.c`'s `RunCommand()` currently forks. In WMB there is no second process: an in‑tree application is a **fiber**, started by `hal_task_create()`
-after a lookup in `wmb_app_table` ([`44-`](44-framework-module-plan.md)). A command that is not in the table fails visibly — it does not silently do
+after a lookup in `wmb_app_table` ([`46-`](46-transport-module-plan.md)). A command that is not in the table fails visibly — it does not silently do
 nothing.
 
 ### 4.4 Symbol namespacing
@@ -221,7 +306,7 @@ a build target and a script.
 
 | Gap | Why | Where it's covered |
 |---|---|---|
-| WMB in‑process transport semantics | Uses stock libX11 → socket, not the vtable → tinyx path | [`42-`](42-tinyx-module-plan.md), [`44-`](44-framework-module-plan.md) module gates |
+| WMB in‑process transport semantics | Uses stock libX11 → socket, not the vtable → tinyx path | [`42-`](42-tinyx-module-plan.md), [`46-`](46-transport-module-plan.md) module gates |
 | `XGrabServer` flow control | Real Xorg's grab is a wire‑protocol grab; tinyx's grab is the `io_wmb.c` client‑pause flag | V‑P7‑8, full P7 only |
 | Three‑fiber starvation | The harness has only JWM + main unless the stub app‑table populates more | V‑P7‑10, full P7 |
 | Startup ordering across `wmb_main` readiness gate | The harness has no server fiber to release from | Full P7, D‑33 / D‑43 |
@@ -229,7 +314,7 @@ a build target and a script.
 #### 4.8.4 The stub `wmb_app_table` is a reference implementation, not a mock
 
 The stub uses the same struct layout, same lookup function, same lifetime semantics as the real `wmb_app_table` specified by
-[`44-`](44-framework-module-plan.md). It differs only in payload: its entries are visible test hooks (log lines, flag toggles) rather than real
+[`46-`](46-transport-module-plan.md). It differs only in payload: its entries are visible test hooks (log lines, flag toggles) rather than real
 clients. When the real table lands in P7, the stub is retired entry‑for‑entry. This is why the harness doubles as an executable specification of
 the launch‑table contract — a change to the contract breaks the stub, which breaks the harness, which is louder than a review comment.
 
@@ -247,11 +332,11 @@ the launch‑table contract — a change to the contract breaks the stub, which 
 
 | Seam | JWM's side | Counterpart |
 |---|---|---|
-| Display connection | `XOpenDisplay(NULL)` from inside `Jwm_FiberEntry` | `wmb_open.c` → [`44-`](44-framework-module-plan.md) |
+| Display connection | `XOpenDisplay(NULL)` from inside `Jwm_FiberEntry` | Act A: stock system `libX11.so.6`. Act B: `wmb_open.c` → [`46-`](46-transport-module-plan.md) |
 | Waiting | `hal_yield_timeout(ms)` in the event loop | `framework/fiber/` → [`44-`](44-framework-module-plan.md) |
-| Launching | `wmb_app_table` lookup + `hal_task_create()` | [`44-`](44-framework-module-plan.md) |
-| Startup ordering | Created **blocked**; released when the server signals ready | `wmb_main()`, D‑33 / D‑43 → [`44-`](44-framework-module-plan.md) |
-| Server grabs | `XGrabServer` / `XUngrabServer` | `io_wmb.c` flow control → [`42-`](42-tinyx-module-plan.md) |
+| Launching | `wmb_app_table` lookup + `hal_task_create()` | Table → [`46-`](46-transport-module-plan.md); `hal_task_create` → [`44-`](44-framework-module-plan.md) |
+| Startup ordering | Created **blocked**; released when the server signals ready | `wmb_main()`, D‑33 / D‑43 → [`46-`](46-transport-module-plan.md) |
+| Server grabs | `XGrabServer` / `XUngrabServer` | Act A: stock server's wire‑protocol grab. Act B: `io_wmb.c` flow control → [`42-`](42-tinyx-module-plan.md) |
 | Input semantics | Button press/release pairs, wheel as buttons 4/5/6/7 | [`43-`](43-kdrive-module-plan.md), defects D2 and D3 |
 | Fonts | Core X fonts only | Built‑in bitmap fonts; FreeType stays dormant ([`90-`](90-decisions.md) D‑38) |
 
@@ -285,6 +370,8 @@ the launch‑table contract — a change to the contract breaks the stub, which 
 The original guidance was "nothing until P5 and P6 are green". J7‑0 changes that: because the harness depends only on the fiber runtime (working) and
 stock libX11 (system), Act A of §4.7 can be authored and validated in parallel with the P4/P5/P6 work on the transport, without competing for it.
 
+0. **Get I5 landed** (§3.1.1) — the `wmb_app_table` contract header from [`46-`](46-transport-module-plan.md). This is the one prerequisite for J7‑0
+   that this module cannot author itself. A one‑file header, no implementation. Everything else in the input list (I1–I4, I6) is already true.
 1. **Build the standalone harness end‑to‑end** (J7‑0, subsumes J7‑1 and J7‑2). The stock‑Xlib build the earlier draft called out is folded into this:
    the harness *is* a JWM binary against stock system Xlib, with everything the guards and the app‑table interaction need, plus a runnable X server
    (Xephyr on the desk, Xvfb on CI). See §4.8. This exercises the fiber runtime and the `hal_task` contract with JWM's real event loop, and it is
@@ -294,7 +381,7 @@ stock libX11 (system), Act A of §4.7 can be authored and validated in parallel 
 3. **Enumerate what `Signal()` drives** — clock widget, autohide, tooltips, popup delays — with each one's cadence, so that §4.2's rewrite has an
    acceptance list rather than a hope, and V‑P7‑9 has numbers to compare against.
 
-Then wait for P6, and run Act B of §4.7 — the transport crossover — in order.
+Then wait for P6 — specifically for I7–I9 (§3.1.1) — and run Act B of §4.7 — the transport crossover — in order.
 
 **The failure mode this section used to warn against still applies**: starting the *transport* integration early means debugging other modules. Act A
 avoids that trap by staying above Xlib.
