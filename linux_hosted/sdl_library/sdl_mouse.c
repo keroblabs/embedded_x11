@@ -1,104 +1,42 @@
+/* SDL mouse events: maintain held buttons; export only through callbacks. */
 #include <SDL.h>
-#include <stdio.h>
-
 #include "types.h"
 #include "sdl_lib_export.h"
 #include "sdl_window.h"
+#include "hal_input.h"
 
-////////////////////////////////////////////////////////////////////
+static uint8_t held_buttons;
 
-////////////////////////////////////////////////////////////////////
-
-////////////////////////////////////////////////////////////////////
-
-#if 0
-void sdl_mouse_init( void )
+static uint8_t mask_for_sdl_button(uint8_t button)
 {
-    mouse_trigg = 0;
-    mouse_button = 0;
-}
-
-bool_t sdl_mouse_get_pos( uint16_t * posx, uint16_t * posy, uint16_t * posz )
-{
-    if( mouse_trigg == 1 )
-    {
-        mouse_trigg = 0;
-
-        *posx = mouse_x;
-        *posy = mouse_y;
-        *posz = ( mouse_button ) ? 100 : 0;
-
-        return TRUE;
-    }
-
-    return FALSE;
-}
-#endif
-
-void sdl_mouse_event( uint32_t type, SDL_MouseButtonEvent * event, void * sdl_data )
-{
-    uint32_t mouse_x;
-    uint32_t mouse_y;
-    int32_t delta_mouse_x;
-    int32_t delta_mouse_y;
-    uint8_t mouse_button;
-    bool_t mouse_trigg = 0;
-    bool_t mouse_wheel_trigg = 0;
-
-    SDL_MouseMotionEvent * motion = ( SDL_MouseMotionEvent * )sdl_data;
-    SDL_MouseWheelEvent * wheel = ( SDL_MouseWheelEvent * )sdl_data;
-
-    switch( type )
-    {
-        case SDL_MOUSEBUTTONDOWN:
-            mouse_x = event->x;
-            mouse_y = event->y;
-
-            if (event->button >= SDL_BUTTON_LEFT && event->button <= SDL_BUTTON_X2)
-            {
-                mouse_button = (uint8_t)event->button;
-            }
-            else break;
-            mouse_trigg = 1;
-            break;
-
-        case SDL_MOUSEBUTTONUP:
-            mouse_button = 0;
-            mouse_x = event->x;
-            mouse_y = event->y;
-            mouse_trigg = 1;
-            break;
-
-        case SDL_MOUSEWHEEL:
-            mouse_x = wheel->x;
-            mouse_y = wheel->y;
-            mouse_wheel_trigg = 1;
-            break;
-
-        case SDL_MOUSEMOTION:
-            // uncomment the line below to enable touchscreen mode
-            // comment the line below to enable mouse mode
-            //if( mouse_button == 0 ) break;
-
-            mouse_x = event->x;
-            mouse_y = event->y;
-            delta_mouse_x = motion->xrel;
-            delta_mouse_y = motion->yrel;
-            mouse_trigg = 1;
-
-            //printf( "%4d x %4d\n", mouse_x, mouse_y );
-            //fflush(stdout);
-            break;
-    }
-
-    if( mouse_trigg == TRUE )
-    {
-        sdl_send_mouse_event( event->windowID, ( uint16_t )mouse_x, ( uint16_t )mouse_y, 0, mouse_button );
-        sdl_send_mouse_delta_event( event->windowID, delta_mouse_x, delta_mouse_y, 0, mouse_button );
-    }
-    else if( mouse_wheel_trigg == TRUE )
-    {
-        sdl_send_mouse_wheel_event( wheel->windowID, ( uint16_t )mouse_x, ( uint16_t )mouse_y );
+    switch (button) {
+    case SDL_BUTTON_LEFT: return HAL_MOUSE_MASK_LEFT;
+    case SDL_BUTTON_MIDDLE: return HAL_MOUSE_MASK_MIDDLE;
+    case SDL_BUTTON_RIGHT: return HAL_MOUSE_MASK_RIGHT;
+    case SDL_BUTTON_X1: return HAL_MOUSE_MASK_X1;
+    case SDL_BUTTON_X2: return HAL_MOUSE_MASK_X2;
+    default: return 0;
     }
 }
 
+void sdl_mouse_event(uint32_t type, SDL_MouseButtonEvent *event,
+                      void *sdl_data)
+{
+    SDL_MouseMotionEvent *motion = (SDL_MouseMotionEvent *)sdl_data;
+    if (type == SDL_MOUSEMOTION) {
+        sdl_send_mouse_delta_event(motion->windowID,
+                                   motion->xrel, motion->yrel, 0,
+                                   held_buttons);
+    } else if (type == SDL_MOUSEBUTTONDOWN || type == SDL_MOUSEBUTTONUP) {
+        uint8_t mask = mask_for_sdl_button(event->button);
+        if (!mask) return;
+        if (type == SDL_MOUSEBUTTONDOWN) held_buttons |= mask;
+        else held_buttons &= (uint8_t)~mask;
+        sdl_send_mouse_delta_event(event->windowID, 0, 0, 0, held_buttons);
+    } else if (type == SDL_MOUSEWHEEL) {
+        SDL_MouseWheelEvent *wheel = (SDL_MouseWheelEvent *)sdl_data;
+        int sign = wheel->direction == SDL_MOUSEWHEEL_FLIPPED ? -1 : 1;
+        sdl_send_mouse_wheel_event(wheel->windowID,
+                                   sign * wheel->x, sign * wheel->y);
+    }
+}

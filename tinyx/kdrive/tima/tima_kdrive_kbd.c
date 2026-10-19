@@ -27,12 +27,10 @@
 #include "kdrive.h"
 #include "kkeymap.h"
 #include <X11/keysym.h>
-#include "hal_drivers.h"
+#include "hal_input.h"
+#include "tima_kdrive.h"
 
-/* External HAL keyboard API */
-extern void    keypad_driver_init(void);
-extern bool_t  keypad_driver_has_data(void);  /* Returns TRUE/FALSE */
-extern uint8_t keypad_driver_read_data(void);
+/* HAL input is initialised by the WMB boot module. */
 
 /*
  * We use the key_data value directly as the "scancode" index into kdKeymap.
@@ -55,15 +53,15 @@ int kdMaxScanCode = 127;
 /*
  * Fake scancodes for modifier keys (we assign them to unused slots)
  */
-#define SC_LSHIFT       112
-#define SC_RSHIFT       113
-#define SC_LCTRL        114
-#define SC_RCTRL        115
-#define SC_LALT         116
-#define SC_RALT         117
-#define SC_LGUI         118
-#define SC_RGUI         119
-#define SC_CAPSLOCK     120
+#define SC_LSHIFT       HAL_SC_LSHIFT
+#define SC_RSHIFT       HAL_SC_RSHIFT
+#define SC_LCTRL        HAL_SC_LCTRL
+#define SC_RCTRL        HAL_SC_RCTRL
+#define SC_LALT         HAL_SC_LALT
+#define SC_RALT         HAL_SC_RALT
+#define SC_LGUI         HAL_SC_LSUPER
+#define SC_RGUI         HAL_SC_RSUPER
+#define SC_CAPSLOCK     HAL_SC_CAPSLOCK
 
 /* Current modifier state for tracking press/release */
 static unsigned char current_modifiers = 0;
@@ -100,13 +98,13 @@ static void tima_KeyboardLoad(void)
     /*
      * Control characters used as key codes
      */
-    SET_KEY(KEY_DATA_LEFT,      XK_Left,      XK_Left);
-    SET_KEY(KEY_DATA_DOWN,      XK_Down,      XK_Down);
-    SET_KEY(KEY_DATA_UP,        XK_Up,        XK_Up);
-    SET_KEY(KEY_DATA_ENTER,     XK_Return,    XK_Return);
-    SET_KEY(KEY_DATA_RIGHT,     XK_Right,     XK_Right);
-    SET_KEY(KEY_DATA_ESCAPE,    XK_Escape,    XK_Escape);
-    SET_KEY(KEY_DATA_BACKSPACE, XK_BackSpace, XK_BackSpace);
+    SET_KEY(HAL_KEY_LEFT,      XK_Left,      XK_Left);
+    SET_KEY(HAL_KEY_DOWN,      XK_Down,      XK_Down);
+    SET_KEY(HAL_KEY_UP,        XK_Up,        XK_Up);
+    SET_KEY(HAL_KEY_ENTER,     XK_Return,    XK_Return);
+    SET_KEY(HAL_KEY_RIGHT,     XK_Right,     XK_Right);
+    SET_KEY(HAL_KEY_ESCAPE,    XK_Escape,    XK_Escape);
+    SET_KEY(HAL_KEY_BACKSPACE, XK_BackSpace, XK_BackSpace);
 
     /*
      * Printable ASCII characters (0x20 - 0x7E)
@@ -231,7 +229,7 @@ static void tima_HandleModifier(unsigned char new_modifiers)
 static int tima_KeyboardInit(void)
 {
     current_modifiers = 0;
-    keypad_driver_init();
+    /* Device initialization happens once in hal_input_init(). */
     return 1;  /* Success */
 }
 
@@ -287,34 +285,26 @@ void tima_KeyboardPoll(void)
     unsigned char data;
     unsigned char is_up;
 
-    while (keypad_driver_has_data()) {
-        /* Read command byte */
-        cmd = keypad_driver_read_data();
-
+    /* Partial pairs may span polling passes; never consume half a pair. */
+    static uint8_t pending_cmd = 0;
+    while (hal_input_read_byte(HAL_INPUT_KEYBOARD, &data)) {
+        if (!pending_cmd) {
+            pending_cmd = data;
+            continue;
+        }
+        cmd = pending_cmd;
+        pending_cmd = 0;
         switch (cmd) {
-            case CMD_MODIFIER:
-                /* Modifier key change: next byte is modifier mask */
-                if (keypad_driver_has_data()) {
-                    data = keypad_driver_read_data();
-                    tima_HandleModifier(data);
-                }
-                break;
-
-            case CMD_KEY_DOWN:
-            case CMD_KEY_UP:
-                /* Key press/release: next byte is key data (ASCII-like) */
-                if (keypad_driver_has_data()) {
-                    data = keypad_driver_read_data();
-                    is_up = (cmd == CMD_KEY_UP) ? 1 : 0;
-
-                    /* Use the key data directly as scancode */
-                    KdEnqueueKeyboardEvent(data, is_up);
-                }
-                break;
-
-            default:
-                /* Unknown command, skip */
-                break;
+        case HAL_CMD_MODIFIER:
+            tima_HandleModifier(data);
+            break;
+        case HAL_CMD_KEY_DOWN:
+        case HAL_CMD_KEY_UP:
+            is_up = (cmd == HAL_CMD_KEY_UP) ? 1 : 0;
+            KdEnqueueKeyboardEvent(data, is_up);
+            break;
+        default:
+            break;
         }
     }
 }

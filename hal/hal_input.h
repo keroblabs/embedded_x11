@@ -26,7 +26,7 @@ extern "C" {
 #define HAL_CMD_MOUSE_X         0x04   /* + int8 dx             */
 #define HAL_CMD_MOUSE_Y         0x05   /* + int8 dy             */
 #define HAL_CMD_MOUSE_Z         0x06   /* + z / pressure        */
-#define HAL_CMD_MOUSE_BUTTON    0x07   /* + button id           */
+#define HAL_CMD_MOUSE_BUTTON    0x07   /* + held-button bitmask */
 #define HAL_CMD_MOUSE_WHEEL_X   0x08   /* + int8                */
 #define HAL_CMD_MOUSE_WHEEL_Y   0x09   /* + int8                */
 
@@ -38,6 +38,16 @@ extern "C" {
 #define HAL_KEY_DOWN             10
 #define HAL_KEY_UP               11
 #define HAL_KEY_RIGHT            21
+
+/* Physical button ids (1-based).  The HAL_CMD_MOUSE_BUTTON value is
+ * instead the complete held-button MASK, allowing simultaneous buttons
+ * and unambiguous releases.  Keep this representation on every port. */
+#define HAL_MOUSE_MASK_LEFT      0x01u
+#define HAL_MOUSE_MASK_MIDDLE    0x02u
+#define HAL_MOUSE_MASK_RIGHT     0x04u
+#define HAL_MOUSE_MASK_X1        0x08u
+#define HAL_MOUSE_MASK_X2        0x10u
+#define HAL_MOUSE_MASK_ALL       0x1fu
 
 /* Button ids */
 #define HAL_MOUSE_BUTTON_LEFT     1

@@ -140,6 +140,28 @@ else()
 endif()
 
 # ---------------------------------------------------------------------
+# WMB-owned KDrive DDX and isolated link test.
+# The DDX uses upstream kdrive.h but does not link TinyX or SDL here.
+# Later the P4 TinyX assembly reuses wmb_kdrive_ddx.
+# ---------------------------------------------------------------------
+include(${CMAKE_CURRENT_LIST_DIR}/tinyx/kdrive/tima/kdrive.cmake)
+
+add_library(wmb_kdrive_ddx OBJECT ${WMB_KDRIVE_SOURCES})
+target_include_directories(wmb_kdrive_ddx PUBLIC ${WMB_KDRIVE_INCLUDE_DIRS})
+target_link_libraries(wmb_kdrive_ddx PUBLIC wmb_hal)
+
+add_executable(wmb_kdrive_linktest
+    tinyx/kdrive/tima/tests/wmb_kdrive_linktest.c
+    tinyx/kdrive/tima/tests/wmb_mock_hal.c
+)
+target_include_directories(wmb_kdrive_linktest PRIVATE
+    ${CMAKE_CURRENT_LIST_DIR}/tinyx/kdrive/tima/tests)
+target_link_libraries(wmb_kdrive_linktest PRIVATE wmb_kdrive_ddx)
+
+enable_testing()
+add_test(NAME wmb_kdrive_linktest COMMAND wmb_kdrive_linktest)
+
+# ---------------------------------------------------------------------
 # Apps
 # ---------------------------------------------------------------------
 add_subdirectory(linux_hosted/apps/wmb_fiber_smoke)
@@ -149,4 +171,9 @@ add_subdirectory(linux_hosted/fiber_example)
 if(WMB_HAVE_SDL)
     add_subdirectory(linux_hosted/sdl_fiber_example)
     add_subdirectory(linux_hosted/sdl_fiber_example_v2)
+
+    # Human-visible framebuffer/HAL smoke test; deliberately not CTest.
+    add_executable(wmb_hal_smoke
+        linux_hosted/apps/wmb_hal_smoke/wmb_hal_smoke.c)
+    target_link_libraries(wmb_hal_smoke PRIVATE wmb_hosted_sdl)
 endif()

@@ -79,6 +79,8 @@ static void free_instance( uint32_t id )
             {
                 first_instance = search_instance->p_next;
             }
+            if (last_instance == search_instance)
+                last_instance = prev_instance;
             break;
         }
 
@@ -311,12 +313,8 @@ void sdl_update_window( uint32_t window_id )
 
 void sdl_terminate( void )
 {
-    gui_instance_t * search_instance = first_instance;
-
-    while( search_instance != NULL )
-    {
-        sdl_destroy_window( search_instance->id );
-        search_instance = search_instance->p_next;
+    while (first_instance != NULL) {
+        sdl_destroy_window(first_instance->id);
     }
 }
 

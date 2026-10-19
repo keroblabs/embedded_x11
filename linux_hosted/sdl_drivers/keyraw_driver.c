@@ -1,111 +1,61 @@
-#include <SDL.h>
-#include "sdl_lib_export.h"
-#include "sdl_main.h"
-#include "sdl_window.h"
-#include "sdl_input.h"
-
+/* SDL keyboard -> WMB HAL command/value pairs. */
 #include "types.h"
 #include "buffer.h"
 #include "hal_drivers.h"
+#include "sdl_input.h"
 
-///////////////////////////////////////////////////////////////////////////
-
-#define KEYPAD_BUFFER_SIZE              20
-
-///////////////////////////////////////////////////////////////////////////
+#define KEYPAD_BUFFER_SIZE 128
 
 static buffer_data_t keypad_buffer_data;
-static uint8_t keypad_buffer[ KEYPAD_BUFFER_SIZE ];
+static uint8_t keypad_buffer[KEYPAD_BUFFER_SIZE];
 
-///////////////////////////////////////////////////////////////////////////
-
-void keypad_driver_event_key( uint32_t window_id, uint8_t key_code, uint16_t control_key, uint8_t state )
+/* buffer.c overwrites its oldest *byte* when full.  Never enqueue half
+ * a packet: reserve both bytes, otherwise drop the complete new packet.
+ * With cooperative fibers, the capacity check and append cannot yield. */
+static void keypad_emit(uint8_t cmd, uint8_t data)
 {
-    UNUSED(window_id);
+    uint8_t pair[2] = { cmd, data };
+    if (buffer_get_size(&keypad_buffer_data) <= KEYPAD_BUFFER_SIZE - 3u)
+        buffer_write_buffer(&keypad_buffer_data, pair, 2);
+}
 
-    if( key_code == 0 )
-    {
-        buffer_write( &keypad_buffer_data, CMD_MODIFIER );
-        buffer_write( &keypad_buffer_data, ( uint8_t )control_key );
+void keypad_driver_event_key(uint32_t window_id, uint8_t key_code,
+                              uint16_t control_key, uint8_t state)
+{
+    uint8_t val = 0;
+    (void)window_id;
+    if (key_code == 0) {
+        keypad_emit(HAL_CMD_MODIFIER, (uint8_t)control_key);
+        return;
     }
-    else if( key_code == 1 )
-    {
-        bool_t valid_key = FALSE;
-
-        switch( control_key )
-        {
-            case EVENT_KEY_BACKSPACE:
-            case EVENT_KEY_ENTER:
-            case EVENT_KEY_ESC:
-            case EVENT_KEY_UP:
-            case EVENT_KEY_DOWN:
-            case EVENT_KEY_RIGHT:
-            case EVENT_KEY_LEFT:
-                valid_key = TRUE;
-                break;
-
-            default:
-                valid_key = FALSE;
-                break;            
+    if (key_code == 1) {
+        switch (control_key) {
+        case EVENT_KEY_BACKSPACE: val = HAL_KEY_BACKSPACE; break;
+        case EVENT_KEY_ENTER:     val = HAL_KEY_ENTER; break;
+        case EVENT_KEY_ESC:       val = HAL_KEY_ESCAPE; break;
+        case EVENT_KEY_UP:        val = HAL_KEY_UP; break;
+        case EVENT_KEY_DOWN:      val = HAL_KEY_DOWN; break;
+        case EVENT_KEY_RIGHT:     val = HAL_KEY_RIGHT; break;
+        case EVENT_KEY_LEFT:      val = HAL_KEY_LEFT; break;
+        default: return;
         }
-
-        if( valid_key == TRUE )
-        {
-            buffer_write( &keypad_buffer_data, ( state == KEY_DOWN ) ? CMD_KEY_DOWN : CMD_KEY_UP );
-
-            switch( control_key )
-            {
-                case EVENT_KEY_BACKSPACE:
-                    buffer_write( &keypad_buffer_data, KEY_DATA_BACKSPACE );
-                    break;
-
-                case EVENT_KEY_ENTER:
-                    buffer_write( &keypad_buffer_data, KEY_DATA_ENTER );
-                    break;
-
-                case EVENT_KEY_ESC:
-                    buffer_write( &keypad_buffer_data, KEY_DATA_ESCAPE );
-                    break;
-
-                case EVENT_KEY_UP:
-                    buffer_write( &keypad_buffer_data, KEY_DATA_UP );
-                    break;
-
-                case EVENT_KEY_DOWN:
-                    buffer_write( &keypad_buffer_data, KEY_DATA_DOWN );
-                    break;
-
-                case EVENT_KEY_RIGHT:
-                    buffer_write( &keypad_buffer_data, KEY_DATA_RIGHT );
-                    break;
-
-                case EVENT_KEY_LEFT:
-                    buffer_write( &keypad_buffer_data, KEY_DATA_LEFT );
-                    break;            
-            }
-        }
-
+    } else if (key_code >= 0x20 && key_code <= 0x7d) {
+        val = key_code;
+    } else {
+        return;
     }
-    else if( ( key_code >= 0x20 ) && ( key_code <= 125 ) )
-    {
-        buffer_write( &keypad_buffer_data, ( state == KEY_DOWN ) ? CMD_KEY_DOWN : CMD_KEY_UP );
-        buffer_write( &keypad_buffer_data, key_code );
-    }
+    keypad_emit((state == KEY_DOWN) ? HAL_CMD_KEY_DOWN : HAL_CMD_KEY_UP, val);
 }
 
-///////////////////////////////////////////////////////////////////////////
-
-void keypad_driver_init( void )
+void keypad_driver_init(void)
 {
-    buffer_init( &keypad_buffer_data, keypad_buffer, KEYPAD_BUFFER_SIZE );
+    buffer_init(&keypad_buffer_data, keypad_buffer, KEYPAD_BUFFER_SIZE);
 }
-
-bool_t keypad_driver_has_data( void )
+bool_t keypad_driver_has_data(void)
 {
-    return buffer_is_empty( &keypad_buffer_data ) ? FALSE : TRUE;
+    return buffer_is_empty(&keypad_buffer_data) ? FALSE : TRUE;
 }
-
-uint8_t keypad_driver_read_data( void )
+uint8_t keypad_driver_read_data(void)
 {
-    return buffer_read( &keypad_buffer_data );
+    return buffer_read(&keypad_buffer_data);
 }

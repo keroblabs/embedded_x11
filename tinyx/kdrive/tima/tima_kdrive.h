@@ -1,6 +1,7 @@
 #ifndef TIMA_KDRIVE_H_
 #define TIMA_KDRIVE_H_
 
+#include <stdint.h>
 #include "kdrive.h"
 
 /* Framebuffer private data - stored in KdCardInfo->driver */
@@ -56,34 +57,14 @@ void tima_PutColors(ScreenPtr pScreen, int n, xColorItem *pdefs);
 extern const KdCardFuncs tima_Funcs;
 
 /*
- * Keyboard driver (tima_keyboard.c)
- * 
- * Uses HAL API:
- *   - keypad_driver_init()
- *   - keypad_driver_has_data()
- *   - keypad_driver_read_data()
- * 
- * Protocol from HAL:
- *   0x01 + modifier_mask  - Modifier key change
- *   0x02 + key_data       - Key press
- *   0x03 + key_data       - Key release
+ * The WMB-owned Tima DDX talks only to hal_display.h / hal_input.h.
+ * WMB startup initialises the HAL once before TinyX calls CardInit;
+ * KdOsFuncs.pollEvents drains keyboard/pointer packets on xsrv fiber.
+ * No SDL or backend-specific symbol may appear in this file set.
  */
 extern const KdKeyboardFuncs tima_KeyboardFuncs;
-
-/* Call from main loop to dispatch queued keyboard events to X */
-void tima_KeyboardPoll(void);
-
-/*
- * Mouse driver (tima_mouse.c)
- * 
- * Uses HAL API:
- *   - mouse_driver_init()
- *   - mouse_driver_has_data()
- *   - mouse_driver_read_data()
- */
 extern const KdMouseFuncs tima_MouseFuncs;
-
-/* Call from main loop to dispatch queued mouse events to X */
+void tima_KeyboardPoll(void);
 void tima_MousePoll(void);
 
-#endif // TIMA_KDRIVE_H_
+#endif /* TIMA_KDRIVE_H_ */

@@ -160,7 +160,7 @@ hardware emits. The header **owns** these constants; the SDL backend includes th
 #define HAL_CMD_MOUSE_X         0x04   /* + int8 dx             */
 #define HAL_CMD_MOUSE_Y         0x05   /* + int8 dy             */
 #define HAL_CMD_MOUSE_Z         0x06   /* + z / pressure        */
-#define HAL_CMD_MOUSE_BUTTON    0x07   /* + button id           */
+#define HAL_CMD_MOUSE_BUTTON    0x07   /* + held-button mask    */
 #define HAL_CMD_MOUSE_WHEEL_X   0x08   /* + int8                */
 #define HAL_CMD_MOUSE_WHEEL_Y   0x09   /* + int8                */
 
@@ -173,7 +173,15 @@ hardware emits. The header **owns** these constants; the SDL backend includes th
 #define HAL_KEY_UP               11
 #define HAL_KEY_RIGHT            21
 
-/* Button ids */
+/* Packet value for HAL_CMD_MOUSE_BUTTON: simultaneous held buttons. */
+#define HAL_MOUSE_MASK_LEFT     0x01u
+#define HAL_MOUSE_MASK_MIDDLE   0x02u
+#define HAL_MOUSE_MASK_RIGHT    0x04u
+#define HAL_MOUSE_MASK_X1       0x08u
+#define HAL_MOUSE_MASK_X2       0x10u
+#define HAL_MOUSE_MASK_ALL      0x1fu
+
+/* Physical button ids; NOT the packet value. */
 #define HAL_MOUSE_BUTTON_LEFT     1
 #define HAL_MOUSE_BUTTON_MIDDLE   2
 #define HAL_MOUSE_BUTTON_RIGHT    3
@@ -229,11 +237,18 @@ void hal_input_pump(void);
 #endif /* WMB_HAL_INPUT_H */
 ```
 
+**Portability clarification (KDrive integration checkpoint).** SDL emits the complete
+held-button mask rather than a single button identifier in a
+`HAL_CMD_MOUSE_BUTTON` packet. The KDrive adapter converts the mask to
+`KD_BUTTON_1..5`; a zero mask releases all buttons. This is necessary for
+simultaneous button presses and unambiguous releases, and an MC68010 backend
+must obey the same encoding.
+
 ### 5.3 Contract notes
 
 | Aspect | Requirement |
 |---|---|
-| Buffering | The backend owns a ring buffer per device. Overflow drops the **oldest** byte pair, never a partial pair — a truncated command/data pair desynchronises the decoder permanently |
+| Buffering | The backend owns a ring buffer per device. Overflow drops the **newest complete** command/data pair when there is insufficient room (the current cooperative SDL implementation); never drop a partial pair. Atomicity under future preemption remains a D-47 gate |
 | Framing | A command byte is always followed by exactly one data byte. `hal_input_read_byte` never returns a data byte without its command having been returned first |
 | Who calls `hal_input_pump` | Only the `hal` fiber. Calling it from the server fiber would let input arrive mid‑request |
 | Who calls `hal_input_read_byte` | Only `tima_KeyboardPoll()` / `tima_MousePoll()`, from `KdOsFuncs.pollEvents`, from `BlockHandler`, on the server fiber |
@@ -244,9 +259,9 @@ also matches how the target will work, where arrival is an ISR.
 
 ### 5.4 The wheel gap
 
-`HAL_CMD_MOUSE_WHEEL_X/Y` currently has no consumer — `tima_kdrive_mouse.c` reads and discards it (defect D3). X11 expresses wheel events as button
-press/release pairs on buttons 4/5 (vertical) and 6/7 (horizontal). Closing D3 means translating in the DDX, not in the backend, so that every backend
-emits the same bytes.
+`HAL_CMD_MOUSE_WHEEL_Y` now becomes button 4/5 press/release pairs in our DDX. Horizontal wheel events are still deferred: this version of upstream KDrive
+processes only buttons 1–5 via `KdEnqueueMouseEvent`, so buttons 6/7 need a separate upstream-safe X event route. The conversion belongs in the DDX, not
+in the SDL backend; all platform implementations continue to emit the same HAL protocol.
 
 ## 6. `hal_task.h` — Execution and Waiting
 

@@ -1,435 +1,204 @@
-#include "tima_kdrive.h"
-#include "hal_drivers.h"
-#include <string.h>
-
-#ifndef K_TIMA_FB_WIDTH
-#define K_TIMA_FB_WIDTH     lcd_driver_get_width()
-#endif
-
-#ifndef K_TIMA_FB_HEIGHT
-#define K_TIMA_FB_HEIGHT    lcd_driver_get_height()
-#endif
-
-#ifndef K_TIMA_FB_BPP
-#define K_TIMA_FB_BPP       (lcd_driver_get_bits_per_pixel())
-#endif
-
-#ifndef K_TIMA_FB_BASE
-#define K_TIMA_FB_BASE      lcd_driver_get_framebuffer()
-#endif
-
-
 /*
- * tima_CardInit - Initialize the graphics card/framebuffer
- *
- * Called once per card at server startup.
- * Detects hardware and sets up basic card info.
- *
- * @param card: Kdrive card info structure
- * @return: TRUE on success, FALSE on failure
+ * WMB KDrive framebuffer DDX.  This is our own driver; upstream KDrive
+ * and fb/mi rendering are left untouched.
  */
+#include "tima_kdrive.h"
+#include "hal_display.h"
+#include "hal_alloc.h"
+#include <string.h>
+#include <stdint.h>
+#include <limits.h>
+
+static tima_Priv_t *tima_card_private(KdCardInfo *card)
+{
+    return card ? (tima_Priv_t *)card->driver : NULL;
+}
+
 Bool tima_CardInit(KdCardInfo *card)
 {
+    const hal_framebuffer_t *fb = hal_display_get_fb();
     tima_Priv_t *priv;
+    uint32_t bytes_per_pixel;
 
-    lcd_driver_init();
-
-    /* Allocate private data */
-    priv = (tima_Priv_t *)malloc(sizeof(tima_Priv_t));
-    if (!priv)
-    {
-        #ifdef DEBUG
-        ErrorF("tima_CardInit: Failed to allocate private data\n");
-        #endif
+    /* wmb_boot owns hal_display_init(): never initialise SDL here. */
+    if (!card || !fb || !fb->pixels || !fb->width || !fb->height)
         return FALSE;
-    }
+    if (fb->format != HAL_PIXFMT_RGB565 &&
+        fb->format != HAL_PIXFMT_XRGB8888)
+        return FALSE;
+    if ((fb->format == HAL_PIXFMT_RGB565 && fb->bpp != 16) ||
+        (fb->format == HAL_PIXFMT_XRGB8888 && fb->bpp != 32))
+        return FALSE;
 
-    memset(priv, 0, sizeof(tima_Priv_t));
+    bytes_per_pixel = (uint32_t)fb->bpp / 8u;
+    if (fb->stride % bytes_per_pixel ||
+        fb->stride < fb->width * bytes_per_pixel ||
+        fb->stride / bytes_per_pixel > INT_MAX ||
+        fb->width > INT_MAX || fb->height > INT_MAX ||
+        fb->height > UINT32_MAX / fb->stride)
+        return FALSE;
 
-    /*
-     * PLATFORM-SPECIFIC: Initialize framebuffer
-     *
-     * On bare-metal, framebuffer is typically at a fixed address
-     * defined by hardware or bootloader configuration.
-     */
-    priv->fb_base = (void *)K_TIMA_FB_BASE;
-    priv->fb = priv->fb_base;  /* May need offset for alignment */
+    priv = (tima_Priv_t *)wmb_alloc(sizeof(*priv));
+    if (!priv)
+        return FALSE;
+    memset(priv, 0, sizeof(*priv));
 
-    /* Set display parameters */
-    priv->width = K_TIMA_FB_WIDTH;
-    priv->height = K_TIMA_FB_HEIGHT;
-    priv->bpp = K_TIMA_FB_BPP;
-    priv->pitch = priv->width * (priv->bpp / 8);
-    priv->fb_size = priv->pitch * priv->height;
+    priv->fb_base = fb->pixels;
+    priv->fb = fb->pixels;
+    priv->fb_size = fb->stride * fb->height;
+    priv->width = fb->width;
+    priv->height = fb->height;
+    priv->bpp = fb->bpp;
+    priv->pitch = fb->stride;
 
-    /* RGB888 or RGBA8888 format (typical for 32bpp) */
-    if (priv->bpp == 32)
-    {
+    if (fb->format == HAL_PIXFMT_XRGB8888) {
+        priv->red_mask = 0x00ff0000u;
+        priv->green_mask = 0x0000ff00u;
+        priv->blue_mask = 0x000000ffu;
         priv->red_offset = 16;
-        priv->red_length = 8;
-        priv->red_mask = 0x00FF0000;
-
         priv->green_offset = 8;
-        priv->green_length = 8;
-        priv->green_mask = 0x0000FF00;
-
         priv->blue_offset = 0;
-        priv->blue_length = 8;
-        priv->blue_mask = 0x000000FF;
-    }
-    /* RGB565 format (typical for 16bpp) */
-    else if (priv->bpp == 16)
-    {
+        priv->red_length = priv->green_length = priv->blue_length = 8;
+    } else {
+        priv->red_mask = 0xf800u;
+        priv->green_mask = 0x07e0u;
+        priv->blue_mask = 0x001fu;
         priv->red_offset = 11;
-        priv->red_length = 5;
-        priv->red_mask = 0xF800;
-
         priv->green_offset = 5;
-        priv->green_length = 6;
-        priv->green_mask = 0x07E0;
-
         priv->blue_offset = 0;
+        priv->red_length = 5;
+        priv->green_length = 6;
         priv->blue_length = 5;
-        priv->blue_mask = 0x001F;
     }
 
-    /* Store private data in card driver field */
     card->driver = priv;
-
-    #ifdef DEBUG
-    ErrorF("tima_CardInit: Framebuffer at %p, %dx%d, %d bpp\n",
-           priv->fb, priv->width, priv->height, priv->bpp);
-    #endif
     return TRUE;
 }
 
-/*
- * tima_ScreenInit - Initialize screen information
- *
- * Sets up screen dimensions, depth, and framebuffer parameters.
- * Called after card init for each screen on the card.
- *
- * @param screen: Kdrive screen info structure
- * @return: TRUE on success
- */
 Bool tima_ScreenInit(KdScreenInfo *screen)
 {
-    tima_Priv_t *priv = screen->card->driver;
-    tima_ScrPriv_t *scrpriv;
+    tima_Priv_t *priv;
+    tima_ScrPriv_t *sp;
 
-    /* Allocate screen private data */
-    scrpriv = (tima_ScrPriv_t *)malloc(sizeof(tima_ScrPriv_t));
-    if (!scrpriv)
+    if (!screen || !screen->card ||
+        !(priv = tima_card_private(screen->card)))
         return FALSE;
 
-    memset(scrpriv, 0, sizeof(tima_ScrPriv_t));
+    sp = (tima_ScrPriv_t *)wmb_alloc(sizeof(*sp));
+    if (!sp)
+        return FALSE;
+    memset(sp, 0, sizeof(*sp));
+    sp->randr = RR_Rotate_0;
+    sp->shadow = FALSE;
+    screen->driver = sp;
 
-    screen->driver = scrpriv;
-    scrpriv->randr = RR_Rotate_0;
-    scrpriv->shadow = FALSE;
-
-    /* Set screen dimensions */
-    screen->width = priv->width;
-    screen->height = priv->height;
-    screen->rate = 60;  /* Assume 60Hz refresh */
-
-    /* Physical size in mm (approximate 96 DPI) */
+    screen->width = (int)priv->width;
+    screen->height = (int)priv->height;
+    screen->rate = 60;
     screen->width_mm = (screen->width * 254) / 960;
     screen->height_mm = (screen->height * 254) / 960;
 
-    /* Framebuffer configuration */
-    screen->fb.depth = priv->bpp;
-    screen->fb.bitsPerPixel = priv->bpp;
-    screen->fb.byteStride = priv->pitch;
-    screen->fb.pixelStride = priv->width;
+    /* Depth is not storage bpp: XRGB8888 is depth 24 on 32-bit pixels. */
+    screen->fb.depth = (priv->bpp == 32) ? 24 : 16;
+    screen->fb.bitsPerPixel = (int)priv->bpp;
+    screen->fb.byteStride = (int)priv->pitch;
+    screen->fb.pixelStride = (int)(priv->pitch / (priv->bpp / 8u));
     screen->fb.frameBuffer = (CARD8 *)priv->fb;
-
-    /* Visual configuration for TrueColor */
-    screen->fb.visuals = (1 << TrueColor);
+    screen->fb.shadow = FALSE;
+    screen->fb.visuals = (1UL << TrueColor);
     screen->fb.redMask = priv->red_mask;
     screen->fb.greenMask = priv->green_mask;
     screen->fb.blueMask = priv->blue_mask;
 
-    /* Memory info */
     screen->memory_base = (CARD8 *)priv->fb;
     screen->memory_size = priv->fb_size;
-    screen->off_screen_base = priv->fb_size;  /* No offscreen memory */
-
+    screen->off_screen_base = priv->fb_size;
     return TRUE;
 }
 
-/*
- * tima_InitScreen - Initialize X ScreenRec
- *
- * Connects Kdrive to the X server screen infrastructure.
- * Called during screen initialization.
- *
- * @param pScreen: X server screen pointer
- * @return: TRUE on success
- */
-Bool tima_InitScreen(ScreenPtr pScreen)
+Bool tima_InitScreen(ScreenPtr screen)
 {
-    /*
-     * The fb library handles most initialization.
-     * Add any screen-specific setup here.
-     */
+    (void)screen;
     return TRUE;
 }
 
-/*
- * tima_FinishInitScreen - Complete screen initialization
- *
- * Called after all screen components are initialized.
- * Set up shadow framebuffer if needed.
- *
- * @param pScreen: X server screen pointer
- * @return: TRUE on success
- */
-Bool tima_FinishInitScreen(ScreenPtr pScreen)
+Bool tima_FinishInitScreen(ScreenPtr screen)
 {
-    /* Initialize shadow layer (for rotation support) */
-    if (!shadowSetup(pScreen))
+    /* Direct framebuffer: no shadow layer to initialise. */
+    (void)screen;
+    return TRUE;
+}
+
+Bool tima_CreateResources(ScreenPtr screen)
+{
+    (void)screen;
+    return TRUE;
+}
+
+void tima_Preserve(KdCardInfo *card) { (void)card; }
+void tima_Restore(KdCardInfo *card) { (void)card; }
+
+Bool tima_Enable(ScreenPtr screen)
+{
+    KdScreenPriv(screen);
+    tima_Priv_t *priv = tima_card_private(pScreenPriv->card);
+    if (!priv || !priv->fb)
         return FALSE;
-
-    return TRUE;
-}
-
-/*
- * tima_CreateResources - Create screen resources
- *
- * Called to create any additional screen resources.
- * Set up shadow if using rotation.
- *
- * @param pScreen: X server screen pointer
- * @return: TRUE on success
- */
-Bool tima_CreateResources(ScreenPtr pScreen)
-{
-    KdScreenPriv(pScreen);
-    KdScreenInfo *screen = pScreenPriv->screen;
-    tima_ScrPriv_t *scrpriv = screen->driver;
-
-    if (scrpriv->shadow)
-    {
-        /* Set up shadow update function */
-        return KdShadowSet(pScreen, scrpriv->randr,
-                          shadowUpdatePacked, NULL);
-    }
-
-    return TRUE;
-}
-
-/*
- * tima_Preserve - Save hardware state
- *
- * Save any hardware state that needs to be restored later.
- * On bare-metal with no other graphics users, this may be empty.
- *
- * @param card: Kdrive card info
- */
-void tima_Preserve(KdCardInfo *card)
-{
-    /* No state to preserve on bare-metal */
-}
-
-/*
- * tima_Enable - Enable rendering
- *
- * Called when X server takes control of display.
- * Enable framebuffer output.
- *
- * @param pScreen: X server screen pointer
- * @return: TRUE on success
- */
-Bool tima_Enable(ScreenPtr pScreen)
-{
-    KdScreenPriv(pScreen);
-    tima_Priv_t *priv = pScreenPriv->card->driver;
-
-    /*
-     * PLATFORM-SPECIFIC: Enable display output
-     *
-     * May involve:
-     * - Enabling display controller
-     * - Setting video timing registers
-     * - Enabling pixel clock
-     * - Turning on backlight
-     */
-
-    /* Example: Clear framebuffer to black */
     memset(priv->fb, 0, priv->fb_size);
-
+    hal_display_flush(0, 0, priv->width, priv->height);
     return TRUE;
 }
 
-/*
- * tima_DPMS - Display Power Management
- *
- * Handle DPMS (power saving) modes.
- *
- * @param pScreen: X server screen pointer
- * @param mode: DPMS mode (KD_DPMS_NORMAL, STANDBY, SUSPEND, POWERDOWN)
- * @return: TRUE if mode was set
- */
-Bool tima_DPMS(ScreenPtr pScreen, int mode)
+Bool tima_DPMS(ScreenPtr screen, int mode)
 {
-    /*
-     * PLATFORM-SPECIFIC: Implement power management
-     *
-     * KD_DPMS_NORMAL    - Full power
-     * KD_DPMS_STANDBY   - Reduced power, quick recovery
-     * KD_DPMS_SUSPEND   - Lower power, slower recovery
-     * KD_DPMS_POWERDOWN - Minimum power
-     */
-
-    switch (mode) {
-    case KD_DPMS_NORMAL:
-        /* Enable display */
-        break;
-    case KD_DPMS_STANDBY:
-    case KD_DPMS_SUSPEND:
-    case KD_DPMS_POWERDOWN:
-        /* Disable display / reduce power */
-        break;
-    }
-
-    return TRUE;
+    (void)screen;
+    if (mode == KD_DPMS_NORMAL)
+        (void)hal_display_set_power(1);
+    else
+        (void)hal_display_set_power(0);
+    return TRUE;  /* Power control is optional; rendering still works. */
 }
 
-/*
- * tima_Disable - Disable rendering
- *
- * Called when X server releases display control.
- *
- * @param pScreen: X server screen pointer
- */
-void tima_Disable(ScreenPtr pScreen)
-{
-    /*
-     * On bare-metal, typically no action needed.
-     * Could blank screen if desired.
-     */
-}
+void tima_Disable(ScreenPtr screen) { (void)screen; }
 
-/*
- * tima_Restore - Restore hardware state
- *
- * Restore hardware state saved by Preserve.
- *
- * @param card: Kdrive card info
- */
-void tima_Restore(KdCardInfo *card)
-{
-    /* No state to restore on bare-metal */
-}
-
-/*
- * tima_ScreenFini - Cleanup screen
- *
- * Free screen-specific resources.
- *
- * @param screen: Kdrive screen info
- */
 void tima_ScreenFini(KdScreenInfo *screen)
 {
-    tima_ScrPriv_t *scrpriv = screen->driver;
-
-    if (scrpriv) {
-        free(scrpriv);
+    if (screen && screen->driver) {
+        wmb_free(screen->driver);
         screen->driver = NULL;
     }
 }
 
-/*
- * tima_CardFini - Cleanup card
- *
- * Free card resources and cleanup hardware.
- *
- * @param card: Kdrive card info
- */
 void tima_CardFini(KdCardInfo *card)
 {
-    tima_Priv_t *priv = card->driver;
-
-    if (priv) {
-        /*
-         * PLATFORM-SPECIFIC: Cleanup
-         * If framebuffer was mmap'd, unmap it here
-         */
-        free(priv);
+    if (card && card->driver) {
+        /* Framebuffer memory belongs to HAL, not KDrive. */
+        wmb_free(card->driver);
         card->driver = NULL;
     }
 }
 
-/*
- * tima_GetColors - Get colormap entries
- *
- * Read current colormap entries (for PseudoColor).
- * For TrueColor displays, this is typically not used.
- *
- * @param pScreen: X server screen pointer
- * @param n: Number of colors to get
- * @param pdefs: Array to fill with color values
- */
-void tima_GetColors(ScreenPtr pScreen, int n, xColorItem *pdefs)
+void tima_GetColors(ScreenPtr screen, int n, xColorItem *colors)
 {
-    /*
-     * For TrueColor (direct color), colormap is identity.
-     * Hardware doesn't have a palette to query.
-     */
-    while (n--) {
-        pdefs->red = pdefs->pixel >> 8;
-        pdefs->green = pdefs->pixel >> 8;
-        pdefs->blue = pdefs->pixel >> 8;
-        pdefs++;
+    (void)screen;
+    while (n-- > 0) {
+        /* TrueColor uses masks, not programmable colormap hardware. */
+        colors->red = colors->green = colors->blue = 0;
+        ++colors;
     }
 }
-
-/*
- * tima_PutColors - Set colormap entries
- *
- * Update colormap entries (for PseudoColor).
- * For TrueColor displays, this is typically not used.
- *
- * @param pScreen: X server screen pointer
- * @param n: Number of colors to set
- * @param pdefs: Color values to set
- */
-void tima_PutColors(ScreenPtr pScreen, int n, xColorItem *pdefs)
+void tima_PutColors(ScreenPtr screen, int n, xColorItem *colors)
 {
-    /*
-     * PLATFORM-SPECIFIC: Update hardware palette
-     *
-     * For indexed color modes, write to palette registers.
-     * For TrueColor, typically no action needed.
-     */
+    (void)screen; (void)n; (void)colors;
 }
 
-/*
- * KdCardFuncs structure - Wire up all functions
- */
 const KdCardFuncs tima_Funcs = {
-    .cardinit         = tima_CardInit,
-    .scrinit          = tima_ScreenInit,
-    .initScreen       = tima_InitScreen,
+    .cardinit = tima_CardInit, .scrinit = tima_ScreenInit,
+    .initScreen = tima_InitScreen,
     .finishInitScreen = tima_FinishInitScreen,
-    .createRes        = tima_CreateResources,
-    .preserve         = tima_Preserve,
-    .enable           = tima_Enable,
-    .dpms             = tima_DPMS,
-    .disable          = tima_Disable,
-    .restore          = tima_Restore,
-    .scrfini          = tima_ScreenFini,
-    .cardfini         = tima_CardFini,
-    .initCursor       = NULL,  /* Use software cursor */
-    .enableCursor     = NULL,
-    .disableCursor    = NULL,
-    .finiCursor       = NULL,
-    .recolorCursor    = NULL,
-    .initAccel        = NULL,  /* No 2D acceleration */
-    .enableAccel      = NULL,
-    .disableAccel     = NULL,
-    .finiAccel        = NULL,
-    .getColors        = tima_GetColors,
-    .putColors        = tima_PutColors,
+    .createRes = tima_CreateResources, .preserve = tima_Preserve,
+    .enable = tima_Enable, .dpms = tima_DPMS, .disable = tima_Disable,
+    .restore = tima_Restore, .scrfini = tima_ScreenFini,
+    .cardfini = tima_CardFini, .getColors = tima_GetColors,
+    .putColors = tima_PutColors
 };

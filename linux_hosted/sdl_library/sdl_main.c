@@ -56,13 +56,13 @@ int sdl_event_loop( void )
                 break;
 
             case SDL_MOUSEWHEEL:
-                //sdl_mouse_wheel_event( e.type, NULL, &e.wheel);
+                sdl_mouse_event( e.type, &e.button, &e.wheel );
                 break;
 
             case SDL_QUIT:
                 //system_PowerDown();
-                SDL_Quit();
                 sdl_terminate();
+                SDL_Quit();
                 ret = 0;
                 is_running = FALSE;
                 break;
