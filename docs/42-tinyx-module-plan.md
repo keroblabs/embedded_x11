@@ -23,6 +23,12 @@ end to end.
 
 **Rule of thumb:** if the file lives under `tinyx/` and is not under `tinyx/kdrive/`, it is this module's.
 
+All project changes to existing upstream TinyX files follow
+[the WMB_DEVEL methodology](47-tinyx-project-methodology.md): use the shared
+project target, preserve undefined reference paths, and keep device policy
+in the HAL port. This includes future Linux/threading and cooperative-runtime
+changes, not just the current KDrive integration.
+
 ### 1.2 What this document is not
 
 - **Not the file inventory.** [`01-component-inventory.md`](01-component-inventory.md) §7, §8.
@@ -64,7 +70,7 @@ The last three require one guarded line each in `mi/miinitext.c`. The rest requi
 | P3 | None — but P3's `hal_yield_timeout` semantics are what `waitfor_wmb.c` is written against | — |
 | **P4** | **Primary owner.** The whole‑stack assembly is this module's phase | **Heavy** |
 | **P5** | **Server half of the transport** — `waitfor_wmb.c`, `connection_wmb.c`, `io_wmb.c` | **Heavy** |
-| P6 | Seven of the thirteen guards, and the whole `tinyx/` patch budget except `kinput.c` | Medium |
+| P6 | Seven of the fifteen guards; the three KDrive core guards belong to [43-](43-kdrive-module-plan.md) | Medium |
 | P7 | Support only: `XGrabServer` flow control lands in `io_wmb.c` / `connection_wmb.c` | Light |
 | P8 | None directly; `dix` re‑entrancy is asserted by the E4 test, not changed | — |
 | P9 | The freestanding compile of ~96 kLOC — the largest surface for libc‑floor surprises | Medium |
@@ -274,7 +280,7 @@ The seams, stated as contracts so that a change on either side is a conversation
 | Client registration | `connection_wmb.c` exports `wmb_register_internal_client()` | `wmb_open.c` calls it | **This module** |
 | Reply / event egress | `WriteToClient` deposits into the client's slot | `_XReply`, the event queue | [`21-`](21-inprocess-transport.md) §5.5, §6 |
 | Block / wakeup handlers | `waitfor_wmb.c` calls them | `KdBlockHandler` → `pollEvents` | [`43-`](43-kdrive-module-plan.md) |
-| Screen and input init | `dix/main.c` → `InitOutput`, `InitInput` | `tima_kdrive_system.c` | [`43-`](43-kdrive-module-plan.md) |
+| Screen and input init | `dix/main.c` → `InitOutput`, `InitInput` | `hal_os.c` | [`43-`](43-kdrive-module-plan.md) |
 | Server fiber entry | Exports `TinyX_ServerFiber(void *)` | `wmb_main()` creates the fiber | [`44-`](44-framework-module-plan.md) |
 | Build config | Publishes `dix-config.h`, `kdrive-config.h` | Every `tinyx/` TU | **This module** |
 

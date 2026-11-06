@@ -51,7 +51,7 @@ WMB is eight components. Everything below is one of these.
 ├──────────────────────────────────────────────────────────────────────────────┤
 │  C4  Server OS layer     tinyx/os/ — reduced to logging, time, colours, utils│
 ├──────────────────────────────────────────────────────────────────────────────┤
-│  C3  DDX (KDrive)        kdrive/src/ generic  +  kdrive/tima/ our backend    │
+│  C3  DDX (KDrive)        kdrive/src/ generic  +  kdrive/hal/ our backend    │
 ├──────────────────────────────────────────────────────────────────────────────┤
 │  C2  Platform contract   hal_display · hal_input · hal_task · hal_time · os  │
 ├──────────────────────────────────────────────────────────────────────────────┤
@@ -204,37 +204,37 @@ A sibling of `linux_hosted/`, with the same module shape. The full per‑file po
 | `kdrive.h` | 419 | CARRY | The four vtable typedefs, `KdCardInfo`, `KdScreenInfo` |
 | `kkeymap.h` | 50 | CARRY | `kdKeymap`, `kdMinScanCode`, `kdMaxScanCode` |
 
-### 6.2 Our DDX backend — `tinyx/kdrive/tima/` — 5 files, 1,088 LOC
+### 6.2 Generic DDX integration - `tinyx/kdrive/hal/`
 
-Exists, never compiled. Currently reaches the hardware through `hal_drivers.h`; must be re‑pointed at the §5.1 contract.
+Built as part of `wmb_kdrive` with actual core sources and exercised by the
+[standalone harness](../tinyx/kdrive/hal/README.md).
 
-| File | LOC | Disposition | Provides | Gaps |
-|---|---:|---|---|---|
-| `tima_kdrive.h` | 88 | GUARD | Vtable externs, private types | — |
-| `tima_kdrive_fb.c` | 435 | GUARD | `KdCardFuncs`: cardinit, scrinit, initScreen, finishInitScreen, createRes, preserve, enable, dpms, disable, restore, scrfini, cardfini, getColors, putColors | Re‑point to `hal_display_*` |
-| `tima_kdrive_kbd.c` | 321 | GUARD | `KdKeyboardFuncs` + `tima_KeyboardPoll()` | Re‑point to `hal_input_poll_key`; LEDs and bell ignored |
-| `tima_kdrive_mouse.c` | 116 | GUARD | `KdMouseFuncs` + `tima_MousePoll()` | **Four known defects** — see §6.3 |
-| `tima_kdrive_system.c` | 128 | GUARD | `KdOsFuncs` + `InitCard`, `InitOutput`, `InitInput`, `OsVendorInit`, `ddxUseMsg`, `ddxProcessArgument`, `ddxGiveUp`, `AbortDDX` | **`tima_WaitForEvents()` does not exist** — the cooperative wait hook the whole design rests on |
+| File | Provides |
+|---|---|
+| `kdrive_hal.h` | Generic port tables and input lifecycle/poll declarations |
+| `hal_display.c` | HAL descriptor/card/screen mapping, exact pitch, X depth/masks, Damage publication, and cleanup |
+| `hal_input.c` | Complete-pair decoding, ASCII/modifiers, signed pointer motion, pressure/buttons, and wheel pulses |
+| `hal_os.c` | Standard entry points, HAL ownership, KDrive polling, and stop/error handling |
+| `tests/` | Real-core harness with controlled HAL and X-server services |
 
-### 6.3 Known DDX defects — must close in P1
+### 6.3 Former adapter gaps and remaining integration work
 
-Carried forward from the prior document generation and confirmed against the current sources:
-
-| # | File | Defect |
-|---|---|---|
-| D1 | `tima_kdrive_mouse.c` | `dx`, `dy`, `flags` used before initialisation |
-| D2 | `tima_kdrive_mouse.c` | No button‑release tracking — press/release deltas are never computed |
-| D3 | `tima_kdrive_mouse.c` | Wheel events (`CMD_MOUSE_WHEEL_X/Y`) are read and discarded instead of becoming X buttons 4/5/6/7 |
-| D4 | `tima_kdrive_mouse.c` | `mouse_driver_init(0)` is never called from `tima_MouseInit()` |
-| D5 | `tima_kdrive_system.c` | `tima_WaitForEvents()` missing; `KdOsFuncs` has no cooperative wait wired |
-| D6 | `tima_kdrive_system.c` | `ddxProcessArgument` returns 0 unconditionally while `ddxUseMsg` advertises `-fb` and `-fbsize` |
-| **D7** | `keyraw_driver.c`, `mouse_driver.c` | **The HAL input rings use `buffer.c` outside its scope.** `buffer.c` is a byte FIFO and drops a single byte on overflow by design ([`90-`](90-decisions.md) D‑48); these two rings carry `HAL_CMD_*` command/data **pairs**, and [`12-`](12-platform-contract.md) §5.3 requires overflow never to truncate one. A full keyboard (20 B) or mouse (128 B) ring desynchronises the decoder *permanently*. Not a `buffer.c` bug — a misuse of it. D‑47 precondition **R2** |
+| Area | Current status |
+|---|---|
+| Uninitialized pointer state and release tracking | Corrected and tested |
+| Wheels and side buttons | Implemented on distinct X buttons; real core event generation tested |
+| Input initialization | Shared HAL ownership, callback failure propagation, and cleanup tested |
+| Input queue pair corruption | Fixed in the low-layer backend; DDX preserves fragmented pair state |
+| Modifier/scancode collision | Removed; private modifier slots are outside printable ASCII |
+| Damage publication | Generic raw-region callback forwards changed rectangles to HAL flush |
+| Proprietary wait/argument stubs | Removed; real KDrive argument dispatch and standard polling/deadline hook are used |
+| Full server cooperative wait, real root window, protocol/client/JWM input | Still requires TinyX/runtime/transport integration |
 
 ### 6.4 Other KDrive backends — EXCLUDE
 
 | Directory | Files / LOC | Disposition | Reason |
 |---|---|---|---|
-| `tinyx/kdrive/linux/` | `linux.c` 348, `keyboard.c` 469, `mouse.c` 943 | **EXCLUDE** | The Linux console/evdev/VT backend. Includes `<linux/*>`, `<termios.h>`, `<sys/ioctl.h>`, `<signal.h>`, and the only `select()` outside `tinyx/os/`. Wholly replaced by `kdrive/tima/` |
+| `tinyx/kdrive/linux/` | `linux.c` 348, `keyboard.c` 469, `mouse.c` 943 | **EXCLUDE** | The Linux console/evdev/VT backend. Includes `<linux/*>`, `<termios.h>`, `<sys/ioctl.h>`, `<signal.h>`, and the only `select()` outside `tinyx/os/`. Wholly replaced by `kdrive/hal/` |
 | `tinyx/kdrive/fbdev/` | `fbdev.c` 784, `fbinit.c` 100 | **EXCLUDE** | Linux `/dev/fb0` backend |
 | `tinyx/kdrive/vesa/` | `vesa.c` 1,696, `vbe.c` 692, `vm86.c` 754, `vga.c` 224, `vesainit.c` 106 | **EXCLUDE** | x86 VESA/VM86 backend |
 
@@ -429,7 +429,7 @@ The build in [`30-host-build.md`](30-host-build.md) §4 defines exactly these gr
 | `TINYX_MIEXT` | `miext/shadow/*.c` + `miext/damage/damage.c` | 21 | 3,514 |
 | `TINYX_EXT` | `render/` + `randr/` + `xfixes/` + `damageext/` + selected `Xext/` | 39 | 24,000 |
 | `TINYX_KDRIVE` | `kdrive/src/` minus `kmap.c` | 6 | 3,480 |
-| `TINYX_DDX` | `kdrive/tima/` | 4 | 1,088 |
+| `TINYX_DDX` | `kdrive/hal/` | 3 | ~550 |
 | `LIBX11_API` | `libX11/src/` minus the excluded set | ~245 | ~34,000 |
 | `WMB_TRANSPORT` | `transport/x11/` | 6 | 900 |
 | `WMB_API` | `transport/api/` | 2 | 260 |

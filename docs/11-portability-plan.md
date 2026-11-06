@@ -24,24 +24,31 @@ Four mechanisms, in strict order of preference. **Always use the earliest one th
 |---|---|---|---|
 | M1 | **Do not compile the file.** | Zero. No patch, no guard, no maintenance. | The file's entire purpose is OS‑coupled |
 | M2 | **Compile a replacement file with the same external symbols.** | One new file we own. No upstream diff. | The file has a small, well‑defined external surface that we can reimplement |
-| M3 | **Guard a region of an upstream file with `#ifdef`.** | One line item in the patch manifest. Must be replayable. | The file is mostly needed but has an OS‑coupled region |
-| M4 | **Rewrite upstream logic.** | Forbidden. | — |
+| M3 | **Guard a necessary region of an upstream file.** | One line item in the patch manifest. Must be replayable; preserve the reference alternative. | The file is mostly needed but has a project-specific dependency or engine limitation |
+| M4 | **Rewrite upstream logic unconditionally.** | Forbidden. | — |
 
-M1 handles ~15,000 LOC. M2 handles the transport. M3 handles 13 files. M4 never happens.
+M1 handles ~15,000 LOC. M2 handles the transport. M3 plans 15 files, including the
+three current KDrive core files. M4 never happens. Device policy uses existing
+DDX/HAL seams before M3; see [the TinyX methodology](47-tinyx-project-methodology.md).
 
 ### 2.1 Naming conventions
 
 | Kind | Convention | Example |
 |---|---|---|
 | Replacement file (M2) | `<original>_wmb.c`, beside the original | `tinyx/os/io_wmb.c` |
-| Guard macro for OS transport | `WMB_HAS_OS_TRANSPORT` | `#ifdef WMB_HAS_OS_TRANSPORT` |
-| Guard macro for profile | `WMB_HOSTED` / `WMB_FREESTANDING` | — |
+| Project change in existing TinyX code | `WMB_DEVEL` | `#if defined(WMB_DEVEL)` |
+| Capability/profile refinement | `WMB_HAS_OS_TRANSPORT`, `WMB_HOSTED` / `WMB_FREESTANDING` | Within the TinyX project branch, not a replacement for its selector |
 | Guard macro for in‑process client path | `WMB_INPROC` | — |
 | New framework file | `framework/<area>/<name>.c` | `framework/library/heap.c` |
 | New port file | `<port>/<module>/<name>.c` | `linux_hosted/system_linux/hal_time_hosted.c` |
 
-**Guard style is fixed**: file‑level or block‑level `#ifdef` only, no `#if defined(A) && !defined(B) || …` compound conditions in upstream files. A
-reviewer replaying the patch series onto a new upstream release must be able to see, in one line, what the guard is for.
+**TinyX guard style is fixed**: use the simple presence-based project expression
+above, with unchanged reference code in `#else`; only an undefined macro disables
+the project branch. Any definition, including zero or an empty value, selects WMB.
+Guard includes/declarations/layout too. New project-owned
+files are selected by the project build. Existing non-TinyX profile/client
+selectors remain separate. A reviewer must be able to identify each project's
+deviation in one line; do not invent backend-specific core selectors.
 
 ## 3. Phase Structure
 
@@ -51,9 +58,9 @@ Six phases with hard exit gates. Phases are sequential; each consumes the previo
 |---:|---|---|
 | **Q1** | Exclusion freeze | The CMake source lists contain no EXCLUDE file, and every symbol referenced from an excluded file is accounted for (satisfied, stubbed, or guarded) |
 | **Q2** | Contract authoring | `hal_display.h`, `hal_input.h`, `hal_task.h`, `hal_time.h`, `wmb_os.h` exist and compile standalone against a freestanding C compiler with no includes beyond `<stdint.h>` / `<stddef.h>` / `<stdbool.h>` |
-| **Q3** | Backend re‑pointing | `tinyx/kdrive/tima/*.c` includes only `hal_*.h`; a mock backend links the DDX with no SDL present |
+| **Q3** | Backend re‑pointing | `tinyx/kdrive/hal/*.c` includes only `hal_*.h`; a mock backend links the DDX with no SDL present |
 | **Q4** | Transport stubs | `waitfor_wmb.c`, `connection_wmb.c`, `io_wmb.c` compile and the whole‑stack build links in the `host-pure` profile |
-| **Q5** | Guard application | The 13 guarded upstream files carry their guards; the patch manifest is complete; the series replays on fresh checkouts |
+| **Q5** | Guard application | The 15 planned upstream files carry their guards; the patch manifest is complete; the series replays on fresh checkouts |
 | **Q6** | Freestanding proof | The `target` profile compiles every translation unit with `-ffreestanding -nostdinc` plus only the documented floor |
 
 Q1 and Q2 can run in parallel. Q3 depends on Q2. Q4 depends on Q1 and on [`21-`](21-inprocess-transport.md). Q5 depends on Q4. Q6 depends on everything.
@@ -143,10 +150,10 @@ Break the DDX's coupling to a backend‑named directory and to the ad‑hoc `hal
 | `linux_hosted/sdl_drivers/hal_display_sdl.c` | Direct private implementation of the display HAL, including status pump | Done |
 | `linux_hosted/sdl_drivers/hal_input_sdl.c` | Direct private byte queues and typed portable controls | Done |
 | `linux_hosted/sdl_drivers/hal_mock.c` | New; a null backend for link‑isolation testing | New |
-| `tinyx/kdrive/tima/tima_kdrive_fb.c` | `#include "hal_drivers.h"` → `#include "hal_display.h"`; `lcd_driver_get_framebuffer()` → `hal_display_get_fb()->pixels`; shadow update → `hal_display_flush()` | M3 |
-| `tinyx/kdrive/tima/tima_kdrive_kbd.c` | Generic `hal_input_read_byte` pairs; application keymap stays private | M3 |
-| `tinyx/kdrive/tima/tima_kdrive_mouse.c` | → `hal_input.h`; **plus defects D1–D4** from [`01-`](01-component-inventory.md) §6.3 | M3 |
-| `tinyx/kdrive/tima/tima_kdrive_system.c` | → `hal_task.h`; **implement `tima_WaitForEvents()`** (defect D5); fix `ddxProcessArgument` (D6) | M3 |
+| `tinyx/kdrive/hal/hal_display.c` | `#include "hal_drivers.h"` → `#include "hal_display.h"`; `lcd_driver_get_framebuffer()` → `hal_display_get_fb()->pixels`; shadow update → `hal_display_flush()` | M3 |
+| `tinyx/kdrive/hal/hal_input.c` | Generic `hal_input_read_byte` pairs; application keymap stays private | M3 |
+| `tinyx/kdrive/hal/hal_input.c` | → `hal_input.h`; **plus defects D1–D4** from [`01-`](01-component-inventory.md) §6.3 | M3 |
+| `tinyx/kdrive/hal/hal_os.c` | Generic HAL polling/lifecycle; standard block-handler deadline and real argument dispatch | Done |
 | Legacy display/keypad/mouse surface | Removed; software drawing stays above the HAL, and backend headers/definitions are private | Done |
 
 These four DDX files are ours (untracked additive module), so they do not consume upstream patch budget.
@@ -218,23 +225,28 @@ exists specifically to catch this.
 
 ## 8. Phase Q5 — Guard Application
 
-The 13 upstream files that carry edits.
+The 15 planned upstream files that carry edits. The three KDrive files are
+already implemented and standalone-tested; the other rows remain phase work.
 
-### 8.1 `tinyx/` — 8 guarded files
+### 8.1 `tinyx/` — 10 guarded files
 
 | # | File | Guard | Edit |
 |--:|---|---|---|
-| 1 | `dix/main.c` | `WMB_INPROC` | `main()` → `TinyX_ServerFiber(void *)`; remove the `envp` parameter; guard the `getenv("XAUTHORITY")` block at L250; guard the XDMCP argument handling |
-| 2 | `mi/miinitext.c` | `WMB_EXT_MINIMAL` | Three lines: don't register `dbe`, `shm`, `xf86bigfont` |
-| 3 | `os/utils.c` | `WMB_HAS_OS_TRANSPORT` | Guard the `<signal.h>` block, `sigaction` installs, `<sys/wait.h>` child reaping, `setrlimit`, `Fopen()`, `<netdb.h>` hostname resolution |
-| 4 | `os/osinit.c` | `WMB_HAS_OS_TRANSPORT` | Guard `setrlimit(RLIMIT_NOFILE)` and the `fopen` stderr redirect |
-| 5 | `os/log.c` | `WMB_FREESTANDING` | Guard `<sys/stat.h>` and the log rotation path; keep `ErrorF`/`LogVWrite` |
-| 6 | `os/osdep.h` | `WMB_INPROC` | Guard `<X11/Xpoll.h>` and the fd‑bitset typedefs; add the internal‑client fields. Always taken, since `WMB_INPROC` is always defined ([`12-`](12-platform-contract.md) §3) |
-| 7 | `os/strlcpy.c` | — | `<sys/types.h>` → `<stddef.h>` (one line) |
-| 8 | `kdrive/src/kinput.c` | `WMB_HAS_OS_TRANSPORT` | Guard the `<signal.h>` / SIGIO async‑input path; the polled path is unchanged |
+| 1 | `dix/main.c` | `WMB_DEVEL` | `main()` → `TinyX_ServerFiber(void *)`; remove the `envp` parameter; guard authority/environment and XDMCP argument handling |
+| 2 | `mi/miinitext.c` | `WMB_DEVEL` | Select project extensions within the project branch; preserve reference registration |
+| 3 | `os/utils.c` | `WMB_DEVEL` | Guard signals, child reaping, limits, file and hostname dependencies; retain reference alternatives |
+| 4 | `os/osinit.c` | `WMB_DEVEL` | Project limit/log-redirection handling; refine optional capabilities within the branch |
+| 5 | `os/log.c` | `WMB_DEVEL` | Project file/log-rotation handling; keep `ErrorF`/`LogVWrite` and reference behavior |
+| 6 | `os/osdep.h` | `WMB_DEVEL` | Project fd-bitset/internal-client declarations; preserve reference types/layout |
+| 7 | `os/strlcpy.c` | `WMB_DEVEL` | Project `<stddef.h>` include with original `<sys/types.h>` alternative |
+| 8 | `kdrive/src/kinput.c` | `WMB_DEVEL` | Native FD/SIGIO exclusion and guarded bounds, lock/reset, startup, pointer/event, acceleration, and polling-deadline corrections |
+| 14 | `kdrive/src/kdrive.h` | `WMB_DEVEL` | Nine-button capacity/constants and wide button state; retain reference layout |
+| 15 | `kdrive/src/kdrive.c` | `WMB_DEVEL` | Project native-option/VT/shell exclusions and lifecycle/OS-initialization handling |
 
-`os/strlcat.c` also includes `<sys/types.h>` but the file is 56 lines and trivially replaceable by M2 if the one‑line edit is not wanted; it is listed here
-as guard #8b and does not count separately.
+`os/strlcat.c` also includes `<sys/types.h>`; prefer an M2 replacement if needed.
+If edited instead, its change also requires `WMB_DEVEL` and an additional manifest
+entry/budget decision. Existing manifest IDs 1-13 are retained; 14/15 record the
+two added KDrive core files.
 
 ### 8.2 `libX11/` — 2 guarded files
 
@@ -258,13 +270,15 @@ Three further JWM files (`main.c`, `misc.c`, `timing.c`) are handled by **M2 via
 
 | Tree | Cap | Planned | Slack |
 |---|---:|---:|---:|
-| `tinyx/` | 8 | 8 | 0 |
+| `tinyx/` | 10 | 10 | 0 |
 | `libX11/` (incl. `X11/Xlibint.h`) | 3 | 2 | 1 |
 | `jwm/` | 4 | 3 | 1 |
-| **Total** | **15** | **13** | **2** |
+| **Total** | **17** | **15** | **2** |
 
 Exceeding a cap requires an entry in [`90-decisions.md`](90-decisions.md) with the alternative that was rejected and why. The caps exist because every
-guarded file is a merge conflict every time upstream moves.
+guarded file is a merge conflict every time upstream moves. D-51 raises the
+TinyX cap by two for necessary header-layout and lifecycle changes; copying
+engine logic into the HAL port was rejected.
 
 ### 8.5 Patch manifest
 
@@ -281,7 +295,9 @@ patches/
 │   ├── 0005-log-guard-file-rotation.patch
 │   ├── 0006-osdep-guard-fdset.patch
 │   ├── 0007-strlcpy-stddef.patch
-│   └── 0008-kinput-guard-sigio.patch
+│   ├── 0008-kinput-project-input.patch
+│   ├── 0009-kdrive-project-buttons.patch
+│   └── 0010-kdrive-project-lifecycle.patch
 ├── libX11/
 │   ├── 0001-Xlibint-data-macro-buffer-growth.patch
 │   └── 0002-XlibInt-guard-socket-helpers.patch
@@ -299,9 +315,11 @@ for tree in tinyx libX11 jwm; do
     git -C /tmp/pristine/$tree apply --check patches/$tree/*.patch || exit 1
 done
 
-# every guard macro used in an upstream file is one of the sanctioned four
-grep -rhoE '#if(n?def)? +WMB_[A-Z_]+' tinyx libX11 jwm X11/Xlibint.h | sort -u
-# → WMB_INPROC, WMB_HOSTED, WMB_FREESTANDING, WMB_HAS_OS_TRANSPORT, WMB_EXT_MINIMAL  (and nothing else)
+# inventory project/profile guards, including presence-based TinyX guards
+grep -rhE '^#(if|ifdef|ifndef).*WMB_[A-Z_]+' tinyx libX11 jwm X11/Xlibint.h \
+    | grep -oE 'WMB_[A-Z_]+' | sort -u
+# TinyX project edits use WMB_DEVEL; existing non-TinyX profile/client guards
+# and capability refinements are reviewed separately.
 ```
 
 ## 9. Phase Q6 — Freestanding Proof

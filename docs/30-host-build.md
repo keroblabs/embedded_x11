@@ -11,16 +11,20 @@ backend is linked underneath the platform contract.
 
 ### 1.1 Current state
 
-The build as it stands (`framework/CMakeLists.txt`, 102 lines) is a stub:
+The root CMake build now has layered framework/hosted targets, optional SDL HAL
+backends, examples, and `wmb_kdrive`. KDrive's generic HAL port and actual core
+have a [standalone harness](../tinyx/kdrive/hal/README.md) without SDL or a full
+server. SDL discovery is package-based, not a hard-coded source path.
 
-- One target, `wmb_tima_build`.
-- Compiles 12 files: the SDL library glue, three SDL drivers, two heap helpers, the four Tima DDX files, and a six‑line `main()`.
-- Links **nothing** from `tinyx/dix`, `tinyx/os`, `tinyx/mi`, `tinyx/fb`, `tinyx/kdrive/src`, `libX11/` or `jwm/`.
-- Hard‑codes `SDL_ROOT` to `/home/wifi/projects/SDL` and fails configuration if it is absent.
-- Defines `_USE_LINUX`, which is precisely the kind of dependency the project exists to remove.
-- Leaves `HAVE_CONFIG_H` undefined, which cannot survive whole‑stack assembly.
+TinyX project selection is shared through `wmb_tinyx_project`
+([wmb_devel.cmake](../tinyx/wmb_devel.cmake)), exporting `WMB_DEVEL=1` PUBLIC
+through KDrive. Future server targets must consume the same target in every
+profile and in Release as well as Debug; do not put this definition on HAL,
+framework, or SDL libraries. See [the methodology](47-tinyx-project-methodology.md).
 
-There is no built binary in `build/` or `build_local/`. **This document replaces that file entirely.**
+The full `tinyx/dix`/`os`/`mi`/`fb`, libX11, transport, and JWM image is not yet
+assembled. Generated/curated server configuration and actual root-window/client
+integration remain work for that whole-stack build.
 
 ### 1.2 What this document is not
 
@@ -228,7 +232,7 @@ set(TINYX_INCLUDE_DIRS
     ${CMAKE_SOURCE_DIR}/tinyx/xfixes             # FIXES_INC
     ${CMAKE_SOURCE_DIR}/tinyx/damageext          # DAMAGE_INC
     ${CMAKE_SOURCE_DIR}/tinyx/kdrive/src         # KDRIVE_INC
-    ${CMAKE_SOURCE_DIR}/tinyx/kdrive/tima        # KDRIVE_OS_INC  ← ours, not linux/
+    ${CMAKE_SOURCE_DIR}/tinyx/kdrive/hal        # KDRIVE_OS_INC  ← ours, not linux/
     ${CMAKE_BINARY_DIR}/generated)               # dix-config.h, kdrive-config.h
 ```
 

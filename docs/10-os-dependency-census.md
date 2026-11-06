@@ -148,7 +148,7 @@ SD3 is the highest‑risk item in this document. It is easy to write a `WaitForS
 
 `kinput.c` is otherwise clean: `KdEnqueueKeyboardEvent`, `KdEnqueueMouseEvent`, keymap and repeat handling are all portable.
 
-### 4.3 Our DDX — `tinyx/kdrive/tima/`
+### 4.3 Our DDX — `tinyx/kdrive/hal/`
 
 Zero POSIX includes. Zero SDL includes. Already portable in the sense that matters. **One layering defect**: all four `.c` files include `hal_drivers.h`,
 which lives in `linux_hosted/sdl_drivers/` — i.e. the DDX is coupled to a *directory named for a backend*, even though it is not coupled to SDL itself. Fixed

@@ -244,29 +244,29 @@ KDrive is X.Org's "miniature X server" framework. It abstracts the hardware behi
 
 | Vtable | Members | Filled by |
 |---|---|---|
-| `KdCardFuncs` | `cardinit`, `scrinit`, `initScreen`, `finishInitScreen`, `createRes`, `preserve`, `enable`, `dpms`, `disable`, `restore`, `scrfini`, `cardfini`, `getColors`, `putColors` | `tima_kdrive_fb.c` |
-| `KdKeyboardFuncs` | `Load`, `Init`, `Leds`, `Bell`, `Fini`, `LockLed` | `tima_kdrive_kbd.c` |
-| `KdMouseFuncs` | `Init`, `Fini` | `tima_kdrive_mouse.c` |
-| `KdOsFuncs` | `Init`, `Enable`, `SpecialKey`, `Disable`, `Fini`, `pollEvents` | `tima_kdrive_system.c` |
+| `KdCardFuncs` | `cardinit`, `scrinit`, `initScreen`, `finishInitScreen`, `createRes`, `preserve`, `enable`, `dpms`, `disable`, `restore`, `scrfini`, `cardfini`, `getColors`, `putColors` | `hal_display.c` |
+| `KdKeyboardFuncs` | `Load`, `Init`, `Leds`, `Bell`, `Fini`, `LockLed` | `hal_input.c` |
+| `KdMouseFuncs` | `Init`, `Fini` | `hal_input.c` |
+| `KdOsFuncs` | `Init`, `Enable`, `SpecialKey`, `Disable`, `Fini`, `pollEvents` | `hal_os.c` |
 
 And five DDX entry points the server calls directly:
 
 | Symbol | Called from | Our implementation |
 |---|---|---|
-| `InitCard(char *name)` | `dix/main.c` | `KdCardInfoAdd(&tima_Funcs, NULL)` |
+| `InitCard(char *name)` | `dix/main.c` | `KdCardInfoAdd(&KdHalCardFuncs, NULL)` |
 | `InitOutput(ScreenInfo*, argc, argv)` | `dix/main.c` | `KdInitOutput(...)` |
-| `InitInput(argc, argv)` | `dix/main.c` | `KdInitInput(&tima_MouseFuncs, &tima_KeyboardFuncs)` |
-| `OsVendorInit(void)` | `os/utils.c` | `KdOsInit(&tima_OsFuncs)` |
+| `InitInput(argc, argv)` | `dix/main.c` | HAL input lifecycle, then `KdInitInput(&KdHalMouseFuncs, &KdHalKeyboardFuncs)` |
+| `OsVendorInit(void)` | `os/utils.c` | `KdOsInit(&KdHalOsFuncs)` |
 | `ddxUseMsg/ddxProcessArgument/ddxGiveUp/AbortDDX` | various | stubs |
 
-All of the above already exist in `tinyx/kdrive/tima/tima_kdrive_system.c`.
+All of the above already exist in `tinyx/kdrive/hal/hal_os.c`.
 
 ### 6.2 How input reaches a client today
 
 ```
   hardware IRQ / SDL event
     → mouse_driver_read_data() / keypad_driver_read_data()      linux_hosted/sdl_drivers/
-      → tima_MousePoll() / tima_KeyboardPoll()                  tinyx/kdrive/tima/
+      → KdHalMousePoll() / KdHalKeyboardPoll()                  tinyx/kdrive/hal/
         → KdEnqueueMouseEvent() / KdEnqueueKeyboardEvent()      tinyx/kdrive/src/kinput.c
           → mieqEnqueue()                                       tinyx/mi/mieq.c
             ... WakeupHandler → mieqProcessInputEvents() ...
@@ -276,7 +276,7 @@ All of the above already exist in `tinyx/kdrive/tima/tima_kdrive_system.c`.
                     → FlushClient() → writev(fd)
 ```
 
-`tima_OsPollEvents()` — the `KdOsFuncs.pollEvents` member — is what drives the top of that chain, and it is invoked from KDrive's `BlockHandler`, which
+`KdHalOsFuncs.pollEvents()` — the `KdOsFuncs.pollEvents` member — is what drives the top of that chain, and it is invoked from KDrive's `BlockHandler`, which
 `WaitForSomething()` calls at `WaitFor.c:206`. **Removing `select()` therefore also removes the thing that currently drives input polling**, which is why
 `hal_yield_timeout` must preserve `BlockHandler`/`WakeupHandler` semantics. This is the subtlest coupling in the whole project.
 

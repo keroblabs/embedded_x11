@@ -679,9 +679,9 @@ is re‑read.
    (no notify - see below) ~~~~~~~► WaitForSomething
                                       BlockHandler       (timeout brings it here)
                                         KdBlockHandler
-                                          tima_OsPollEvents
-                                            tima_KeyboardPoll
-                                            tima_MousePoll
+                                          KdHalOsFuncs.pollEvents
+                                            KdHalKeyboardPoll
+                                            KdHalMousePoll
                                               hal_input_read_byte
                                               KdEnqueue*Event
                                                 mieqEnqueue

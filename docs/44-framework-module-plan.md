@@ -221,7 +221,7 @@ Written together they close **V-P8-6**: the measurements that let [`31-target-bu
 
 | Seam | This module provides | Consumer |
 |---|---|---|
-| `hal_task.h` — 9 functions | `hal_task_create`, `hal_task_wait`, `hal_task_wake`, `hal_yield_timeout`, … | `tinyx/os/waitfor_wmb.c`, `jwm/src/event.c`, `tima_kdrive_system.c`, `transport/x11/` |
+| `hal_task.h` — 9 functions | `hal_task_create`, `hal_task_wait`, `hal_task_wake`, `hal_yield_timeout`, … | `tinyx/os/waitfor_wmb.c`, `jwm/src/event.c`, `transport/x11/` |
 | `hal_alloc.h` — 2 functions | `wmb_alloc`, `wmb_free` | Every WMB-side allocator (framework's `heap_mngr.c` today; transport later) |
 | `fiber_critical_enter/exit` | Tick-suppressing critical sections | `buffer.c`, `hal_display_flush` (R3) |
 | `fiber_port.h`, `intr_handler.h` | 7 symbols the port implements | *Consumed* from each port tree — [`43-`](43-kdrive-module-plan.md) supplies the peer device ports; §8 above supplies the target fiber port |

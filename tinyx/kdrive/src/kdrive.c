@@ -62,7 +62,9 @@ static Bool kdEnabled;
 static int kdSubpixelOrder;
 int kdVirtualTerminal = -1;
 Bool kdSwitchPending;
+#if !defined(WMB_DEVEL)
 static const char *kdSwitchCmd;
+#endif
 static DDXPointRec kdOrigin;
 
 /*
@@ -186,6 +188,7 @@ void KdDisableScreen(ScreenPtr pScreen)
 
 static void KdDoSwitchCmd(const char *const reason)
 {
+#if !defined(WMB_DEVEL)
 	if (kdSwitchCmd) {
 		char *command;
 
@@ -194,6 +197,9 @@ static void KdDoSwitchCmd(const char *const reason)
 		system(command);
 		free(command);
 	}
+#else
+	(void)reason;
+#endif
 }
 
 void KdSuspend(void)
@@ -285,17 +291,29 @@ static void KdEnableScreens(void)
 
 void KdProcessSwitch(void)
 {
+#if defined(WMB_DEVEL)
+	if (kdSwitchPending)
+		ErrorF("Virtual-terminal switching is not supported by WMB TinyX\n");
+	kdSwitchPending = FALSE;
+#else
 	if (kdEnabled)
 		KdDisableScreens();
 	else
 		KdEnableScreens();
+#endif
 }
 
 void AbortDDX(void)
 {
+#if !defined(WMB_DEVEL)
 	KdDisableScreens();
+#endif
 	if (kdOsFuncs) {
+#if defined(WMB_DEVEL)
+		if (kdOsFuncs->Disable)
+#else
 		if (kdEnabled && kdOsFuncs->Disable)
+#endif
 			(*kdOsFuncs->Disable) ();
 		if (kdOsFuncs->Fini)
 			(*kdOsFuncs->Fini) ();
@@ -578,9 +596,11 @@ void KdUseMsg(void)
 	ErrorF("-softCursor      Force software cursor\n");
 	ErrorF
 	    ("-origin X,Y      Locates the next screen in the the virtual screen (Xinerama)\n");
+#if !defined(WMB_DEVEL)
 	ErrorF
 	    ("-mouse path[,n]  Filename of mouse device, n is number of buttons\n");
 	ErrorF("-switchCmd       Command to execute on vt switch\n");
+#endif
 	ErrorF
 	    ("-nozap           Don't terminate server on Ctrl+Alt+Backspace\n");
 	ErrorF
@@ -658,6 +678,13 @@ int KdProcessArgument(int argc, char **argv, int i)
 			UseMsg();
 		return 2;
 	}
+#if defined(WMB_DEVEL)
+	if (!strcmp(argv[i], "-mouse") || !strcmp(argv[i], "-switchCmd") ||
+	    !strncmp(argv[i], "vt", 2)) {
+		ErrorF("Native input/VT options are not supported by WMB TinyX\n");
+		return 0;
+	}
+#else
 	if (!strcmp(argv[i], "-mouse")) {
 		if ((i + 1) < argc)
 			KdParseMouse(argv[i + 1]);
@@ -665,6 +692,7 @@ int KdProcessArgument(int argc, char **argv, int i)
 			UseMsg();
 		return 2;
 	}
+#endif
 	if (!strcmp(argv[i], "-rgba")) {
 		if ((i + 1) < argc)
 			KdParseRgba(argv[i + 1]);
@@ -672,6 +700,7 @@ int KdProcessArgument(int argc, char **argv, int i)
 			UseMsg();
 		return 2;
 	}
+#if !defined(WMB_DEVEL)
 	if (!strcmp(argv[i], "-switchCmd")) {
 		if ((i + 1) < argc)
 			kdSwitchCmd = argv[i + 1];
@@ -683,6 +712,7 @@ int KdProcessArgument(int argc, char **argv, int i)
 	    sscanf(argv[i], "vt%2d", &kdVirtualTerminal) == 1) {
 		return 1;
 	}
+#endif
 	return 0;
 }
 
@@ -694,6 +724,10 @@ int KdProcessArgument(int argc, char **argv, int i)
 void KdOsInit(const KdOsFuncs * const pOsFuncs)
 {
 	kdOsFuncs = pOsFuncs;
+#if defined(WMB_DEVEL)
+	if (pOsFuncs && pOsFuncs->Init && !(*pOsFuncs->Init) ())
+		FatalError("WMB TinyX OS initialization failed\n");
+#else
 	if (pOsFuncs) {
 		if (serverGeneration == 1) {
 			KdDoSwitchCmd("start");
@@ -701,6 +735,7 @@ void KdOsInit(const KdOsFuncs * const pOsFuncs)
 				(*pOsFuncs->Init) ();
 		}
 	}
+#endif
 }
 
 static Bool KdAllocatePrivates(ScreenPtr pScreen)

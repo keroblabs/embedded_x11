@@ -50,7 +50,7 @@ a slice of.
 ║  └───────────────────────────────┬──────────────────────────────────────────┘   ║
 ║  ┌───────────────────────────────▼──────────────────────────────────────────┐   ║
 ║  │ KDrive DDX                                                               │   ║
-║  │   kdrive/src (generic)  +  kdrive/tima (ours)                            │   ║
+║  │   kdrive/src (generic)  +  kdrive/hal (ours)                            │   ║
 ║  │   KdCardFuncs · KdKeyboardFuncs · KdMouseFuncs · KdOsFuncs               │   ║
 ║  └───────────────────────────────┬──────────────────────────────────────────┘   ║
 ║  ┌───────────────────────────────▼──────────────────────────────────────────┐   ║
@@ -102,9 +102,11 @@ The two port trees are **peers**, not a general case and a special case. Neither
 identical for both. Porting to a new platform is therefore "write a sibling of `linux_hosted/`", which is a directory with a known shape and a known file
 list ([`31-`](31-target-build.md) §4.6) rather than an open‑ended search through the tree for things to change.
 
-Rule L1 is the one that decides whether this project produces something portable or something that merely *runs on SDL*. It is worth being pedantic about:
-the current `tinyx/kdrive/tima/*.c` files include `hal_drivers.h`, which lives in `linux_hosted/sdl_drivers/`. That is an L3 violation today, purely by
-directory placement, and fixing it is Phase 1 work.
+Rule L1 is the one that decides whether this project produces something portable
+or merely runs on SDL. The generic `tinyx/kdrive/hal/` port now includes the
+platform-neutral display/input contracts. Its standalone harness links actual
+KDrive code without SDL; device backend headers and configuration stay below
+the HAL.
 
 Rule L7 is the one that decides whether the window manager can be lifted into another project later. It costs almost nothing to hold now and is expensive
 to recover once something in `tinyx/` has quietly called into boot.
@@ -275,7 +277,7 @@ that has only been demonstrated over a bridge has not been demonstrated.
 
 ```
  hal fiber: drain backend → HAL input buffers → wake xsrv
-   → xsrv BlockHandler chain → tima_OsPollEvents → tima_{Keyboard,Mouse}Poll
+   → xsrv BlockHandler chain → KdHalOsFuncs.pollEvents → KdHal{Keyboard,Mouse}Poll
      → KdEnqueue{Keyboard,Mouse}Event → mieqEnqueue
        → WakeupHandler → mieqProcessInputEvents → DeliverEvents
          → WriteEventsToClient → WriteToClient (io_wmb.c)
@@ -288,7 +290,7 @@ that has only been demonstrated over a bridge has not been demonstrated.
 ```
  ProcPolyFillRectangle → GC ops → fb/ rendering into the shadow buffer
    → miext/damage records the region
-     → shadowUpdate (via BlockHandler) → tima_kdrive_fb shadow callback
+     → X-server Damage report → generic KDrive/HAL damage callback
        → hal_display_flush(fb, x, y, w, h)
          → hosted: SDL_UpdateTexture + SDL_RenderPresent
          → target: DMA / MMIO blit

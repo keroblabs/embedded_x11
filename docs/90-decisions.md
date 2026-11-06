@@ -461,15 +461,15 @@ that set has not been audited.
 
 The argument for enabling it is: *the DDX cannot be re‑entered, because the server serves one request to completion before the next.* That is **true**, and
 D‑44 already states it — `Dispatch()` runs on the `xsrv` fiber, exactly one stack is ever inside `dix`, and the DDX's own state
-(`mouse_state` in `tima_kdrive_mouse.c`, `current_modifiers` in `tima_kdrive_kbd.c`) is touched only from `tima_OsPollEvents` on that same fiber.
+(private decoder state in `tinyx/kdrive/hal/hal_input.c`) is touched only from
+the serialized `KdHalOsFuncs.pollEvents` path.
 
 It is also **not sufficient**, because the hazard is not between two clients. It is between the **`hal` fiber and the `xsrv` fiber**:
 
 ```
-hal fiber   hal_input_pump() -> sdl_event_loop() -> *_driver_event_*() -> buffer_write()  ─┐
+hal fiber   hal_input_pump() -> private backend event collection -> device byte queue ─┐
                                                                                           ├─ same ring
-xsrv fiber  BlockHandler -> KdOsFuncs.pollEvents -> tima_*Poll() -> *_driver_read_data()  ─┘
-                                                                     -> buffer_read()
+xsrv fiber  BlockHandler -> KdOsFuncs.pollEvents -> KdHal*Poll() -> hal_input_read_byte() ─┘
 ```
 
 Serialising clients says nothing about this pair. The producer is not a client.
@@ -516,7 +516,7 @@ Selection is by build macro, so the choice is visible at the call site's build a
 
 | Macro | `buffer_mutex_lock` becomes |
 |---|---|
-| `USE_MULTITHREAD` | `tthread_mutex_lock` — one mutex per buffer (Tima OS builds) |
+| `USE_MULTITHREAD` | `tthread_mutex_lock` — one mutex per buffer (legacy threaded builds) |
 | **`USE_FIBER`** | **`fiber_critical_enter`** — exported by `framework/fiber/fiber.cmake` as `FIBER_DEFINES`; any target linking the fiber core sets it |
 | neither | nothing — correct only while the scheduler is cooperative |
 
@@ -926,6 +926,57 @@ for future applications; it is no longer provisional for the current configurati
 
 **Consequences:** census item C3 closes. Closes [`91-`](91-open-questions.md) Q16.
 
+### D-50 - Generic KDrive/HAL port and standalone verification - SETTLED
+
+The low layer is `hal_display.h` plus `hal_input.h`, not a named OS or proprietary
+adapter API. `tinyx/kdrive/hal/` is the generic KDrive integration and `wmb_kdrive`
+builds it with actual KDrive core sources.
+
+The shared `WMB_DEVEL=1` project selector (D-51) guards changes in the existing
+TinyX core, including native input FD/signal, virtual-terminal, and shell-switch
+exclusion/rejection. SDL remains below the HAL; driver policy and private
+ASCII/control scancode adaptation stay in the generic port.
+
+The standalone harness executes real factories, device initialization, input
+event generation, and the polling/deadline path. Only HAL and required server
+services are mocked. Passing it is a module-level gate; actual TinyX startup,
+graphics/damage implementation, client dispatch, and cooperative server waiting
+still require full-server integration tests. See [43-](43-kdrive-module-plan.md).
+
+### D-51 - WMB_DEVEL selects all TinyX project changes - SETTLED
+
+All project-specific edits to existing upstream TinyX code use
+`#if defined(WMB_DEVEL)`, retaining unchanged reference alternatives.
+Only an undefined macro selects the reference behavior; any definition,
+including zero or an empty value, selects WMB. This includes engine
+improvements and future Linux/threading removal, not only the HAL integration.
+
+The selector is enabled for Debug and Release and for hosted and embedded
+builds. It is separate from capability/profile macros (D-18). The shared
+`wmb_tinyx_project` INTERFACE target exports it consistently; `wmb_kdrive` links
+it PUBLIC because conditional header layout must agree across all consumers.
+Do not define it globally or on the reusable HAL/backend/framework targets.
+
+Device policy uses the HAL port first. Native-file exclusion or project-owned
+replacement files are preferred over upstream edits; necessary engine changes
+stay in their owning file under the selector. ASCII adaptation needs no core
+keyboard-function flag. Copying upstream engine code into the driver to hide
+changes was rejected because it duplicates engine ownership and complicates
+maintenance.
+
+The TinyX guarded-file cap rises from eight to ten: the input engine was already
+budgeted, while the nine-button header layout and project lifecycle/native-option
+handling also require their owning core files. Neither can be implemented
+correctly by driver policy alone. Other file-budget slack is unchanged.
+
+**Consequences:** [47-](47-tinyx-project-methodology.md),
+[11-](11-portability-plan.md) sections 2/8, [42-](42-tinyx-module-plan.md),
+[43-](43-kdrive-module-plan.md), and the
+[workspace instruction](../.github/instructions/tinyx-wmb.instructions.md).
+The harness build checks an undefined reference variant and defined
+one/zero/empty project variants; full-server and
+freestanding gates remain separate.
+
 ## 8. Superseded Decisions
 
 Recorded so that reading `docs_old/` does not resurrect them.
@@ -934,7 +985,7 @@ Recorded so that reading `docs_old/` does not resurrect them.
 |---|---|---|
 | Direct `ProcVector` call from the client fiber; global `WmbState` | the retired `transport/x11/wmb_io.c` (Git history), and the prior `XCB_STUB_ARCHITECTURE.md` | **D‑05** for the global state, **D‑04** for the direct call. D‑45 briefly reinstated the direct call; D‑46 retired it again, this time with the census that says why |
 | Dispatch on the calling client's stack; no request queue | **D‑45** | **D‑46** — fourteen sites suspend a client from inside a request handler, and `Dispatch()`'s per‑request contract is larger than the call it replaces |
-| A named target OS ("Tima OS") as a design input | `docs_old/active/PROJECT_KNOWLEDGE_BASE.md` | [`00-`](00-introduction.md) §4.3 — the target is a *contract*, not a product. The name survives only as a directory label |
+| A named proprietary target OS as a design input | `docs_old/active/PROJECT_KNOWLEDGE_BASE.md` | D-50 and [`00-`](00-introduction.md) §4.3 - the target is a contract; KDrive uses the generic HAL port |
 | `hal_drivers.h` in `linux_hosted/sdl_drivers/` as the DDX's interface | Current tree | **D‑13** + [`12-`](12-platform-contract.md); the contract moves to `hal/hal_*.h` |
 | A "dual bridge" (X11 socket + WMB bridge) as an architectural feature | `docs_old/active/HOST_BUILD_DUAL_BRIDGE.md` | [`03-`](03-target-architecture.md) §7 — both are **scaffolding**, compiled out on target, and never a proof |
 | Milestone scheme M0–M6 | `docs_old/active/PROJECT_KNOWLEDGE_BASE.md` §6 | [`40-`](40-implementation-plan.md) phases P1–P9 |
@@ -997,6 +1048,8 @@ Recorded so that reading `docs_old/` does not resurrect them.
 | D‑47 | Preemption safety tick disabled until its preconditions hold | SETTLED (revisit at P2) | [`12-`](12-platform-contract.md) §6 |
 | D‑48 | `buffer.c` is a byte FIFO, not a message queue | SETTLED | [`21-`](21-inprocess-transport.md) §2.1 |
 | D‑49 | One X11 transport, ever; no listener, no oracle profile | SETTLED | [`11-`](11-portability-plan.md) §7 |
+| D-50 | Generic KDrive/HAL port and standalone real-core verification | SETTLED | [43-](43-kdrive-module-plan.md) |
+| D-51 | WMB_DEVEL guards all TinyX project changes; shared ABI selection and adapter-first policy | SETTLED | [47-](47-tinyx-project-methodology.md) |
 
 D‑46 is load‑bearing and easy to under‑read. Every request, from every kind of client, is executed by the `xsrv` fiber running upstream's `Dispatch()`; no
 client ever calls `ProcVector` on its own stack. The safety property is **structural** — only one fiber can enter `dix` — rather than a rule imposed on

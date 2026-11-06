@@ -170,7 +170,7 @@ debugged against its semantics. Getting the lost‑wakeup case wrong here produc
 | `excluded_stubs_wmb.c` | [`11-`](11-portability-plan.md) §4.2 |
 | `dix/main.c` guard → `TinyX_ServerFiber` | [`11-`](11-portability-plan.md) §8.1 |
 | `miinitext.c` guard for excluded extensions (SHM, BIGFONT, DBE) | [`11-`](11-portability-plan.md) §8.1, [`90-`](90-decisions.md) D‑41 |
-| `tima_WaitForEvents()` wired to `hal_yield_timeout` | DDX defect D5 |
+| KDrive polling/deadline hook connected to the cooperative server wait | Server/runtime integration; standalone hook is verified |
 
 ### 5.1.1 Why the C1 audit lives here
 

@@ -281,9 +281,10 @@ also matches how the target will work, where arrival is an ISR.
 
 ### 5.4 The wheel gap
 
-`HAL_CMD_MOUSE_WHEEL_X/Y` currently has no consumer — `tima_kdrive_mouse.c` reads and discards it (defect D3). X11 expresses wheel events as button
-press/release pairs on buttons 4/5 (vertical) and 6/7 (horizontal). Closing D3 means translating in the DDX, not in the backend, so that every backend
-emits the same bytes.
+The generic KDrive/HAL input port translates wheel ticks into X button
+press/release pairs on 4/5 (vertical) and 6/7 (horizontal), while physical side
+buttons use 8/9. This mapping is above the HAL and is tested through real KDrive
+event generation; every device backend still emits the same byte protocol.
 
 ## 6. `hal_task.h` — Execution and Waiting
 

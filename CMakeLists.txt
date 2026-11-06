@@ -130,6 +130,12 @@ endif()
 # ---------------------------------------------------------------------
 # Apps
 # ---------------------------------------------------------------------
+option(WMB_KDRIVE_BUILD_TESTS "Build the standalone KDrive/HAL harness" OFF)
+if(WMB_KDRIVE_BUILD_TESTS)
+    enable_testing()
+endif()
+add_subdirectory(tinyx/kdrive/hal)
+
 add_subdirectory(linux_hosted/apps/wmb_fiber_smoke)
 add_subdirectory(linux_hosted/apps/wmb_task_smoke)
 add_subdirectory(linux_hosted/apps/wmb_app_table_smoke)

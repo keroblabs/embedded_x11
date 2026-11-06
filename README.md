@@ -75,6 +75,26 @@ cmake --build build-sdl
 ctest --test-dir build-sdl --output-on-failure
 ```
 
+## KDrive HAL module
+
+The generic [KDrive HAL port and harness](tinyx/kdrive/hal/README.md) builds real
+KDrive code against the platform-neutral display/input contracts. Its standalone
+tests do not require SDL or a running TinyX server:
+
+```sh
+cmake -S tinyx/kdrive/hal -B build-kdrive
+cmake --build build-kdrive
+ctest --test-dir build-kdrive --output-on-failure
+```
+
+Full TinyX server/core/transport integration remains a separate milestone; see
+the [KDrive module status](docs/43-kdrive-module-plan.md).
+
+Project-specific TinyX changes use the shared `WMB_DEVEL=1` selector, including
+Release and embedded builds. Driver policy stays in the HAL port; necessary
+core changes retain guarded reference alternatives. See the
+[TinyX change methodology](docs/47-tinyx-project-methodology.md).
+
 ## AddressSanitizer
 
 The fiber port brackets each `swapcontext` with `__sanitizer_start_switch_fiber` / `_finish_switch_fiber`, so ASan follows the fiber correctly.
@@ -115,3 +135,5 @@ ASan prints a boilerplate `WARNING: ASan doesn't fully support makecontext/swapc
 | `wmb_sdl_drivers` | STATIC | Hosted implementation of the two portable HALs; private SDL dependency |
 | `wmb_display_input` | ALIAS | Backend-neutral display/input target; only HAL headers are public |
 | `wmb_hosted_display` | INTERFACE | Hosted framework/runtime plus the selected display/input backend |
+| `wmb_kdrive` | STATIC | Actual KDrive core and generic HAL port; no SDL dependency |
+| `wmb_tinyx_project` | INTERFACE | Shared `WMB_DEVEL=1` selection for TinyX and conditional-header consumers |

@@ -274,10 +274,11 @@ This is an intentional source/API break:
   has ordinary `0 = hidden`, `1 = visible` semantics.
 - Application-specific keymap scancodes are no longer HAL constants.
 
-The TinyX adapters have been migrated to the generic headers/lifecycle and
-complete-pair reads. Full TinyX/JWM/transport integration is still a separate
-workstream: wheel-to-X11 translation and the existing private modifier-scancode
-overlap remain. The hosted examples do not exercise the complete X11 stack.
+The [generic KDrive/HAL port](../../tinyx/kdrive/hal/README.md) now has a separate
+real-core harness, correct private modifier slots, wheel/button translation,
+and damage publication. These are not covered by the HAL-only tests above.
+Full TinyX/JWM/transport integration remains a separate workstream; the hosted
+examples do not exercise the complete X11 stack.
 
 No standalone license is declared in these module directories. Confirm
 redistribution permission/license terms and retain applicable repository/SDL2

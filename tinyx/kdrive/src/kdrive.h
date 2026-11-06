@@ -172,7 +172,11 @@ typedef enum _kdMouseState {
 	num_input_states
 } KdMouseState;
 
+#if defined(WMB_DEVEL)
+#define KD_MAX_BUTTON  9
+#else
 #define KD_MAX_BUTTON  7
+#endif
 
 typedef struct _KdMouseInfo {
 	struct _KdMouseInfo *next;
@@ -188,7 +192,11 @@ typedef struct _KdMouseInfo {
 	KdMouseState mouseState;
 	Bool eventHeld;
 	xEvent heldEvent;
+#if defined(WMB_DEVEL)
+	unsigned long buttonState;
+#else
 	unsigned char buttonState;
+#endif
 	int emulationDx, emulationDy;
 	int inputType;
 	Bool transformCoordinates;
@@ -351,6 +359,12 @@ void KdEnqueueKeyboardEvent(unsigned char scan_code, unsigned char is_up);
 #define KD_BUTTON_3	0x04
 #define KD_BUTTON_4	0x08
 #define KD_BUTTON_5	0x10
+#if defined(WMB_DEVEL)
+#define KD_BUTTON_6	0x20
+#define KD_BUTTON_7	0x40
+#define KD_BUTTON_8	0x80
+#define KD_BUTTON_9	0x100
+#endif
 #define KD_MOUSE_DELTA	0x80000000
 
 void KdEnqueueMouseEvent(KdMouseInfo * mi, unsigned long flags, int x, int y);

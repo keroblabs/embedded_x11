@@ -10,7 +10,7 @@ The four inputs, as they sit in the tree today:
 
 | Tree | What it is | Size | Local state |
 |---|---|---|---|
-| `tinyx/` | TinyX — the KDrive‑based framebuffer X server (X11R6.9‑era `xserver` reduced to `dix` + `os` + `mi` + `fb` + `kdrive` + a handful of extensions) | 193 `.c`, ~117.6 kLOC | Upstream‑ish; one additive local module (`kdrive/tima/`) |
+| `tinyx/` | TinyX — the KDrive‑based framebuffer X server (X11R6.9‑era `xserver` reduced to `dix` + `os` + `mi` + `fb` + `kdrive` + a handful of extensions) | 193 `.c`, ~117.6 kLOC | Upstream‑ish; one additive local module (`kdrive/hal/`) |
 | `libX11/` | The reference Xlib implementation | 262 `.c`, ~37.3 kLOC | Unmodified |
 | `jwm/` | Joe's Window Manager — a compact, dependency‑light reparenting WM | 50 `.c`, ~26.3 kLOC (+4.5 kLOC headers) | Unmodified |
 | `X11/` | The X11 header/protocol root (`X.h`, `Xlib.h`, `Xproto.h`, `Xutil.h`) plus the Xt/Xaw/Xmu/`xtrans` trees | headers‑dominant | Unmodified; used as the include root |
@@ -23,7 +23,7 @@ classic `libXfont` sources).
 
 The hosted fiber and HAL foundations are runnable, but the X11 stack has not yet been assembled:
 
-- The top-level `CMakeLists.txt` builds the framework, hosted fiber/system ports, optional SDL backends, and smoke/demo executables.
+- The top-level `CMakeLists.txt` builds the framework, hosted fiber/system ports, optional SDL backends, the KDrive/HAL library, and smoke/demo executables.
   `transport/x11/wmb_main.c` now reserves the portable lifecycle entry point without exporting a competing `main()`.
 - The build does **not** yet compile or link `tinyx/dix`, `tinyx/os`, `tinyx/mi`, `tinyx/fb`, `tinyx/kdrive/src`, `libX11/`, or `jwm/`
   into a complete WMB image.
@@ -34,8 +34,10 @@ The hosted fiber and HAL foundations are runnable, but the X11 stack has not yet
 - The obsolete `transport/x11/wmb_io.c` direct-dispatch sketch and its empty header were removed from the working tree. They remain in Git history;
   P5 will implement per-`Display` state and server-fiber dispatch according to [`21-`](21-inprocess-transport.md) and D-46.
   `transport/api/wmb_app_table.h` is retained as the application-launch contract.
-- `tinyx/kdrive/tima/tima_kdrive_system.c` wires `KdOsFuncs`, `InitCard`, `InitOutput`, `InitInput`, `OsVendorInit` and the `ddx*` stubs. The cooperative
-  wait hook the whole design depends on — `tima_WaitForEvents()` — does not exist.
+- The generic `tinyx/kdrive/hal/` port uses the new low-layer display/input HAL.
+  Its standalone harness runs actual KDrive factory, input, and block-handler code
+  with mock HAL/server services, without SDL. Full TinyX server startup and the
+  cooperative server wait/transport path remain separate integration work.
 
 So: the **components are present**, a **design has been argued at length** (see `docs_old/`, ~33.6 kLOC of prior planning across four generations of
 documents), and **the X11 stack has not yet been assembled**. The next integration work starts by fixing that.
@@ -182,9 +184,9 @@ The target platform is referred to throughout as **"the target"** and is charact
 - A heap (or a region from which one can be built).
 - Console output for `ErrorF`.
 
-Nothing else. The prior document generation named a specific OS ("Tima OS"); this set deliberately does not, because **every dependency on it that is not
-in the list above is a bug**. Where the historical name survives in identifiers (`tinyx/kdrive/tima/`, `tima_kdrive_fb.c`, `config_tima.h`) it is treated
-as an arbitrary label for "the target DDX", not as a commitment.
+Nothing else. The platform is a contract, not a named OS product. KDrive now uses
+a generic HAL integration with no proprietary target identifiers; remaining
+historical framework configuration filenames are not a hardware API.
 
 ## 5. Workstreams
 
@@ -361,7 +363,7 @@ The project is complete when all nine hold:
 | **WMB** | Window Manager Binary — the single linked image produced by this project |
 | **TinyX** | The KDrive‑based X server in `tinyx/` |
 | **DIX** | Device‑Independent X — the protocol‑handling core of an X server (`tinyx/dix/`) |
-| **DDX** | Device‑Dependent X — the hardware‑facing half of an X server; for us, `tinyx/kdrive/tima/` |
+| **DDX** | Device‑Dependent X — the hardware‑facing half of an X server; for us, `tinyx/kdrive/hal/` |
 | **KDrive** | The X.Org "kdrive" miniature server framework: `KdCardFuncs` / `KdKeyboardFuncs` / `KdMouseFuncs` / `KdOsFuncs` |
 | **`mi`** | Machine‑Independent rendering fallbacks (`tinyx/mi/`) |
 | **`fb`** | The framebuffer rendering engine (`tinyx/fb/`) |
