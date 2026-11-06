@@ -1,17 +1,25 @@
 #ifndef SDL_INPUT_H_
 #define SDL_INPUT_H_
 
-#define SHIFT_FLAG      0x01
-#define CAPS_FLAG       0x02
-#define CTRL_FLAG       0x04
-#define ALT_FLAG		0x08
-#define ALTGR_FLAG		0x10
-#define WIN_FLAG		0x20
-#define CLOSEAPL_FLAG   0x40
-#define OPENAPL_FLAG    0x80
+#include <SDL.h>
+#include <stdint.h>
+#include "hal_input.h"
+
+#define SHIFT_FLAG      HAL_MOD_SHIFT
+#define CAPS_FLAG       HAL_MOD_CAPS
+#define CTRL_FLAG       HAL_MOD_CTRL
+#define ALT_FLAG        HAL_MOD_ALT
+#define ALTGR_FLAG      HAL_MOD_ALTGR
+#define WIN_FLAG        HAL_MOD_SUPER
+#define CLOSEAPL_FLAG   ALTGR_FLAG
+#define OPENAPL_FLAG    ALT_FLAG
 
 #define KEY_DOWN        0x01
 #define KEY_UP          0x00
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 enum
 {
@@ -40,5 +48,9 @@ uint8_t sdl_input_read_key( uint8_t * state );
 uint8_t sdl_input_check_key( void );
 
 void sdl_input_init( void );
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // SDL_INPUT_H_

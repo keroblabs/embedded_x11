@@ -18,7 +18,7 @@ extern "C" {
 /* Pixel formats.  Only these are supported; adding one is a decision. */
 typedef enum {
     HAL_PIXFMT_RGB565   = 0,   /* 16 bpp, the default target format */
-    HAL_PIXFMT_XRGB8888 = 1    /* 32 bpp, convenient on the host    */
+    HAL_PIXFMT_XRGB8888 = 1    /* 32 bpp, unused high byte         */
 } hal_pixfmt_t;
 
 typedef struct {
@@ -30,8 +30,15 @@ typedef struct {
     hal_pixfmt_t format;
 } hal_framebuffer_t;
 
-/* Lifecycle.  Returns 0 on success, negative on failure. */
-int  hal_display_init(uint32_t width, uint32_t height, hal_pixfmt_t format);
+typedef enum {
+    HAL_DISPLAY_ERROR          = -1,
+    HAL_DISPLAY_ACTIVE         = 0,
+    HAL_DISPLAY_STOP_REQUESTED = 1
+} hal_display_status_t;
+
+/* Initialize the backend's fixed native geometry and format.
+ * Returns 0 on success, negative on failure. */
+int  hal_display_init(void);
 void hal_display_shutdown(void);
 
 /* The buffer WMB renders into.  Valid between init and shutdown.
@@ -41,6 +48,12 @@ const hal_framebuffer_t *hal_display_get_fb(void);
 /* Publish a damaged rectangle to the physical display.
  * Coordinates are clipped by the implementation.  Must not block. */
 void hal_display_flush(int32_t x, int32_t y, uint32_t w, uint32_t h);
+
+/* Advance queued presentation/device work without waiting. A stop request
+ * does not release the framebuffer; the caller must still shut down.
+ * A hardware backend normally returns ACTIVE until shutdown or failure.
+ * A device/presentation error remains ERROR until shutdown/reinitialization. */
+hal_display_status_t hal_display_pump(void);
 
 /* Optional power management.  A backend that cannot do this returns -1
  * and WMB carries on. */

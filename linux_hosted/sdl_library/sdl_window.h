@@ -3,16 +3,22 @@
 
 //////////////////////////////////////////////////////////////////////////////////////
 
-#ifdef TIMA_LINUX
-#define SDL_PIXEL_FORMAT SDL_PIXELFORMAT_XRGB8888
-#define PIXEL_TYPE_T     uint32_t
+#include <SDL.h>
+#include "sdl_lib_export.h"
+#include "sdl_pixels.h"
+
+#if WMB_SDL_PIXEL_BITS == 32
+#define SDL_PIXEL_FORMAT SDL_PIXELFORMAT_RGB888
 #else
 #define SDL_PIXEL_FORMAT SDL_PIXELFORMAT_RGB565
-#define PIXEL_TYPE_T     uint16_t
 #endif
 
 #define VSYNC_RATE_HZ		50
 #define VSYNC_PERIOD_MS		( 1000 / VSYNC_RATE_HZ )
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 //////////////////////////////////////////////////////////////////////////////////////
 
@@ -29,6 +35,7 @@ void sdl_terminate( void );
 void sdl_window_process( void );
 
 void sdl_update_window( uint32_t window_id );
+void sdl_window_invalidate( uint32_t window_id, int32_t x, int32_t y, uint32_t width, uint32_t height );
 
 void sdl_send_key_event( uint32_t window_id, uint8_t key_code, uint16_t control_key, uint8_t state );
 void sdl_send_mouse_event( uint32_t window_id, uint16_t posx, uint16_t posy, uint16_t posz, uint8_t button_state );
@@ -42,6 +49,12 @@ void sdl_window_set_mouse_wheel_event( uint32_t window_id, event_wheel_t handler
 
 uint16_t sdl_window_get_width( uint32_t window_id );
 uint16_t sdl_window_get_height( uint32_t window_id );
+uint32_t sdl_window_get_stride( uint32_t window_id );
+uint32_t sdl_window_count( void );
+
+#ifdef __cplusplus
+}
+#endif
 
 //////////////////////////////////////////////////////////////////////////////////////
 

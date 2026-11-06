@@ -1,261 +1,216 @@
-#include <SDL.h>
-#include "types.h"
-#include "sdl_lib_export.h"
 #include "sdl_input.h"
 #include "sdl_window.h"
+#include "sdl_internal.h"
 
 typedef struct translate_key_t_
 {
     SDL_Keycode sdl;
     uint8_t key_code;
-
 } translate_key_t;
 
-//////////////////////////////////////////////////////////////////////////////////////
-
-static const translate_key_t sdl_translate[] =
+static const translate_key_t sdl_event_key[] =
 {
-    { SDLK_ESCAPE, 0x1B },
-    { SDLK_DOWN,   10   },
-    { SDLK_UP,     11   },
-    { SDLK_LEFT,   8    },
-    { SDLK_RIGHT,  21   },
-
-    { 13         , 13   },
-    { 9          , 9    },
-    { 8          , 8    },
-    { SDLK_DELETE, 2    },
-    { SDLK_ESCAPE, 0x1B },
-    { 0xC2       , '#'  },
-    { 127        , 0x7F },
-    { 0          , 0    },
+    { SDLK_ESCAPE, EVENT_KEY_ESC },
+    { SDLK_DELETE, EVENT_KEY_DELETE },
+    { SDLK_BACKSPACE, EVENT_KEY_BACKSPACE },
+    { SDLK_TAB, EVENT_KEY_TAB },
+    { SDLK_RETURN, EVENT_KEY_ENTER },
+    { SDLK_DOWN, EVENT_KEY_DOWN },
+    { SDLK_UP, EVENT_KEY_UP },
+    { SDLK_LEFT, EVENT_KEY_LEFT },
+    { SDLK_RIGHT, EVENT_KEY_RIGHT },
+    { SDLK_PAGEDOWN, EVENT_KEY_PAGEDOWN },
+    { SDLK_PAGEUP, EVENT_KEY_PAGEUP },
+    { SDLK_HOME, EVENT_KEY_HOME },
+    { SDLK_END, EVENT_KEY_END }
 };
 
-static const translate_key_t sdl_event_key[] = 
-{
-    { SDLK_ESCAPE,      EVENT_KEY_ESC },
-    { SDLK_DELETE,      EVENT_KEY_DELETE },
-    { SDLK_BACKSPACE,   EVENT_KEY_BACKSPACE },
-    { SDLK_TAB,         EVENT_KEY_TAB },
-    { SDLK_RETURN,      EVENT_KEY_ENTER },
-
-    { SDLK_DOWN,        EVENT_KEY_DOWN },
-    { SDLK_UP,          EVENT_KEY_UP },
-    { SDLK_LEFT,        EVENT_KEY_LEFT },
-    { SDLK_RIGHT,       EVENT_KEY_RIGHT },
-
-    { SDLK_PAGEDOWN,    EVENT_KEY_PAGEDOWN },
-    { SDLK_PAGEUP,      EVENT_KEY_PAGEUP },
-    { SDLK_HOME,        EVENT_KEY_HOME },
-    { SDLK_END,         EVENT_KEY_END },
-    { 0,                0    },
-};
-
-//////////////////////////////////////////////////////////////////////////////////////
-
-//static bool_t button0 = FALSE;
-//static bool_t button1 = FALSE;
-static bool_t pending_key = FALSE;
-static bool_t pending_ctrl = FALSE;
-static uint8_t text_key;
-
-//////////////////////////////////////////////////////////////////////////////////////
-
-void sdl_text_input_event( SDL_TextInputEvent *event, uint8_t keycode )
-{
-    // remap delete key
-    uint8_t key_code;
-
-    if( keycode == 0x08 ) keycode = 0x7F;
-    if( keycode == 0xC2 ) keycode = '#';
-    
-    //if( ( key_code >= 'A' ) && ( key_code <= 'Z' ) )
-    //{
-    //    key_code |= 0x20;
-    //}
-    
-    key_code = keycode;
-    text_key = keycode;
-    pending_key = TRUE;
-
-    //key_flag = 1;
-    //printf( "key code = %04x\n", _event.type );
-    sdl_send_key_event( event->windowID, key_code, 0, KEY_DOWN );
-}
-
-static uint8_t translate_sym( SDL_Keycode sym )
-{
-    int index = 0;
-    while( sdl_event_key[index].sdl != 0 )
-    {
-        if( sdl_event_key[index].sdl == sym ) return sdl_event_key[index].key_code;
-        index++;
-    }
-
-    return 0;
-}
-
-
-static uint8_t translate_key( SDL_Keycode sym )
-{
-    int index = 0;
-    while( sdl_translate[index].sdl != 0 )
-    {
-        if( sdl_translate[index].sdl == sym ) return sdl_translate[index].key_code;
-        index++;
-    }
-
-    return 0;
-}
-
-void sdl_keypad_down_event( SDL_Event * sdl_event )
-{
-    uint8_t read_sym;
-    uint8_t read_key;
-    uint8_t key_code;
-    uint8_t key_flag = 0;
-    uint8_t key_mask = 0;
-    uint8_t key_mode = 0;
-
-    switch( sdl_event->key.keysym.sym )
-    {
-        case SDLK_LALT:
-            //button0 = ( type == SDL_KEYDOWN ) ? TRUE : FALSE;
-            if( sdl_event->type == SDL_KEYDOWN ) key_mask |= OPENAPL_FLAG;
-            else key_mask &= ~OPENAPL_FLAG;
-            key_code = 0;
-            key_flag = 1;
-            key_mode = ( sdl_event->type == SDL_KEYDOWN ) ? KEY_DOWN : KEY_UP;
-            break;
-
-        case SDLK_RALT:
-            //button1 = ( type == SDL_KEYDOWN ) ? TRUE : FALSE;
-            if( sdl_event->type == SDL_KEYDOWN ) key_mask |= CLOSEAPL_FLAG;
-            else key_mask &= ~CLOSEAPL_FLAG;
-            key_code = 0;
-            key_flag = 1;
-            key_mode = ( sdl_event->type == SDL_KEYDOWN ) ? KEY_DOWN : KEY_UP;
-            break;
-
-        case SDLK_LSHIFT:
-        case SDLK_RSHIFT:
-            if( sdl_event->type == SDL_KEYDOWN ) key_mask |= SHIFT_FLAG;
-            else key_mask &= ~SHIFT_FLAG;
-            key_code = 0;
-            key_flag = 1;
-            key_mode = ( sdl_event->type == SDL_KEYDOWN ) ? KEY_DOWN : KEY_UP;
-            break;
-
-        case SDLK_LGUI:
-            if( sdl_event->type == SDL_KEYDOWN ) key_mask |= WIN_FLAG;
-            else key_mask &= ~WIN_FLAG;
-            break;
-
-        case SDLK_LCTRL:
-        case SDLK_RCTRL:
-            if( sdl_event->type == SDL_KEYDOWN ) key_mask |= CTRL_FLAG;
-            else key_mask &= ~CTRL_FLAG;
-            key_code = 0;
-            key_flag = 1;
-            key_mode = ( sdl_event->type == SDL_KEYDOWN ) ? KEY_DOWN : KEY_UP;
-            pending_ctrl = ( sdl_event->type == SDL_KEYDOWN ) ? TRUE : FALSE;
-            break;
-
-        case SDLK_CAPSLOCK:
-            if( sdl_event->type == SDL_KEYDOWN )
-            {
-                if( key_mask & CAPS_FLAG ) key_mask &= ~CAPS_FLAG;
-                else key_mask |= CAPS_FLAG;
-                key_code = 0;
-                key_flag = 1;
-                key_mode = ( sdl_event->type == SDL_KEYDOWN ) ? KEY_DOWN : KEY_UP;
-            }
-            break;
-
-        default:
-            if( ( ( sdl_event->type == SDL_KEYDOWN ) || ( sdl_event->type == SDL_KEYUP ) ) && ( sdl_event->key.repeat == FALSE ) )
-            {
-                key_mode = ( sdl_event->type == SDL_KEYDOWN ) ? KEY_DOWN : KEY_UP;
-
-                read_sym = translate_sym( sdl_event->key.keysym.sym );
-                if( read_sym != 0 )
-                {
-                    key_code = 1;
-                    key_flag = 1;
-                    key_mask = read_sym;
-                    break;
-                }
-                read_key = translate_key( sdl_event->key.keysym.sym );
-                if( read_key != 0 )
-                {
-                    key_code = read_key;
-                    key_flag = 1;
-                    break;
-                }
-                else if( ( sdl_event->key.keysym.sym >= 0x20 ) && ( sdl_event->key.keysym.sym <= 125 ) )
-                {
-                    //if( ( key_mode == KEY_DOWN ) && ( pending_key == FALSE ) )
-                    //{
-                    //    pending_key = TRUE;
-                    //}
-                    //else 
-                    if( ( key_mode == KEY_UP ) && ( pending_key == TRUE ) )
-                    {
-                        key_code = text_key;
-                        key_flag = 1;
-                    }
-                    else if( pending_ctrl == TRUE )
-                    {
-                        key_code = sdl_event->key.keysym.sym;
-                        key_flag = 1;
-                    }
-
-                    break;
-                }
-            }
-            break;
-    }
-
-    if( key_flag == TRUE )
-    {
-        sdl_send_key_event( sdl_event->window.windowID, key_code, key_mask, key_mode );
-    }
-}
-
-#if 0
-void sdl_text_input_event( uint8_t keycode )
-{
-    // remap delete key
-    if( keycode == 0x08 ) keycode = 0x7F;
-    if( keycode == 0xC2 ) keycode = '#';
-
-    //if( ( key_code >= 'A' ) && ( key_code <= 'Z' ) )
-    //{
-    //    key_code |= 0x20;
-    //}
-
-    key_code = keycode;
-    key_flag = 1;
-    //printf( "key code = %04x\n", keycode );
-    //fflush(stdout);
-}
+static uint8_t last_key;
+static uint8_t last_state;
+static bool_t key_pending;
 
 void sdl_input_init( void )
 {
-    key_flag = 0;
-    key_code = 0;
-    key_mode = KEY_UP;
+    last_key = 0;
+    last_state = KEY_UP;
+    key_pending = FALSE;
 }
 
-uint8_t sdl_input_read_key( uint8_t * state )
+void sdl_input_record_key( uint8_t key_code, uint16_t control_key, uint8_t state )
 {
-    key_flag = 0;
-    if( state != NULL ) *state = key_mode;
-    return key_code;
+    if( key_code == 0 ) return;
+    if( key_code == 1 )
+    {
+        switch( control_key )
+        {
+            case EVENT_KEY_BACKSPACE: key_code = HAL_KEY_BACKSPACE; break;
+            case EVENT_KEY_ENTER: key_code = HAL_KEY_ENTER; break;
+            case EVENT_KEY_ESC: key_code = HAL_KEY_ESCAPE; break;
+            case EVENT_KEY_LEFT: key_code = HAL_KEY_LEFT; break;
+            case EVENT_KEY_DOWN: key_code = HAL_KEY_DOWN; break;
+            case EVENT_KEY_UP: key_code = HAL_KEY_UP; break;
+            case EVENT_KEY_RIGHT: key_code = HAL_KEY_RIGHT; break;
+            case EVENT_KEY_TAB: key_code = 9; break;
+            default: return;
+        }
+    }
+    last_key = key_code;
+    last_state = state;
+    key_pending = TRUE;
 }
 
 uint8_t sdl_input_check_key( void )
 {
-    return key_flag;
+    return key_pending;
 }
-#endif
+
+uint8_t sdl_input_read_key( uint8_t *state )
+{
+    if( state != NULL ) *state = last_state;
+    if( !key_pending ) return 0;
+    key_pending = FALSE;
+    return last_key;
+}
+
+void sdl_text_input_event( SDL_TextInputEvent *event, uint8_t keycode )
+{
+    if( event == NULL )
+    {
+        SDL_LogError( SDL_LOG_CATEGORY_INPUT, "Text input event is NULL" );
+        return;
+    }
+    if( keycode < 0x20 || keycode > 0x7E )
+    {
+        SDL_LogWarn( SDL_LOG_CATEGORY_INPUT, "The SDL key protocol supports ASCII text only" );
+        return;
+    }
+    sdl_send_key_event( event->windowID, keycode, 0, KEY_DOWN );
+    sdl_send_key_event( event->windowID, keycode, 0, KEY_UP );
+}
+
+static uint8_t translate_sym( SDL_Keycode sym )
+{
+    size_t index;
+    for( index = 0; index < sizeof( sdl_event_key ) / sizeof( sdl_event_key[0] ); index++ )
+    {
+        if( sdl_event_key[index].sdl == sym ) return sdl_event_key[index].key_code;
+    }
+    return 0;
+}
+
+static uint16_t modifier_bit( SDL_Keycode sym )
+{
+    switch( sym )
+    {
+        case SDLK_LSHIFT: return KMOD_LSHIFT;
+        case SDLK_RSHIFT: return KMOD_RSHIFT;
+        case SDLK_LCTRL: return KMOD_LCTRL;
+        case SDLK_RCTRL: return KMOD_RCTRL;
+        case SDLK_LALT: return KMOD_LALT;
+        case SDLK_RALT: return KMOD_RALT;
+        case SDLK_LGUI: return KMOD_LGUI;
+        case SDLK_RGUI: return KMOD_RGUI;
+        default: return 0;
+    }
+}
+
+static uint8_t modifier_mask( uint16_t mods )
+{
+    uint8_t mask = 0;
+    if( mods & KMOD_SHIFT ) mask |= SHIFT_FLAG;
+    if( mods & KMOD_CAPS ) mask |= CAPS_FLAG;
+    if( mods & KMOD_CTRL ) mask |= CTRL_FLAG;
+    if( mods & KMOD_LALT ) mask |= ALT_FLAG;
+    if( mods & KMOD_RALT ) mask |= ALTGR_FLAG;
+    if( mods & KMOD_GUI ) mask |= WIN_FLAG;
+    return mask;
+}
+
+void sdl_keypad_down_event( SDL_Event *event )
+{
+    gui_instance_t *instance;
+    uint16_t mods, bit;
+    uint8_t mask, key_code, control_key;
+    SDL_Scancode scancode;
+    bool_t down;
+
+    if( event == NULL || (event->type != SDL_KEYDOWN && event->type != SDL_KEYUP) )
+    {
+        SDL_LogError( SDL_LOG_CATEGORY_INPUT, "Invalid SDL keyboard event" );
+        return;
+    }
+    instance = sdl_find_window( event->key.windowID );
+    if( instance == NULL || event->key.repeat != 0 ) return;
+
+    down = event->type == SDL_KEYDOWN;
+    mods = event->key.keysym.mod;
+    bit = modifier_bit( event->key.keysym.sym );
+    if( bit != 0 )
+    {
+        if( down ) mods |= bit;
+        else mods &= (uint16_t)~bit;
+    }
+    mask = modifier_mask( mods );
+    if( mask != instance->modifier_mask )
+    {
+        instance->modifier_mask = mask;
+        sdl_send_key_event( instance->id, 0, mask, down ? KEY_DOWN : KEY_UP );
+        instance = sdl_find_window( event->key.windowID );
+        if( instance == NULL ) return;
+    }
+    if( bit != 0 || event->key.keysym.sym == SDLK_CAPSLOCK ) return;
+
+    scancode = event->key.keysym.scancode;
+    if( scancode == SDL_SCANCODE_UNKNOWN ) scancode = SDL_GetScancodeFromKey( event->key.keysym.sym );
+    if( scancode <= SDL_SCANCODE_UNKNOWN || scancode >= SDL_NUM_SCANCODES ) return;
+
+    if( down )
+    {
+        if( instance->pressed_keys[scancode] != 0 ) return;
+        control_key = translate_sym( event->key.keysym.sym );
+        if( control_key != 0 ) key_code = 1;
+        else if( event->key.keysym.sym >= 0x20 && event->key.keysym.sym <= 0x7E )
+        {
+            key_code = (uint8_t)event->key.keysym.sym;
+        }
+        else return;
+
+        instance->pressed_keys[scancode] = key_code;
+        instance->pressed_controls[scancode] = control_key;
+    }
+    else
+    {
+        key_code = instance->pressed_keys[scancode];
+        control_key = instance->pressed_controls[scancode];
+        if( key_code == 0 ) return;
+        instance->pressed_keys[scancode] = 0;
+        instance->pressed_controls[scancode] = 0;
+    }
+    sdl_send_key_event( instance->id, key_code, control_key, down ? KEY_DOWN : KEY_UP );
+}
+
+void sdl_input_release_window( uint32_t id )
+{
+    int scancode;
+    gui_instance_t *instance = sdl_find_window( id );
+    if( instance == NULL ) return;
+
+    for( scancode = 1; scancode < SDL_NUM_SCANCODES; scancode++ )
+    {
+        if( instance->pressed_keys[scancode] != 0 )
+        {
+            uint8_t key_code = instance->pressed_keys[scancode];
+            uint8_t control_key = instance->pressed_controls[scancode];
+            instance->pressed_keys[scancode] = 0;
+            instance->pressed_controls[scancode] = 0;
+            sdl_send_key_event( id, key_code, control_key, KEY_UP );
+            instance = sdl_find_window( id );
+            if( instance == NULL ) return;
+        }
+    }
+    if( instance->modifier_mask != 0 )
+    {
+        instance->modifier_mask = 0;
+        sdl_send_key_event( id, 0, 0, KEY_UP );
+    }
+}

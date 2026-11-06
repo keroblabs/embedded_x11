@@ -140,8 +140,8 @@ Five headers. This is *the entire surface* between WMB and the machine. Full sig
 
 | File | Est. LOC | Disposition | Provides |
 |---|---:|---|---|
-| `hal/hal_display.h` | 55 | **DONE** | `hal_framebuffer_t`, `hal_pixfmt_t`, `hal_display_init/shutdown/get_fb/flush/set_power` |
-| `hal/hal_input.h` | 90 | **DONE** | `hal_input_dev_t`, `hal_input_init/shutdown/has_data/read_byte/control/pump`, and the `HAL_CMD_*` / `HAL_KEY_*` / `HAL_MOUSE_BUTTON_*` / `HAL_SC_*` wire constants |
+| `hal/hal_display.h` | ~70 | **DONE** | Fixed-native initialization, framebuffer metadata, flush, nonblocking status pump, shutdown, optional power |
+| `hal/hal_input.h` | ~115 | **DONE** | Generic byte streams, typed optional controls, lifecycle/pump; protocol constants only, no application scancodes |
 | `hal/hal_task.h` | 60 | **DONE** | `hal_task_runtime_init/create/destroy/self/name/yield/wait/wake`, `hal_yield_timeout` |
 | `hal/hal_time.h` | 35 | **DONE** | `hal_tick_ms`, `hal_tick_us`, and `hal_wallclock_s` behind `WMB_HAS_WALLCLOCK` ([`90-`](90-decisions.md) D‑30) |
 | `framework/library/wmb_os.h` | ~80 | NEW | Console write, abort/exit, allocator hooks, optional file I/O — the libc floor |
@@ -150,21 +150,19 @@ All four completed headers compile standalone under `-ffreestanding -nostdinc` (
 
 ### 5.2 Hosted backend — `linux_hosted/`
 
-Exists; needs refactoring to implement the §5.1 contract instead of the current ad‑hoc `hal_drivers.h`. Per rule L9 the whole SDL backend lives in the
+Implements the §5.1 contract directly; the legacy driver interface and drawing
+layer have been removed. Per rule L9 the whole SDL backend lives in the
 hosted port tree, not in `framework/`.
 
 | File | LOC | Disposition | Notes |
 |---|---:|---|---|
-| `sdl_drivers/hal_drivers.h` | 76 | GUARD → superseded | Current interface: `lcd_driver_*` (10 fns), `keypad_driver_*` (3), `mouse_driver_*` (5), plus the `CMD_*` / `KEY_DATA_*` / `MOUSE_BUTTON_*` protocol constants. The **constants are kept** (they are the target wire format); the function set is re‑expressed as §5.1 |
-| `sdl_drivers/lcd_driver.c` | 213 | CARRY | Becomes the `hal_display_*` implementation |
-| `sdl_drivers/keyraw_driver.c` | 109 | CARRY | Becomes part of `hal_input_*` |
-| `sdl_drivers/mouse_driver.c` | 193 | CARRY | Becomes part of `hal_input_*` |
 | `sdl_library/sdl_window.c` | 336 | CARRY | SDL window + texture + present |
 | `sdl_library/sdl_input.c` | 261 | CARRY | SDL keyboard event → `CMD_*` byte stream |
 | `sdl_library/sdl_mouse.c` | 108 | CARRY | SDL mouse event → `CMD_*` byte stream |
 | `sdl_library/sdl_main.c` | 78 | GUARD | SDL init/teardown; must **not** own `main()` |
-| `linux_hosted/sdl_drivers/hal_display_sdl.c` | ~120 | **DONE** | Thin adapter binding `lcd_driver_*` to `hal_display_*` |
-| `linux_hosted/sdl_drivers/hal_input_sdl.c` | ~110 | **DONE** | Thin adapter binding the driver trio to `hal_input_*` |
+| `linux_hosted/sdl_drivers/hal_display_sdl.c` | ~120 | **DONE** | Direct private window/framebuffer implementation; portable presentation status |
+| `linux_hosted/sdl_drivers/hal_input_sdl.c` | ~250 | **DONE** | Direct event-to-byte queues and typed controls |
+| `linux_hosted/sdl_drivers/sdl_backend.c` | ~35 | **DONE** | Private shared resource lifetime, no application API |
 | `linux_hosted/system_linux/hal_time_hosted.c` | ~75 | **DONE** | `clock_gettime(CLOCK_MONOTONIC)` |
 | `linux_hosted/fiber_linux/fiber_port.c` | 120 | **DONE** | `fiber_port.h` for the hosted port; cooperative‑only until P2 adds the tick |
 

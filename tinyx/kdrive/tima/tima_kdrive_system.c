@@ -4,7 +4,7 @@
 
 #include "kdrive.h"
 #include "tima_kdrive.h"
-#include "hal_drivers.h"
+#include "opaque.h"
 
 static Bool os_initialized = FALSE;
 static Bool os_enabled = FALSE;
@@ -38,6 +38,7 @@ static Bool tima_OsSpecialKey(KeySym keysym)
 
 static void tima_OsFini(void)
 {
+    hal_input_shutdown();
     os_enabled = FALSE;
     os_initialized = FALSE;
 }
@@ -46,9 +47,18 @@ static void tima_OsPollEvents(void)
 {
     if (!os_enabled) return;
 
-    /* Poll all input devices */
+    hal_input_pump();
     tima_KeyboardPoll();
     tima_MousePoll();
+    {
+        hal_display_status_t status = hal_display_pump();
+        if (status != HAL_DISPLAY_ACTIVE)
+        {
+            if (status == HAL_DISPLAY_ERROR) ErrorF("Platform display pump failed\n");
+            dispatchException |= DE_TERMINATE;
+            isItTimeToYield = TRUE;
+        }
+    }
 }
 
 const KdOsFuncs tima_OsFuncs = {
@@ -91,6 +101,7 @@ void InitOutput(ScreenInfo *pScreenInfo, int argc, char **argv)
  */
 void InitInput(int argc, char **argv)
 {
+    if (hal_input_init() != 0) FatalError("InitInput: platform input initialization failed\n");
     /* KdInitInput is a KDrive API function that registers your drivers */
     KdInitInput(&tima_MouseFuncs, &tima_KeyboardFuncs);
 }
@@ -121,8 +132,11 @@ int ddxProcessArgument(int argc, char **argv, int i)
 
 void ddxGiveUp(void)
 {
+    hal_input_shutdown();
+    hal_display_shutdown();
 }
 
 void AbortDDX(void)
 {
+    ddxGiveUp();
 }

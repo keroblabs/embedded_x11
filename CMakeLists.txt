@@ -100,37 +100,25 @@ target_link_libraries(wmb_hosted INTERFACE
 # Optional: SDL2-backed hal_display / hal_input, and the SDL library
 # wrappers.  When SDL2 is absent the SDL apps are skipped.
 # ---------------------------------------------------------------------
-find_package(PkgConfig QUIET)
-if(PkgConfig_FOUND)
-    pkg_check_modules(SDL2 QUIET IMPORTED_TARGET sdl2)
+find_package(SDL2 2.0.5 QUIET CONFIG)
+if(NOT TARGET SDL2::SDL2 AND NOT TARGET SDL2::SDL2-static)
+    find_package(PkgConfig QUIET)
+    if(PkgConfig_FOUND)
+        pkg_check_modules(SDL2 QUIET IMPORTED_TARGET "sdl2>=2.0.5")
+    endif()
 endif()
 
 set(WMB_HAVE_SDL FALSE)
-if(SDL2_FOUND)
-    include(${CMAKE_CURRENT_LIST_DIR}/linux_hosted/sdl_library/sdl_library.cmake)
-    include(${CMAKE_CURRENT_LIST_DIR}/linux_hosted/sdl_drivers/sdl_drivers.cmake)
+if(TARGET SDL2::SDL2 OR TARGET SDL2::SDL2-static OR TARGET PkgConfig::SDL2)
+    if(WMB_SDL_BUILD_TESTS)
+        enable_testing()
+    endif()
+    add_subdirectory(linux_hosted/sdl_drivers)
 
-    add_library(wmb_sdl_library STATIC ${SOURCE_FILES_SDL_LIBRARY})
-    target_include_directories(wmb_sdl_library PUBLIC ${SDL_LIBRARY_INCLUDE_PATH})
-    target_link_libraries(wmb_sdl_library PUBLIC wmb_framework PkgConfig::SDL2)
-
-    add_library(wmb_sdl_drivers STATIC ${SOURCE_FILES_SDL_DRIVERS})
-    target_include_directories(wmb_sdl_drivers PUBLIC ${SDL_DRIVERS_INCLUDE_PATH})
-    target_link_libraries(wmb_sdl_drivers PUBLIC wmb_framework wmb_sdl_library)
-    # PIXEL_TYPE_T appears in the SDL driver headers (lcd_driver.h et al.)
-    # so it must be visible everywhere they are; PUBLIC propagates it to
-    # every consumer.  Screen extents are grouped in for consistency.
-    target_compile_definitions(wmb_sdl_drivers PUBLIC
-        PIXEL_TYPE_T=uint16_t
-        _USE_SCREEN_WIDTH=800
-        _USE_SCREEN_HEIGHT=480
-    )
-
-    add_library(wmb_hosted_sdl INTERFACE)
-    target_link_libraries(wmb_hosted_sdl INTERFACE
+    add_library(wmb_hosted_display INTERFACE)
+    target_link_libraries(wmb_hosted_display INTERFACE
         wmb_hosted
-        wmb_sdl_drivers
-        wmb_sdl_library
+        wmb_display_input
     )
 
     set(WMB_HAVE_SDL TRUE)

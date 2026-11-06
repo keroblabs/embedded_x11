@@ -91,7 +91,7 @@ The four sanctioned profiles are in [`03-target-architecture.md`](03-target-arch
 /* Pixel formats.  Only these are supported; adding one is a decision. */
 typedef enum {
     HAL_PIXFMT_RGB565   = 0,   /* 16 bpp, the default target format */
-    HAL_PIXFMT_XRGB8888 = 1    /* 32 bpp, convenient on the host    */
+    HAL_PIXFMT_XRGB8888 = 1    /* 32 bpp, unused high byte         */
 } hal_pixfmt_t;
 
 typedef struct {
@@ -103,8 +103,14 @@ typedef struct {
     hal_pixfmt_t format;
 } hal_framebuffer_t;
 
-/* Lifecycle.  Returns 0 on success, negative on failure. */
-int  hal_display_init(uint32_t width, uint32_t height, hal_pixfmt_t format);
+typedef enum {
+    HAL_DISPLAY_ERROR          = -1,
+    HAL_DISPLAY_ACTIVE         = 0,
+    HAL_DISPLAY_STOP_REQUESTED = 1
+} hal_display_status_t;
+
+/* Initialize fixed native geometry/format. Returns 0 or negative. */
+int  hal_display_init(void);
 void hal_display_shutdown(void);
 
 /* The buffer WMB renders into.  Valid between init and shutdown.
@@ -114,6 +120,10 @@ const hal_framebuffer_t *hal_display_get_fb(void);
 /* Publish a damaged rectangle to the physical display.
  * Coordinates are clipped by the implementation.  Must not block. */
 void hal_display_flush(int32_t x, int32_t y, uint32_t w, uint32_t h);
+
+/* Nonblocking presentation/device progress. Stop/error does not free pixels.
+ * Device errors remain ERROR until shutdown/reinitialization. */
+hal_display_status_t hal_display_pump(void);
 
 /* Optional power management.  A backend that cannot do this returns -1
  * and WMB carries on. */
@@ -129,28 +139,39 @@ int  hal_display_set_power(int on);
 | Ownership | The **backend** owns `pixels`. WMB writes into it and calls `hal_display_flush`. WMB never frees it |
 | Shadow vs direct | Whether `pixels` is the physical framebuffer or a shadow copy is the backend's business. TinyX's `miext/shadow` operates *above* this, on its own buffer, and its update callback is what calls `hal_display_flush` |
 | Blocking | `hal_display_flush` **must not block**. On the host it queues an SDL texture update; the actual `SDL_RenderPresent` happens on the `hal` fiber |
-| Geometry | Fixed for the lifetime of the process (PC4). A backend that cannot supply the requested geometry fails `init` rather than substituting one |
+| Geometry | Native configuration belongs to the backend (PC4). Initialization takes no application-requested dimensions or format; successful initialization exposes actual metadata in the framebuffer |
+| Progress/status | Call `hal_display_pump` without waiting. Hardware normally reports active; stop requests require explicit cleanup; device errors remain errors until reinitialization |
 | Alignment | `pixels` is at least 4‑byte aligned; `stride` is a multiple of 4 |
 
 ### 4.3 Mapping
 
 | Contract | Hosted (`hal_display_sdl.c`) | Target |
 |---|---|---|
-| `hal_display_init` | `lcd_driver_init()` + SDL window/texture creation | Program the display controller; set the framebuffer base |
-| `hal_display_get_fb` | Wraps `lcd_driver_get_framebuffer()`, `lcd_driver_get_width/height/bits_per_pixel()` | Return the MMIO region descriptor |
+| `hal_display_init` | Direct private window/texture creation using backend configuration | Program the display controller; set the framebuffer base |
+| `hal_display_get_fb` | Owned buffer and actual width/height/format/byte stride | Return the MMIO or shadow region descriptor |
 | `hal_display_flush` | Mark the dirty rect; `sdl_window` presents on the next `hal` fiber turn | DMA blit or no‑op if the buffer is the scanout buffer |
-| `hal_display_shutdown` | `lcd_driver_deinit()` + SDL teardown | Blank the panel |
+| `hal_display_pump` | Present queued damage and map close/failure to portable status | Advance DMA/scanout; normally report active |
+| `hal_display_shutdown` | Release the backend-owned display resources | Blank the panel |
 
-The existing helpers `lcd_driver_set_pixel`, `lcd_driver_fill_colour`, `lcd_driver_show_bitmap_rgb`, `lcd_driver_do_scroll`, `lcd_driver_clear_screen` are
-**deliberately not in the contract**. All drawing in WMB goes through `tinyx/fb/`; a second drawing path in the HAL would be a second rendering engine to
-keep correct. They remain as backend‑internal helpers used by boot splash / diagnostics only.
+The implemented SDL backend and standalone integration instructions are documented
+in [linux_hosted/sdl_drivers/README.md](../linux_hosted/sdl_drivers/README.md).
+It supports build-time RGB565/XRGB8888 selection, reports the actual SDL byte
+stride (including padded RGB565 rows), and queues clipped damage for the SDL
+presentation pass. Close/quit requests stop event pumping without freeing a
+framebuffer before explicit display shutdown.
+
+Software drawing helpers are **not in the driver**. Pixel filling, bitmap/text
+rendering, transparency, and scrolling belong to application graphics code or
+`tinyx/fb/`. The backend publishes bytes; it does not implement a second renderer.
+HAL consumers also do not include platform pixel macros or windowing headers.
 
 ## 5. `hal_input.h` — Keyboard and Pointer
 
 ### 5.1 The byte protocol is the contract
 
-Per rule PC5, the existing command/data byte protocol from `linux_hosted/sdl_drivers/hal_drivers.h` is adopted verbatim, because it is what the target
-hardware emits. The header **owns** these constants; the SDL backend includes them back.
+Per rule PC5, the existing command/data byte protocol is retained. The portable
+`hal/hal_input.h` header owns the constants; platform backends implement this shape
+without exposing their internal driver APIs.
 
 ```c
 /* Command bytes */
@@ -180,18 +201,13 @@ hardware emits. The header **owns** these constants; the SDL backend includes th
 #define HAL_MOUSE_BUTTON_X1       4
 #define HAL_MOUSE_BUTTON_X2       5
 
-/* Synthetic scancodes for modifiers.  These MUST match the SC_* values in
- * tinyx/kdrive/tima/tima_kdrive_kbd.c:58-66 - the DDX indexes kdKeymap with
- * them directly, so a mismatch silently remaps modifier keys. */
-#define HAL_SC_LSHIFT   112
-#define HAL_SC_RSHIFT   113
-#define HAL_SC_LCTRL    114
-#define HAL_SC_RCTRL    115
-#define HAL_SC_LALT     116
-#define HAL_SC_RALT     117
-#define HAL_SC_LSUPER   118   /* SC_LGUI in the DDX */
-#define HAL_SC_RSUPER   119   /* SC_RGUI in the DDX */
-#define HAL_SC_CAPSLOCK 120
+/* Aggregate modifier masks; application keymap/scancodes are not HAL data. */
+#define HAL_MOD_SHIFT  0x01
+#define HAL_MOD_CAPS   0x02
+#define HAL_MOD_CTRL   0x04
+#define HAL_MOD_ALT    0x08
+#define HAL_MOD_ALTGR  0x10
+#define HAL_MOD_SUPER  0x20
 ```
 
 ### 5.2 Interface
@@ -209,6 +225,26 @@ typedef enum {
     HAL_INPUT_DEV_MAX  = 2
 } hal_input_dev_t;
 
+typedef enum {
+    HAL_INPUT_CTRL_SCALE_Q12      = 1,
+    HAL_INPUT_CTRL_CURSOR_VISIBLE = 2,
+    HAL_INPUT_CTRL_POINTER_MODE   = 3
+} hal_input_control_t;
+
+typedef enum {
+    HAL_POINTER_BUTTONS = 0,
+    HAL_POINTER_PRESSURE = 1
+} hal_pointer_mode_t;
+
+typedef enum {
+    HAL_INPUT_CONTROL_OK = 0,
+    HAL_INPUT_CONTROL_UNSUPPORTED = -1,
+    HAL_INPUT_CONTROL_INVALID = -2,
+    HAL_INPUT_CONTROL_FAILED = -3
+} hal_input_control_result_t;
+
+#define HAL_INPUT_SCALE_ONE 4096
+
 int  hal_input_init(void);
 void hal_input_shutdown(void);
 
@@ -218,12 +254,13 @@ void hal_input_shutdown(void);
 bool hal_input_has_data(hal_input_dev_t dev);
 bool hal_input_read_byte(hal_input_dev_t dev, uint8_t *out);
 
-/* Backend-specific configuration (cursor visibility, scaling, touch mode).
- * Ignored by backends that do not support it.  Returns 0 or negative. */
-int  hal_input_control(hal_input_dev_t dev, const uint8_t *cmd, uint32_t len);
+/* Typed optional controls, applied synchronously without waiting.
+ * Scale is signed Q12, cursor visibility is 0/1, mode is hal_pointer_mode_t.
+ * Unsupported controls leave state unchanged. */
+int hal_input_control(hal_input_dev_t dev, hal_input_control_t control, int32_t value);
 
 /* Advance the backend: drain hardware / windowing events into the byte
- * buffers.  Called from the `hal` fiber.  Must not block. */
+ * buffers. Presentation/status belongs to hal_display_pump. Must not block. */
 void hal_input_pump(void);
 
 #endif /* WMB_HAL_INPUT_H */
@@ -233,10 +270,10 @@ void hal_input_pump(void);
 
 | Aspect | Requirement |
 |---|---|
-| Buffering | The backend owns a ring buffer per device. Overflow drops the **oldest** byte pair, never a partial pair — a truncated command/data pair desynchronises the decoder permanently |
+| Buffering | The backend owns a queue per device. Overflow drops a **whole new** event, never an unread byte or a partial pair; dropping an old pair after its command was read would desynchronise the consumer |
 | Framing | A command byte is always followed by exactly one data byte. `hal_input_read_byte` never returns a data byte without its command having been returned first |
-| Who calls `hal_input_pump` | Only the `hal` fiber. Calling it from the server fiber would let input arrive mid‑request |
-| Who calls `hal_input_read_byte` | Only `tima_KeyboardPoll()` / `tima_MousePoll()`, from `KdOsFuncs.pollEvents`, from `BlockHandler`, on the server fiber |
+| Who calls pumps | The serialized device-owning main loop or HAL fiber; never an ISR or recursively. An ISR-driven port synchronizes its private producer queues |
+| Who calls `hal_input_read_byte` | The designated application/graphics-server consumer; one reader per stream, reassembling command/data pairs |
 | Device count | The contract exposes **one** keyboard and **one** pointer. A backend with a wider device array must still fold everything into those two streams; writing an event into more than one device queue is a defect |
 
 The two‑stage arrangement (backend → ring buffer → DDX poll) exists precisely so that input arrival and input consumption are decoupled across fibers. It
@@ -534,33 +571,35 @@ The complete set of symbols above the contract.
 
 | Header | Functions | Types | Constants | Implemented by |
 |---|---:|---:|---:|---|
-| `hal_display.h` | 5 | 2 | 2 | The platform |
-| `hal_input.h` | 6 | 1 | 22 | The platform |
+| `hal_display.h` | 6 | 3 | 5 | The platform |
+| `hal_input.h` | 6 | 4 | 40 | The platform |
 | `hal_task.h` | 9 | 2 | 0 | **WMB** — `framework/fiber/` |
 | `hal_time.h` | 2 (+1 optional) | 0 | 0 | The platform |
 | `wmb_os.h` | 4 (+5 optional) | 0 | 0 | The platform |
-| **Total** | **26 (+6)** | **5** | **24** | |
+| **Total** | **27 (+6)** | **9** | **45** | |
 
-**Twenty‑six functions**, of which a platform supplies **seventeen**. The nine `hal_task_*` functions are WMB's own — WMB brings its own cooperative
+Counts include enum values and exclude header guards. **Twenty-seven functions**,
+of which a platform supplies **eighteen**. The nine `hal_task_*` functions are WMB's own — WMB brings its own cooperative
 scheduling on every profile ([`90-`](90-decisions.md) D‑31), so a port never implements a scheduler for it. What a port implements instead is
 `fiber_port.h`'s five symbols ([`31-`](31-target-build.md) §5.1): a periodic timer, a pended software interrupt, an IRQ lock, a stack‑frame forge and a
 context‑switch stub.
 
-So the real porting cost is **17 contract functions plus 5 port symbols**, against the ~15,000 LOC of Linux‑coupled code being removed to get there.
+So the real porting cost is **18 contract functions plus 5 port symbols**, against the ~15,000 LOC of Linux‑coupled code being removed to get there.
 
 ## 10. Backend Implementation Matrix
 
 | Contract symbol | `linux_hosted/` (hosted SDL port) | `<target>_native/` (target port) |
 |---|---|---|
-| `hal_display_init` | SDL_CreateWindow + SDL_CreateTexture + `lcd_driver_init` | Display controller programming |
-| `hal_display_get_fb` | `lcd_driver_get_framebuffer` | MMIO base |
+| `hal_display_init` | Private fixed-configuration window/texture creation | Display controller programming |
+| `hal_display_get_fb` | Owned framebuffer descriptor with actual pitch | MMIO/shadow descriptor |
 | `hal_display_flush` | mark dirty rect | DMA descriptor |
 | `hal_display_shutdown` | SDL teardown | Panel blank |
-| `hal_display_set_power` | no‑op, returns 0 | Backlight GPIO |
-| `hal_input_init` | `keypad_driver_init` + `mouse_driver_init(0)` | Enable input IRQs |
-| `hal_input_has_data` / `read_byte` | ring buffers in `sdl_input.c` / `sdl_mouse.c` | ISR‑filled ring buffers |
-| `hal_input_control` | `mouse_driver_write_command` | Device register write |
-| `hal_input_pump` | `sdl_event_loop()` — the `SDL_PollEvent` loop, plus `mouse_driver_process()` | no‑op (ISR‑driven) |
+| `hal_display_pump` | Private event/presentation advance; generic stop/error status | DMA progress or active status |
+| `hal_display_set_power` | Unsupported, returns negative | Backlight GPIO |
+| `hal_input_init` | Private queues and input lifecycle | Enable input IRQs |
+| `hal_input_has_data` / `read_byte` | Per-device byte queues | ISR-filled synchronized queues |
+| `hal_input_control` | Typed controls, unsupported/invalid/failure results | Supported controls or unsupported result |
+| `hal_input_pump` | Private event collection, no presentation | Device polling or no-op for an ISR-driven producer |
 | `hal_task_*` | `framework/fiber/` + `linux_hosted/fiber_linux/` | `framework/fiber/` + `<target>_native/fiber_<target>/` |
 | `hal_tick_ms` / `hal_tick_us` | `clock_gettime(CLOCK_MONOTONIC)` | Hardware counter |
 | `hal_wallclock_s` (optional) | `time(NULL)` | RTC read |

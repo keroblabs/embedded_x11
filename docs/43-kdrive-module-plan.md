@@ -103,12 +103,12 @@ does cost budget — one file, `kinput.c`, guard #8.
 | K1‑1 | `hal/hal_display.h` | New | [`12-`](12-platform-contract.md) §4 |
 | K1‑2 | `hal/hal_input.h`, **carrying the existing `CMD_*` / `KEY_DATA_*` / `MOUSE_BUTTON_*` constants verbatim** | New | [`12-`](12-platform-contract.md) §5 |
 | K1‑3 | `hal/hal_time.h`, `hal/wmb_os.h` | New | [`12-`](12-platform-contract.md) §7, §8 |
-| K1‑4 | `linux_hosted/sdl_drivers/hal_display_sdl.c` — adapts `lcd_driver_*` | New | [`12-`](12-platform-contract.md) §10 |
-| K1‑5 | `linux_hosted/sdl_drivers/hal_input_sdl.c` — adapts `keypad_driver_*` + `mouse_driver_*` | New | ″ |
+| K1‑4 | `linux_hosted/sdl_drivers/hal_display_sdl.c` — direct private display implementation and status pump | Done | [`12-`](12-platform-contract.md) §10 |
+| K1‑5 | `linux_hosted/sdl_drivers/hal_input_sdl.c` — direct queues and typed portable controls | Done | ″ |
 | K1‑6 | `linux_hosted/system_linux/hal_time_hosted.c` (+ `wmb_os_hosted.c`) | New | ″ |
 | K1‑7 | `linux_hosted/sdl_drivers/hal_mock.c` — a null backend for link isolation | New | [`11-`](11-portability-plan.md) §6.1 |
 | K1‑8 | `cmake/FindLocalSDL2.cmake` — system SDL2 via `find_package`, `WMB_SDL_ROOT` override, **no hard‑coded path, no `SDL2/SDL.h` shim** | New | [`30-`](30-host-build.md) §5 |
-| K1‑9 | Re‑point the four DDX files at `hal_*.h`; retain `hal_drivers.h` as a *backend‑internal* header that re‑includes the constants | Edit (ours) | [`11-`](11-portability-plan.md) §6.1 |
+| K1‑9 | Re-point the DDX files at generic HAL headers; remove the legacy interface and keep backend details private | Done (ours) | [`11-`](11-portability-plan.md) §6.1 |
 | K1‑10 | Close D1–D6 | Edit (ours) | §2.2 |
 | K1‑11 | Delete `-D_USE_LINUX` from the build | — | [`10-`](10-os-dependency-census.md) §8 |
 | K1‑12 | `wmb_hal_smoke` + `wmb_input_smoke` + `wmb_ddx_linktest` | New | [`30-`](30-host-build.md) §7 B2, B4 |
@@ -253,7 +253,7 @@ Twelve of the seventeen contract functions ([`31-`](31-target-build.md) §4.6.2)
 
 | Header | Symbols |
 |---|---|
-| `hal_display.h` | `hal_display_init` `hal_display_shutdown` `hal_display_get_fb` `hal_display_flush` `hal_display_set_power` |
+| `hal_display.h` | `hal_display_init` `hal_display_shutdown` `hal_display_get_fb` `hal_display_flush` `hal_display_pump` `hal_display_set_power` |
 | `hal_input.h` | `hal_input_init` `hal_input_shutdown` `hal_input_has_data` `hal_input_read_byte` `hal_input_control` `hal_input_pump` |
 | `hal_time.h` | `hal_tick_ms` `hal_tick_us` |
 | `wmb_os.h` | `wmb_os_console_write` `wmb_os_abort` `wmb_os_exit` `wmb_os_sbrk` |

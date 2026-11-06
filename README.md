@@ -53,6 +53,28 @@ SDL demo (opens a window):
 ./build/bin/sdl_fiber_example_v2
 ```
 
+See the [v2 example guide](linux_hosted/sdl_fiber_example_v2/README.md) for its
+request/render flow, included files, and starting-point modifications.
+
+## Reusing the SDL backend
+
+The [portable HAL integration guide](linux_hosted/sdl_drivers/README.md) documents
+the display/input contracts, private backend configuration, lifecycle,
+regression tests, and integration into another CMake project or an embedded port. The
+[SDL wrapper guide](linux_hosted/sdl_library/README.md) covers direct window/callback use.
+
+Applications link `wmb_display_input` and include only the HAL headers; SDL types,
+headers, and pixel/configuration macros stay private. Use `wmb_hosted_display`
+when hosted WMB tasks/fibers are also needed. Software drawing belongs above the HAL.
+To build only the
+backend and its headless tests:
+
+```bash
+cmake -S linux_hosted/sdl_drivers -B build-sdl -DWMB_SDL_BUILD_TESTS=ON
+cmake --build build-sdl
+ctest --test-dir build-sdl --output-on-failure
+```
+
 ## AddressSanitizer
 
 The fiber port brackets each `swapcontext` with `__sanitizer_start_switch_fiber` / `_finish_switch_fiber`, so ASan follows the fiber correctly.
@@ -89,6 +111,7 @@ ASan prints a boilerplate `WARNING: ASan doesn't fully support makecontext/swapc
 | `wmb_fiber_linux` | STATIC | hosted fiber port (mmap + guard page + ucontext) |
 | `wmb_system_linux` | STATIC | hosted `hal_time` + `hal_alloc` |
 | `wmb_hosted` | INTERFACE | shortcut for framework + hosted port + hosted system |
-| `wmb_sdl_library` | STATIC | SDL2 window/input wrappers (only if SDL2 was found) |
-| `wmb_sdl_drivers` | STATIC | SDL-backed `hal_display` / `hal_input` (only if SDL2 was found) |
-| `wmb_hosted_sdl` | INTERFACE | shortcut for `wmb_hosted` + the two SDL libraries |
+| `wmb_sdl_library` | STATIC | SDL2 window/input wrappers, no WMB runtime dependency (only if SDL2 was found) |
+| `wmb_sdl_drivers` | STATIC | Hosted implementation of the two portable HALs; private SDL dependency |
+| `wmb_display_input` | ALIAS | Backend-neutral display/input target; only HAL headers are public |
+| `wmb_hosted_display` | INTERFACE | Hosted framework/runtime plus the selected display/input backend |

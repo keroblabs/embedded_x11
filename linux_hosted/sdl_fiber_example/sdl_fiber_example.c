@@ -1,7 +1,7 @@
 /*
- * sdl_fiber_example.c - Cooperative tasks driving the platform contract.
+ * Cooperative display tasks driving the platform contract.
  *
- * Three tasks each own a 50x50 box on an 800x480 framebuffer and
+ * Three tasks each own a 50x50 box on the configured framebuffer and
  * toggle it between its colour and black on their own period
  * (1000 ms, 800 ms and 500 ms) for ten seconds.  Scheduling is purely
  * cooperative: every switch comes from hal_yield_timeout().
@@ -10,12 +10,12 @@
  * hal_display.h, hal_input.h, hal_task.h and hal_time.h.
  */
 #include "hal_display.h"
-#include "hal_input.h"
 #include "hal_task.h"
 #include "hal_time.h"
-#include "sdl_main.h"
+#include "../apps/common/framebuffer_draw.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <time.h>
 
 #define DEMO_RUN_MS         10000u
@@ -24,17 +24,12 @@
 /* No preemption source on this port yet; the tick is a backstop only. */
 #define DEFAULT_SAFETY_TICK_MS  10u
 
-#define SCREEN_WIDTH        800u
-#define SCREEN_HEIGHT       480u
-
 #define BOX_WIDTH           50u
 #define BOX_HEIGHT          50u
 
-#define RGB565(r, g, b)     ((uint16_t)((((r) & 0xF8u) << 8) | \
-                                        (((g) & 0xFCu) << 3) | \
-                                        (((b) & 0xF8u) >> 3)))
+#define DEMO_RGB(r, g, b)   FRAMEBUFFER_RGB(r, g, b)
 
-#define COLOUR_OFF          RGB565(0u, 0u, 0u)
+#define COLOUR_OFF          DEMO_RGB(0u, 0u, 0u)
 
 typedef struct
 {
@@ -42,7 +37,7 @@ typedef struct
     uint32_t    period_ms;
     uint32_t    posx;
     uint32_t    posy;
-    uint16_t    colour;
+    uint32_t    colour;
     uint32_t    ticks;
     bool        lit;
 
@@ -50,10 +45,10 @@ typedef struct
 
 static box_t g_boxes[DEMO_BOX_COUNT] =
 {
-    { "white-1000ms", 1000u,  10u, 10u, RGB565(255u, 255u, 255u), 0u, false },
-    { "red-800ms",     800u,  70u, 10u, RGB565(255u, 128u,  64u), 0u, false },
+    { "white-1000ms", 1000u,  10u, 10u, DEMO_RGB(255u, 255u, 255u), 0u, false },
+    { "red-800ms",     800u,  70u, 10u, DEMO_RGB(255u, 128u,  64u), 0u, false },
     /* Requested green is (64,256,64); 256 does not fit a channel, clamped to 255. */
-    { "green-500ms",   500u, 130u, 10u, RGB565( 64u, 255u,  64u), 0u, false },
+    { "green-500ms",   500u, 130u, 10u, DEMO_RGB( 64u, 255u,  64u), 0u, false },
 };
 
 /* Hands the CPU back to the OS once per scheduling round; without it
@@ -64,25 +59,13 @@ static void host_idle_1ms(void)
     (void)nanosleep(&ts, NULL);
 }
 
-static void fill_rect(uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint16_t colour)
+static void fill_rect(uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint32_t colour)
 {
     const hal_framebuffer_t *fb = hal_display_get_fb();
-    uint32_t row;
-    uint32_t col;
-
-    if (fb == NULL)
+    if (framebuffer_fill_rect(fb, x, y, w, h, colour) < 0)
     {
-        return;
-    }
-
-    for (row = 0u; row < h; row++)
-    {
-        uint16_t *line = (uint16_t *)((uint8_t *)fb->pixels + ((y + row) * fb->stride));
-
-        for (col = 0u; col < w; col++)
-        {
-            line[x + col] = colour;
-        }
+        fprintf(stderr, "Invalid framebuffer in graphics example\n");
+        abort();
     }
 
     hal_display_flush((int32_t)x, (int32_t)y, w, h);
@@ -114,17 +97,11 @@ int main(void)
     hal_task_t *tasks[DEMO_BOX_COUNT];
     const hal_framebuffer_t *fb;
     int i;
+    int result = 0;
 
-    if (hal_display_init(SCREEN_WIDTH, SCREEN_HEIGHT, HAL_PIXFMT_RGB565) != 0)
+    if (hal_display_init() != 0)
     {
         fprintf(stderr, "hal_display_init failed\n");
-        return 1;
-    }
-
-    if (hal_input_init() != 0)
-    {
-        fprintf(stderr, "hal_input_init failed\n");
-        hal_display_shutdown();
         return 1;
     }
 
@@ -145,7 +122,7 @@ int main(void)
         }
     }
 
-    printf("SDL task demo: %ux%u @ %u bpp, %u tasks, %u ms run time\n",
+    printf("Framebuffer task demo: %ux%u @ %u bpp, %u tasks, %u ms run time\n",
            fb->width, fb->height, (uint32_t)fb->bpp,
            (uint32_t)DEMO_BOX_COUNT, (uint32_t)DEMO_RUN_MS);
     fflush(stdout);
@@ -161,12 +138,15 @@ int main(void)
     {
         hal_task_yield();
 
-        hal_input_pump();
-
-        /* Backend-internal: the contract has no "user closed the window"
-         * notion, and this smoke test lives in the hosted port. */
-        if (sdl_is_running() == FALSE)
+        hal_display_status_t status = hal_display_pump();
+        if (status == HAL_DISPLAY_STOP_REQUESTED)
         {
+            break;
+        }
+        if (status == HAL_DISPLAY_ERROR)
+        {
+            fprintf(stderr, "Display pump failed\n");
+            result = 1;
             break;
         }
 
@@ -179,11 +159,7 @@ int main(void)
     }
     hal_task_yield();   /* scheduler pass that reclaims the ZOMBIEs */
 
-    if (sdl_is_running() == TRUE)
-    {
-        hal_input_shutdown();
-        hal_display_shutdown();
-    }
+    hal_display_shutdown();
 
     printf("finished after %u ms\n", hal_tick_ms() - start_ms);
     for (i = 0; i < DEMO_BOX_COUNT; i++)
@@ -192,5 +168,5 @@ int main(void)
                g_boxes[i].name, g_boxes[i].ticks, g_boxes[i].period_ms);
     }
 
-    return 0;
+    return result;
 }

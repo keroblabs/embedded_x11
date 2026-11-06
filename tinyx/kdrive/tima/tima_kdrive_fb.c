@@ -1,22 +1,5 @@
 #include "tima_kdrive.h"
-#include "hal_drivers.h"
 #include <string.h>
-
-#ifndef K_TIMA_FB_WIDTH
-#define K_TIMA_FB_WIDTH     lcd_driver_get_width()
-#endif
-
-#ifndef K_TIMA_FB_HEIGHT
-#define K_TIMA_FB_HEIGHT    lcd_driver_get_height()
-#endif
-
-#ifndef K_TIMA_FB_BPP
-#define K_TIMA_FB_BPP       (lcd_driver_get_bits_per_pixel())
-#endif
-
-#ifndef K_TIMA_FB_BASE
-#define K_TIMA_FB_BASE      lcd_driver_get_framebuffer()
-#endif
 
 
 /*
@@ -31,8 +14,7 @@
 Bool tima_CardInit(KdCardInfo *card)
 {
     tima_Priv_t *priv;
-
-    lcd_driver_init();
+    const hal_framebuffer_t *fb;
 
     /* Allocate private data */
     priv = (tima_Priv_t *)malloc(sizeof(tima_Priv_t));
@@ -46,20 +28,28 @@ Bool tima_CardInit(KdCardInfo *card)
 
     memset(priv, 0, sizeof(tima_Priv_t));
 
-    /*
-     * PLATFORM-SPECIFIC: Initialize framebuffer
-     *
-     * On bare-metal, framebuffer is typically at a fixed address
-     * defined by hardware or bootloader configuration.
-     */
-    priv->fb_base = (void *)K_TIMA_FB_BASE;
+    if (hal_display_init() != 0)
+    {
+        ErrorF("tima_CardInit: display initialization failed\n");
+        free(priv);
+        return FALSE;
+    }
+    fb = hal_display_get_fb();
+    if (fb == NULL)
+    {
+        ErrorF("tima_CardInit: framebuffer is unavailable\n");
+        hal_display_shutdown();
+        free(priv);
+        return FALSE;
+    }
+    priv->fb_base = fb->pixels;
     priv->fb = priv->fb_base;  /* May need offset for alignment */
 
     /* Set display parameters */
-    priv->width = K_TIMA_FB_WIDTH;
-    priv->height = K_TIMA_FB_HEIGHT;
-    priv->bpp = K_TIMA_FB_BPP;
-    priv->pitch = priv->width * (priv->bpp / 8);
+    priv->width = fb->width;
+    priv->height = fb->height;
+    priv->bpp = fb->bpp;
+    priv->pitch = fb->stride;
     priv->fb_size = priv->pitch * priv->height;
 
     /* RGB888 or RGBA8888 format (typical for 32bpp) */
@@ -258,6 +248,7 @@ Bool tima_Enable(ScreenPtr pScreen)
 
     /* Example: Clear framebuffer to black */
     memset(priv->fb, 0, priv->fb_size);
+    hal_display_flush(0, 0, priv->width, priv->height);
 
     return TRUE;
 }
@@ -273,23 +264,16 @@ Bool tima_Enable(ScreenPtr pScreen)
  */
 Bool tima_DPMS(ScreenPtr pScreen, int mode)
 {
-    /*
-     * PLATFORM-SPECIFIC: Implement power management
-     *
-     * KD_DPMS_NORMAL    - Full power
-     * KD_DPMS_STANDBY   - Reduced power, quick recovery
-     * KD_DPMS_SUSPEND   - Lower power, slower recovery
-     * KD_DPMS_POWERDOWN - Minimum power
-     */
+    (void)pScreen;
 
     switch (mode) {
     case KD_DPMS_NORMAL:
-        /* Enable display */
+        (void)hal_display_set_power(1);
         break;
     case KD_DPMS_STANDBY:
     case KD_DPMS_SUSPEND:
     case KD_DPMS_POWERDOWN:
-        /* Disable display / reduce power */
+        (void)hal_display_set_power(0);
         break;
     }
 
@@ -352,10 +336,7 @@ void tima_CardFini(KdCardInfo *card)
     tima_Priv_t *priv = card->driver;
 
     if (priv) {
-        /*
-         * PLATFORM-SPECIFIC: Cleanup
-         * If framebuffer was mmap'd, unmap it here
-         */
+        hal_display_shutdown();
         free(priv);
         card->driver = NULL;
     }

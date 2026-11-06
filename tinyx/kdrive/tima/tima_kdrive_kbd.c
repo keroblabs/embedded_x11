@@ -2,7 +2,7 @@
  * Tima Keyboard Driver for KDrive
  *
  * This driver reads keyboard events from the HAL layer using the
- * keypad_driver API (keypad_driver_has_data / keypad_driver_read_data).
+ * platform-neutral HAL_INPUT_KEYBOARD byte stream.
  *
  * Protocol from HAL:
  *   0x01 + modifier_key   - Modifier key event (Alt, Shift, etc.)
@@ -10,7 +10,7 @@
  *   0x03 + key_data       - Key release
  *
  * Key data values (ASCII-based):
- *   0x20-0x7D  - Printable ASCII characters
+ *   0x20-0x7E  - Printable ASCII characters
  *   127 (0x7F) - Backspace
  *   13         - Enter
  *   27 (0x1B)  - Escape
@@ -27,12 +27,7 @@
 #include "kdrive.h"
 #include "kkeymap.h"
 #include <X11/keysym.h>
-#include "hal_drivers.h"
-
-/* External HAL keyboard API */
-extern void    keypad_driver_init(void);
-extern bool_t  keypad_driver_has_data(void);  /* Returns TRUE/FALSE */
-extern uint8_t keypad_driver_read_data(void);
+#include "tima_kdrive.h"
 
 /*
  * We use the key_data value directly as the "scancode" index into kdKeymap.
@@ -43,14 +38,14 @@ int kdMaxScanCode = 127;
 
 /*
  * Modifier key values (from control_key in 0x01 packets)
- * These match the flags in tima_input.h
+ * The byte protocol owns the aggregate modifier bits.
  */
-#define MOD_SHIFT       0x01
-#define MOD_CAPS        0x02
-#define MOD_CTRL        0x04
-#define MOD_ALT         0x08
-#define MOD_ALTGR       0x10
-#define MOD_WIN         0x20
+#define MOD_SHIFT       HAL_MOD_SHIFT
+#define MOD_CAPS        HAL_MOD_CAPS
+#define MOD_CTRL        HAL_MOD_CTRL
+#define MOD_ALT         HAL_MOD_ALT
+#define MOD_ALTGR       HAL_MOD_ALTGR
+#define MOD_WIN         HAL_MOD_SUPER
 
 /*
  * Fake scancodes for modifier keys (we assign them to unused slots)
@@ -67,6 +62,8 @@ int kdMaxScanCode = 127;
 
 /* Current modifier state for tracking press/release */
 static unsigned char current_modifiers = 0;
+static Bool keyboard_initialized;
+static tima_input_packet_t pending;
 
 /*
  * Build the keymap
@@ -100,13 +97,13 @@ static void tima_KeyboardLoad(void)
     /*
      * Control characters used as key codes
      */
-    SET_KEY(KEY_DATA_LEFT,      XK_Left,      XK_Left);
-    SET_KEY(KEY_DATA_DOWN,      XK_Down,      XK_Down);
-    SET_KEY(KEY_DATA_UP,        XK_Up,        XK_Up);
-    SET_KEY(KEY_DATA_ENTER,     XK_Return,    XK_Return);
-    SET_KEY(KEY_DATA_RIGHT,     XK_Right,     XK_Right);
-    SET_KEY(KEY_DATA_ESCAPE,    XK_Escape,    XK_Escape);
-    SET_KEY(KEY_DATA_BACKSPACE, XK_BackSpace, XK_BackSpace);
+    SET_KEY(HAL_KEY_LEFT,      XK_Left,      XK_Left);
+    SET_KEY(HAL_KEY_DOWN,      XK_Down,      XK_Down);
+    SET_KEY(HAL_KEY_UP,        XK_Up,        XK_Up);
+    SET_KEY(HAL_KEY_ENTER,     XK_Return,    XK_Return);
+    SET_KEY(HAL_KEY_RIGHT,     XK_Right,     XK_Right);
+    SET_KEY(HAL_KEY_ESCAPE,    XK_Escape,    XK_Escape);
+    SET_KEY(HAL_KEY_BACKSPACE, XK_BackSpace, XK_BackSpace);
 
     /*
      * Printable ASCII characters (0x20 - 0x7E)
@@ -231,7 +228,8 @@ static void tima_HandleModifier(unsigned char new_modifiers)
 static int tima_KeyboardInit(void)
 {
     current_modifiers = 0;
-    keypad_driver_init();
+    pending = (tima_input_packet_t){0};
+    keyboard_initialized = TRUE;
     return 1;  /* Success */
 }
 
@@ -260,7 +258,8 @@ static void tima_KeyboardBell(int volume, int pitch, int duration)
  */
 static void tima_KeyboardFini(void)
 {
-    /* Nothing to clean up */
+    keyboard_initialized = FALSE;
+    pending = (tima_input_packet_t){0};
 }
 
 /*
@@ -279,7 +278,7 @@ const KdKeyboardFuncs tima_KeyboardFuncs = {
  * tima_KeyboardPoll - Process pending keyboard events from HAL
  *
  * Call this from the KdOsFuncs.pollEvents callback.
- * Reads from keypad_driver and dispatches to KDrive.
+ * Reads complete HAL byte pairs and dispatches to KDrive.
  */
 void tima_KeyboardPoll(void)
 {
@@ -287,35 +286,23 @@ void tima_KeyboardPoll(void)
     unsigned char data;
     unsigned char is_up;
 
-    while (keypad_driver_has_data()) {
-        /* Read command byte */
-        cmd = keypad_driver_read_data();
+    if (!keyboard_initialized) return;
+    while (tima_ReadInputPacket(HAL_INPUT_KEYBOARD, &pending, &cmd, &data)) {
 
         switch (cmd) {
-            case CMD_MODIFIER:
-                /* Modifier key change: next byte is modifier mask */
-                if (keypad_driver_has_data()) {
-                    data = keypad_driver_read_data();
-                    tima_HandleModifier(data);
-                }
+            case HAL_CMD_MODIFIER:
+                tima_HandleModifier(data);
                 break;
 
-            case CMD_KEY_DOWN:
-            case CMD_KEY_UP:
-                /* Key press/release: next byte is key data (ASCII-like) */
-                if (keypad_driver_has_data()) {
-                    data = keypad_driver_read_data();
-                    is_up = (cmd == CMD_KEY_UP) ? 1 : 0;
-
-                    /* Use the key data directly as scancode */
-                    KdEnqueueKeyboardEvent(data, is_up);
-                }
+            case HAL_CMD_KEY_DOWN:
+            case HAL_CMD_KEY_UP:
+                is_up = (cmd == HAL_CMD_KEY_UP) ? 1 : 0;
+                KdEnqueueKeyboardEvent(data, is_up);
                 break;
 
             default:
-                /* Unknown command, skip */
+                ErrorF("tima_KeyboardPoll: invalid command %u\n", cmd);
                 break;
         }
     }
 }
-

@@ -1,6 +1,12 @@
 #ifndef SDL_LIB_EXPORT_H_
 #define SDL_LIB_EXPORT_H_
 
+#include <stdint.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 //////////////////////////////////////////////////////////////////////////////////////
 
 typedef void ( * event_mouse_t )( uint32_t window_id, uint16_t posx, uint16_t posy, uint16_t posz, uint8_t button_state );
@@ -32,6 +38,10 @@ typedef struct sdl_api_t_
 //////////////////////////////////////////////////////////////////////////////////////
 
 sdl_api_t * library_entry_point( void );
+
+#ifdef __cplusplus
+}
+#endif
 
 //////////////////////////////////////////////////////////////////////////////////////
 

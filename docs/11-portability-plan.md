@@ -140,14 +140,14 @@ Break the DDX's coupling to a backend‑named directory and to the ad‑hoc `hal
 |---|---|---|
 | `hal/hal_display.h` | New; the framebuffer contract | New |
 | `hal/hal_input.h` | New; the input contract, **carrying the existing `CMD_*` / `KEY_DATA_*` / `MOUSE_BUTTON_*` constants verbatim** | New |
-| `linux_hosted/sdl_drivers/hal_display_sdl.c` | New; adapts `lcd_driver_*` → `hal_display_*` | New |
-| `linux_hosted/sdl_drivers/hal_input_sdl.c` | New; adapts `keypad_driver_*` + `mouse_driver_*` → `hal_input_*` | New |
+| `linux_hosted/sdl_drivers/hal_display_sdl.c` | Direct private implementation of the display HAL, including status pump | Done |
+| `linux_hosted/sdl_drivers/hal_input_sdl.c` | Direct private byte queues and typed portable controls | Done |
 | `linux_hosted/sdl_drivers/hal_mock.c` | New; a null backend for link‑isolation testing | New |
 | `tinyx/kdrive/tima/tima_kdrive_fb.c` | `#include "hal_drivers.h"` → `#include "hal_display.h"`; `lcd_driver_get_framebuffer()` → `hal_display_get_fb()->pixels`; shadow update → `hal_display_flush()` | M3 |
-| `tinyx/kdrive/tima/tima_kdrive_kbd.c` | → `hal_input.h`; `keypad_driver_*` → `hal_input_poll_key()` | M3 |
+| `tinyx/kdrive/tima/tima_kdrive_kbd.c` | Generic `hal_input_read_byte` pairs; application keymap stays private | M3 |
 | `tinyx/kdrive/tima/tima_kdrive_mouse.c` | → `hal_input.h`; **plus defects D1–D4** from [`01-`](01-component-inventory.md) §6.3 | M3 |
 | `tinyx/kdrive/tima/tima_kdrive_system.c` | → `hal_task.h`; **implement `tima_WaitForEvents()`** (defect D5); fix `ddxProcessArgument` (D6) | M3 |
-| `linux_hosted/sdl_drivers/hal_drivers.h` | Retained as the *backend‑internal* header. The `CMD_*` constants move to `hal_input.h`; this file `#include`s them back so the SDL sources are unchanged | M3 |
+| Legacy display/keypad/mouse surface | Removed; software drawing stays above the HAL, and backend headers/definitions are private | Done |
 
 These four DDX files are ours (untracked additive module), so they do not consume upstream patch budget.
 

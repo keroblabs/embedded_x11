@@ -1,3 +1,3 @@
 add_executable(sdl_fiber_example_v2 ${CMAKE_CURRENT_LIST_DIR}/sdl_fiber_example_v2.c)
-target_link_libraries(sdl_fiber_example_v2 PRIVATE wmb_hosted_sdl)
+target_link_libraries(sdl_fiber_example_v2 PRIVATE wmb_hosted_display)
 target_compile_options(sdl_fiber_example_v2 PRIVATE -Wall -Wextra)

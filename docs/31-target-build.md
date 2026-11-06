@@ -92,16 +92,24 @@ What must be written for a specific target. Roughly **600–900 LOC total**, in 
 
 static hal_framebuffer_t fb;
 
-int hal_display_init(uint32_t w, uint32_t h, hal_pixfmt_t fmt)
+int hal_display_init(void)
 {
-    if (w != WMB_SCREEN_WIDTH || h != WMB_SCREEN_HEIGHT) return -1;
+    const uint32_t w = WMB_SCREEN_WIDTH, h = WMB_SCREEN_HEIGHT;
+    const hal_pixfmt_t fmt = WMB_SCREEN_FORMAT; /* backend-private board config */
     display_controller_configure(w, h, fmt);
     fb.pixels = (void *)WMB_FRAMEBUFFER_BASE;
     fb.width  = w;  fb.height = h;
-    fb.stride = w * (fmt == HAL_PIXFMT_RGB565 ? 2 : 4);
+    fb.stride = WMB_FRAMEBUFFER_STRIDE; /* actual hardware/shadow row pitch */
     fb.bpp    = (fmt == HAL_PIXFMT_RGB565 ? 16 : 32);
     fb.format = fmt;
     return 0;
+}
+
+hal_display_status_t hal_display_pump(void)
+{
+    /* Advance queued DMA/scanout without waiting. Latch device failures
+     * until shutdown/reinitialization; ordinary hardware stays active. */
+    return HAL_DISPLAY_ACTIVE;
 }
 
 void hal_display_flush(int32_t x, int32_t y, uint32_t w, uint32_t h)
@@ -208,12 +216,12 @@ other; no source file changes.
 
 ### 4.6.2 Symbols a port must define
 
-Seventeen contract functions plus five port symbols. Nothing else — if a port needs to define anything outside this list, either the list is wrong or the
+Eighteen contract functions plus five port symbols. Nothing else — if a port needs to define anything outside this list, either the list is wrong or the
 port is doing work that belongs above the contract.
 
 | Header | Symbols | Notes |
 |---|---|---|
-| `hal_display.h` | `hal_display_init` `hal_display_shutdown` `hal_display_get_fb` `hal_display_flush` `hal_display_set_power` | §4.1. `set_power` may return −1 |
+| `hal_display.h` | `hal_display_init` `hal_display_shutdown` `hal_display_get_fb` `hal_display_flush` `hal_display_pump` `hal_display_set_power` | §4.1. Native geometry/format; `set_power` may return −1 |
 | `hal_input.h` | `hal_input_init` `hal_input_shutdown` `hal_input_has_data` `hal_input_read_byte` `hal_input_control` `hal_input_pump` | §4.2 |
 | `hal_time.h` | `hal_tick_ms` `hal_tick_us` (+ `hal_wallclock_s` if `WMB_HAS_WALLCLOCK`) | §4.3 |
 | `wmb_os.h` | `wmb_os_console_write` `wmb_os_abort` `wmb_os_exit` `wmb_os_sbrk` (+5 filesystem if `WMB_HAS_FILESYSTEM`) | §4.4, §4.5 |
@@ -462,7 +470,7 @@ and inside the windowing set:
 int wmb_main(const wmb_config_t *cfg)
 {
     if (!cfg) cfg = &wmb_default_config;
-    if (hal_display_init(cfg->width, cfg->height, cfg->pixfmt) != 0) return -1;
+    if (hal_display_init() != 0) return -1; /* geometry/format belong to the backend */
     if (hal_input_init() != 0) return -2;
 
     /* Created blocked; none of these runs yet. */

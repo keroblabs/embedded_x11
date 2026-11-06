@@ -2,6 +2,28 @@
 #define TIMA_KDRIVE_H_
 
 #include "kdrive.h"
+#include "hal_display.h"
+#include "hal_input.h"
+
+typedef struct
+{
+    Bool has_command;
+    uint8_t command;
+} tima_input_packet_t;
+
+static inline Bool tima_ReadInputPacket(hal_input_dev_t dev, tima_input_packet_t *pending,
+                                       uint8_t *command, uint8_t *data)
+{
+    if (!pending->has_command)
+    {
+        if (!hal_input_read_byte(dev, &pending->command)) return FALSE;
+        pending->has_command = TRUE;
+    }
+    if (!hal_input_read_byte(dev, data)) return FALSE;
+    *command = pending->command;
+    pending->has_command = FALSE;
+    return TRUE;
+}
 
 /* Framebuffer private data - stored in KdCardInfo->driver */
 typedef struct _tima_Priv 
@@ -58,10 +80,8 @@ extern const KdCardFuncs tima_Funcs;
 /*
  * Keyboard driver (tima_keyboard.c)
  * 
- * Uses HAL API:
- *   - keypad_driver_init()
- *   - keypad_driver_has_data()
- *   - keypad_driver_read_data()
+ * Reads the HAL_INPUT_KEYBOARD byte stream. The OS adapter owns the
+ * shared input lifecycle; keyboard and pointer decoders do not reopen it.
  * 
  * Protocol from HAL:
  *   0x01 + modifier_mask  - Modifier key change
@@ -76,10 +96,7 @@ void tima_KeyboardPoll(void);
 /*
  * Mouse driver (tima_mouse.c)
  * 
- * Uses HAL API:
- *   - mouse_driver_init()
- *   - mouse_driver_has_data()
- *   - mouse_driver_read_data()
+ * Reads the HAL_INPUT_MOUSE byte stream.
  */
 extern const KdMouseFuncs tima_MouseFuncs;
 

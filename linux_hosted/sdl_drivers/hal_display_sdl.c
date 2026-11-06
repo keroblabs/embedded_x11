@@ -1,125 +1,109 @@
-/*
- * hal_display_sdl.c - hosted implementation of hal_display.h.
- *
- * Thin adapter binding lcd_driver_* to the contract, per
- * docs/12-platform-contract.md section 4.3.  The lcd_driver_* drawing
- * helpers stay backend-internal and are deliberately not re-exported.
- */
+#include <stdbool.h>
 #include "hal_display.h"
-#include "hal_drivers.h"
+#include "sdl_backend.h"
+#include "sdl_internal.h"
+#include "sdl_window.h"
 
-///////////////////////////////////////////////////////////////////////////
+#ifndef WMB_SDL_SCREEN_WIDTH
+#define WMB_SDL_SCREEN_WIDTH 800
+#endif
+#ifndef WMB_SDL_SCREEN_HEIGHT
+#define WMB_SDL_SCREEN_HEIGHT 480
+#endif
+
+_Static_assert(WMB_SDL_SCREEN_WIDTH > 0 && WMB_SDL_SCREEN_WIDTH <= UINT16_MAX, "Invalid display width");
+_Static_assert(WMB_SDL_SCREEN_HEIGHT > 0 && WMB_SDL_SCREEN_HEIGHT <= UINT16_MAX, "Invalid display height");
 
 static hal_framebuffer_t fb;
-static int is_open = 0;
+static uint32_t window_id = UINT32_MAX;
+static bool is_open;
+static bool has_error;
 
-/* Accumulated damage, published by the next sdl_window_process() pass. */
-static uint32_t dirty_x0, dirty_y0, dirty_x1, dirty_y1;
-
-///////////////////////////////////////////////////////////////////////////
-
-int hal_display_init(uint32_t width, uint32_t height, hal_pixfmt_t format)
+uint32_t sdl_backend_display_window(void)
 {
-    uint32_t bpp;
+    return window_id;
+}
 
+int hal_display_init(void)
+{
     if (is_open)
     {
+        SDL_LogError(SDL_LOG_CATEGORY_VIDEO, "HAL display is already initialized");
         return -1;
     }
-
-    lcd_driver_init();
-
-    bpp = lcd_driver_get_bits_per_pixel();
-
-    /* PC4: fixed geometry - fail rather than substitute one. */
-    if ((width != (uint32_t)lcd_driver_get_width()) ||
-        (height != (uint32_t)lcd_driver_get_height()) ||
-        (bpp != ((format == HAL_PIXFMT_RGB565) ? 16u : 32u)))
+    if (sdl_backend_acquire() < 0)
     {
-        lcd_driver_deinit();
         return -1;
     }
 
-    fb.pixels = lcd_driver_get_framebuffer();
-    if (fb.pixels == NULL)
+    window_id = sdl_create_window("WMB display", WMB_SDL_SCREEN_WIDTH, WMB_SDL_SCREEN_HEIGHT);
+    if (window_id == UINT32_MAX)
     {
-        lcd_driver_deinit();
+        sdl_backend_release();
         return -1;
     }
+    fb.pixels = sdl_get_buffer(window_id);
+    fb.width = sdl_window_get_width(window_id);
+    fb.height = sdl_window_get_height(window_id);
+    fb.stride = sdl_window_get_stride(window_id);
+    fb.bpp = WMB_SDL_PIXEL_BITS;
+    fb.format = WMB_SDL_PIXEL_BITS == 16 ? HAL_PIXFMT_RGB565 : HAL_PIXFMT_XRGB8888;
 
-    fb.width  = width;
-    fb.height = height;
-    fb.stride = width * (bpp / 8u);
-    fb.bpp    = (uint8_t)bpp;
-    fb.format = format;
-
-    lcd_driver_clear_screen();
-
-    dirty_x0 = dirty_y0 = 0;
-    dirty_x1 = dirty_y1 = 0;
-    is_open  = 1;
-
+    sdl_window_set_key_event(window_id, sdl_backend_key_event);
+    sdl_window_set_mouse_delta_event(window_id, sdl_backend_pointer_event);
+    sdl_window_set_mouse_wheel_event(window_id, sdl_backend_wheel_event);
+    has_error = false;
+    is_open = true;
     return 0;
 }
 
 void hal_display_shutdown(void)
 {
-    if (!is_open)
-    {
-        return;
-    }
-
-    is_open   = 0;
-    fb.pixels = NULL;
-
-    lcd_driver_deinit();
+    if (!is_open) return;
+    is_open = false;
+    has_error = false;
+    sdl_destroy_window(window_id);
+    window_id = UINT32_MAX;
+    fb = (hal_framebuffer_t){0};
+    sdl_backend_release();
 }
 
 const hal_framebuffer_t *hal_display_get_fb(void)
 {
-    return is_open ? &fb : NULL;
+    if (!is_open) return NULL;
+    if (sdl_get_buffer(window_id) == NULL)
+    {
+        SDL_LogError(SDL_LOG_CATEGORY_VIDEO, "HAL display framebuffer is no longer available");
+        return NULL;
+    }
+    return &fb;
 }
 
-void hal_display_flush(int32_t x, int32_t y, uint32_t w, uint32_t h)
+void hal_display_flush(int32_t x, int32_t y, uint32_t width, uint32_t height)
 {
-    uint32_t x0, y0, x1, y1;
+    if (hal_display_get_fb() == NULL || width == 0 || height == 0) return;
+    sdl_window_invalidate(window_id, x, y, width, height);
+}
 
-    if (!is_open || (w == 0u) || (h == 0u))
+hal_display_status_t hal_display_pump(void)
+{
+    if (hal_display_get_fb() == NULL)
     {
-        return;
+        SDL_LogError(SDL_LOG_CATEGORY_VIDEO, "Cannot pump an uninitialized/unavailable HAL display");
+        return HAL_DISPLAY_ERROR;
     }
-
-    x0 = (x < 0) ? 0u : (uint32_t)x;
-    y0 = (y < 0) ? 0u : (uint32_t)y;
-    x1 = x0 + w;
-    y1 = y0 + h;
-
-    if (x0 >= fb.width || y0 >= fb.height)
+    if (has_error) return HAL_DISPLAY_ERROR;
+    if (!sdl_poll_events()) return HAL_DISPLAY_STOP_REQUESTED;
+    if (sdl_present_window(window_id) < 0)
     {
-        return;
+        has_error = true;
+        return HAL_DISPLAY_ERROR;
     }
-
-    if (x1 > fb.width)  x1 = fb.width;
-    if (y1 > fb.height) y1 = fb.height;
-
-    /* PC3: never blocks.  The union is presented by the backend's own
-     * vsync pass; SDL_RenderPresent does not happen here. */
-    if (dirty_x1 == dirty_x0 || dirty_y1 == dirty_y0)
-    {
-        dirty_x0 = x0; dirty_y0 = y0;
-        dirty_x1 = x1; dirty_y1 = y1;
-    }
-    else
-    {
-        if (x0 < dirty_x0) dirty_x0 = x0;
-        if (y0 < dirty_y0) dirty_y0 = y0;
-        if (x1 > dirty_x1) dirty_x1 = x1;
-        if (y1 > dirty_y1) dirty_y1 = y1;
-    }
+    return HAL_DISPLAY_ACTIVE;
 }
 
 int hal_display_set_power(int on)
 {
     (void)on;
-    return -1;      /* SDL has no panel power control */
+    return -1;
 }
