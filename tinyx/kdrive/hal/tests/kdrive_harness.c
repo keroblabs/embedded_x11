@@ -112,6 +112,18 @@ static int test_damage(void)
     CHECK(setup(HAL_PIXFMT_XRGB8888) == 0);
     CHECK(card->cfuncs->initScreen(&mock_xserver.screen));
     CHECK(card->cfuncs->finishInitScreen(&mock_xserver.screen));
+    {
+        rrScrPrivPtr rr = rrGetScrPriv(&mock_xserver.screen);
+        Rotation rotations = 0;
+        RRScreenSize size = {.width = 13, .height = 7};
+        CHECK(rr->rrGetInfo(&mock_xserver.screen, &rotations));
+        CHECK(rotations == RR_Rotate_0);
+        CHECK(rr->rrSetConfig(&mock_xserver.screen, RR_Rotate_0, 0, &size));
+        CHECK(!rr->rrSetConfig(&mock_xserver.screen, RR_Rotate_90, 0, &size));
+        CHECK(!rr->rrSetConfig(&mock_xserver.screen, RR_Rotate_0, 60, &size));
+        size.width++;
+        CHECK(!rr->rrSetConfig(&mock_xserver.screen, RR_Rotate_0, 0, &size));
+    }
     CHECK(card->cfuncs->createRes(&mock_xserver.screen));
     CHECK(card->cfuncs->createRes(&mock_xserver.screen));
     CHECK(mock_xserver.damage_registers == 1);
@@ -148,6 +160,18 @@ static int keycode(KeySym symbol)
         if (kdKeymap[(scan - kdMinScanCode) * KD_MAX_WIDTH] == symbol)
             return scan + KD_MIN_KEYCODE - kdMinScanCode;
     return -1;
+}
+
+static int test_close(void)
+{
+    CHECK(setup(HAL_PIXFMT_RGB565) == 0);
+    CHECK(card->cfuncs->initScreen(&mock_xserver.screen));
+    CHECK(card->cfuncs->finishInitScreen(&mock_xserver.screen));
+    CHECK(card->cfuncs->createRes(&mock_xserver.screen));
+    CHECK(mock_xserver.damage != NULL);
+    CHECK(mock_xserver.screen.CloseScreen(0, &mock_xserver.screen));
+    CHECK(mock_xserver.damage == NULL && mock_xserver.damage_destroys == 1);
+    return 0;
 }
 
 static int key_event(size_t index, int type, int code)
@@ -330,8 +354,10 @@ static int test_lifecycle(void)
     unsigned int input_pumps;
     CHECK(setup(HAL_PIXFMT_RGB565) == 0);
     CHECK(KdHalInputInit() && mock_hal.input_inits == 1);
+    CHECK(KdHalPollCount() == 0);
     KdBlockHandler(0, NULL, NULL, NULL);
     CHECK(mock_hal.input_pumps == 1 && mock_hal.display_pumps == 1);
+    CHECK(KdHalPollCount() == 1);
     CHECK(mock_xserver.adjusted_wait == 20);
     kdMouseInfo->timeoutPending = TRUE;
     kdMouseInfo->emulationTimeout = mock_xserver.time + 5;
@@ -346,14 +372,17 @@ static int test_lifecycle(void)
     mock_hal.status = HAL_DISPLAY_STOP_REQUESTED;
     KdBlockHandler(0, NULL, NULL, NULL);
     CHECK((dispatchException & DE_TERMINATE) != 0 && isItTimeToYield);
+    CHECK(KdHalDisplayStatus() == HAL_DISPLAY_STOP_REQUESTED);
     dispatchException = isItTimeToYield = 0;
     mock_hal.status = HAL_DISPLAY_ERROR;
     KdBlockHandler(0, NULL, NULL, NULL);
     CHECK((dispatchException & DE_TERMINATE) != 0);
+    CHECK(KdHalDisplayStatus() == HAL_DISPLAY_ERROR);
     MockXServerStopDevices();
     KdHalOsFuncs.Fini();
     KdHalOsFuncs.Fini();
     CHECK(mock_hal.input_shutdowns == 1 && mock_hal.display_shutdowns == 1);
+    CHECK(KdHalDisplayStatus() == HAL_DISPLAY_ERROR);
     return 0;
 }
 
@@ -464,6 +493,7 @@ int main(int argc, char **argv)
     int result;
     if (argc != 2) return 2;
     if (!strcmp(argv[1], "framebuffer")) result = test_framebuffer();
+    else if (!strcmp(argv[1], "close")) result = test_close();
     else if (!strcmp(argv[1], "damage")) result = test_damage();
     else if (!strcmp(argv[1], "keyboard")) result = test_keyboard();
     else if (!strcmp(argv[1], "pointer")) result = test_pointer();

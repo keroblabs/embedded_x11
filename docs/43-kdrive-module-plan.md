@@ -45,7 +45,9 @@ KDrive code and mocks only the HAL and required X-server services.
 | Wheels and extended buttons | Wheels use X buttons 4-7; physical side buttons use 8/9 |
 | Core device initialization/error propagation | Implemented and tested |
 | Poll/deadline/stop/error handling | Standard KDrive block-handler path tested |
-| Full TinyX server startup/root window/client dispatch | Still an integration milestone, not provided by this harness |
+| Fixed-mode RandR | One native mode, rotation zero; incompatible changes refused |
+| Full TinyX startup/root window | Verified by the separate [P4 server gate](../tinyx/wmb/README.md), not by the standalone harness |
+| Client dispatch | Still P5; no client is admitted by P4 |
 | Real embedded device | Still a hardware port milestone |
 
 The old adapter directory and identifiers have been removed. This is a generic
@@ -148,10 +150,10 @@ remain intact.
 
 ## 6. Next TinyX integration milestones
 
-1. Link the actual server core with `wmb_kdrive` and a selected HAL implementation.
-2. Execute real screen/resource initialization and display an X root window.
-3. Verify real framebuffer drawing produces Damage notifications and presentation.
-4. Connect the server's cooperative wait/dispatch loop to the standard
+1. **Done at P4:** link the actual server core with `wmb_kdrive` and the selected HAL.
+2. **Done at P4:** execute real initialization and display an X root window.
+3. **Done at P4:** real framebuffer drawing produces Damage and presentation.
+4. **Done at P4:** connect the cooperative wait/dispatch loop to the standard
    `KdBlockHandler` polling/deadline path. A 20 ms poll bound is a maximum;
    earlier timeouts are retained.
 5. Verify actual clients receive keyboard/pointer/wheel events and clean shutdown.

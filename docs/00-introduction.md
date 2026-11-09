@@ -16,17 +16,21 @@ The four inputs, as they sit in the tree today:
 | `X11/` | The X11 header/protocol root (`X.h`, `Xlib.h`, `Xproto.h`, `Xutil.h`) plus the Xt/Xaw/Xmu/`xtrans` trees | headers‑dominant | Unmodified; used as the include root |
 | `framework/` | Our own code: the hosted SDL backend, a bare‑metal fiber runtime, heap/buffer helpers, and the first transport‑shim sketch | ~4.2 kLOC | **This is the only tree we own outright** |
 
-Two supporting trees exist and are currently dormant: `fonts/freetype/` (a full FreeType checkout, not yet wired into anything) and `X11/fonts/` (the
-classic `libXfont` sources).
+`fonts/freetype/` remains dormant. The font/protocol headers in `X11/fonts/` are
+used by the P4 server; bitmap font implementation comes from its pinned libXfont
+dependency.
 
 ### 1.1 What the tree does today
 
-The hosted fiber and HAL foundations are runnable, but the X11 stack has not yet been assembled:
+The hosted foundations and no-client TinyX server are runnable; the complete
+client/transport/window-manager stack is not yet assembled:
 
 - The top-level `CMakeLists.txt` builds the framework, hosted fiber/system ports, optional SDL backends, the KDrive/HAL library, and smoke/demo executables.
   `transport/x11/wmb_main.c` now reserves the portable lifecycle entry point without exporting a competing `main()`.
-- The build does **not** yet compile or link `tinyx/dix`, `tinyx/os`, `tinyx/mi`, `tinyx/fb`, `tinyx/kdrive/src`, `libX11/`, or `jwm/`
-  into a complete WMB image.
+- With `WMB_TINYX_BUILD_SERVER=ON`, actual DIX/OS/MI/FB/extensions and KDrive/HAL
+  initialize, paint an X root window, reach `Dispatch()`, wait cooperatively and
+  shut down. See the [P4 server guide](../tinyx/wmb/README.md).
+  `libX11/`, the in-process client transport, and `jwm/` remain later work.
 - `framework/fiber/` contains a complete, portable cooperative fiber core (`fiber.c`, `fiber_sync.c`, `hal_task.c` and its headers) **and a working hosted
   port** in `linux_hosted/fiber_linux/`. Both are exercised by the smoke programs under `linux_hosted/`, one of which — `sdl_fiber_example_v2/` — is a
   running proof of concept of the in‑process transport's client–server handshake ([`21-`](21-inprocess-transport.md) §11). The preemption tick is
@@ -36,11 +40,13 @@ The hosted fiber and HAL foundations are runnable, but the X11 stack has not yet
   `transport/api/wmb_app_table.h` is retained as the application-launch contract.
 - The generic `tinyx/kdrive/hal/` port uses the new low-layer display/input HAL.
   Its standalone harness runs actual KDrive factory, input, and block-handler code
-  with mock HAL/server services, without SDL. Full TinyX server startup and the
-  cooperative server wait/transport path remain separate integration work.
+  with mock HAL/server services, without SDL. The separate P4 gate now verifies
+  real startup, Damage/rendering, cooperative waiting and cleanup. Client
+  request/reply/event delivery remains P5.
 
 So: the **components are present**, a **design has been argued at length** (see `docs_old/`, ~33.6 kLOC of prior planning across four generations of
-documents), and **the X11 stack has not yet been assembled**. The next integration work starts by fixing that.
+documents), and **the server has reached first light**. The next integration work
+is the P5 in-process client transport, not another native socket server.
 
 ### 1.2 Why this is not a normal X11 port
 

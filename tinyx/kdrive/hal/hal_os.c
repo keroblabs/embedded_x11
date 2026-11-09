@@ -2,10 +2,17 @@
 #include "opaque.h"
 
 static Bool os_initialized, os_enabled;
+static hal_display_status_t display_status = HAL_DISPLAY_ACTIVE;
+static unsigned long poll_count;
+
+hal_display_status_t KdHalDisplayStatus(void) { return display_status; }
+unsigned long KdHalPollCount(void) { return poll_count; }
 
 static int halOsInit(void)
 {
     os_initialized = TRUE;
+    display_status = HAL_DISPLAY_ACTIVE;
+    poll_count = 0;
     return 1;
 }
 
@@ -24,10 +31,12 @@ static void halOsPollEvents(void)
 {
     hal_display_status_t status;
     if (!os_enabled) return;
+    poll_count++;
     hal_input_pump();
     KdHalKeyboardPoll();
     KdHalMousePoll();
     status = hal_display_pump();
+    display_status = status;
     if (status != HAL_DISPLAY_ACTIVE)
     {
         if (status == HAL_DISPLAY_ERROR) ErrorF("KDrive HAL: display pump failed\n");

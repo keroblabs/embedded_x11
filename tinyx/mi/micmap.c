@@ -319,7 +319,11 @@ miCreateDefColormap(ScreenPtr pScreen)
 #define _GM(d) (((1 << _GZ(d)) - 1) << _GS(d))
 #define _BZ(d) (d - _RZ(d) - _GZ(d))
 #define _BS(d) (_RZ(d) + _GZ(d))
+#if defined(WMB_DEVEL)
+#define _BM(d) (((1UL << _BZ(d)) - 1) << _BS(d))
+#else
 #define _BM(d) (((1 << _BZ(d)) - 1) << _BS(d))
+#endif
 #define _CE(d) (1 << _RZ(d))
 
 typedef struct _miVisuals {
@@ -650,4 +654,3 @@ miResetInitVisuals()
 {
     miInitVisualsProc = miDoInitVisuals;
 }
-

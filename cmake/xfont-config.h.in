@@ -1,0 +1,23 @@
+#ifndef WMB_XFONT_CONFIG_H
+#define WMB_XFONT_CONFIG_H
+/* Bitmap-only subset of the locally configured libXfont 1.5.4 reference. */
+#define HAVE_STDINT_H 1
+#define HAVE_STDLIB_H 1
+#define HAVE_STRING_H 1
+#define HAVE_STRINGS_H 1
+#define HAVE_INTTYPES_H 1
+#define HAVE_UNISTD_H 1
+#define HAVE_SYS_TYPES_H 1
+#define HAVE_SYS_STAT_H 1
+#define STDC_HEADERS 1
+#define XFONT_BITMAP 1
+#define XFONT_BUILTINS 1
+#define XFONT_FONTFILE 1
+#define XFONT_PCFFORMAT 1
+#define X_GZIP_FONT_COMPRESSION 1
+#define PACKAGE_VERSION_MAJOR 1
+#define PACKAGE_VERSION_MINOR 5
+#define PACKAGE_VERSION_PATCHLEVEL 4
+#define PACKAGE_STRING "libXfont 1.5.4"
+/* No FreeType, BDF/SNF, font server transport, or dynamic loading. */
+#endif

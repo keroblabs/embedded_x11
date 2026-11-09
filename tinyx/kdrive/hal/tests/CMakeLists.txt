@@ -35,7 +35,7 @@ if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
     target_link_options(wmb_kdrive_harness PRIVATE -Wl,--gc-sections -Wl,--wrap=calloc)
 endif()
 
-foreach(scenario framebuffer damage keyboard pointer lifecycle faults core arguments)
+foreach(scenario framebuffer damage close keyboard pointer lifecycle faults core arguments)
     add_test(NAME kdrive_hal_${scenario} COMMAND wmb_kdrive_harness ${scenario})
     set_tests_properties(kdrive_hal_${scenario} PROPERTIES TIMEOUT 30)
 endforeach()

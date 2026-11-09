@@ -80,7 +80,9 @@ SOFTWARE.
 #endif
 #endif
 
+#if !defined(WMB_DEVEL)
 #include <X11/Xpoll.h>
+#endif
 
 /*
  * MAXSOCKS is used only for initialising MaxClients when no other method
@@ -94,7 +96,9 @@ SOFTWARE.
 #endif
 
 /* MAXSELECT is the number of fds that select() can handle */
+#if !defined(WMB_DEVEL)
 #define MAXSELECT (sizeof(fd_set) * NBBY)
+#endif
 
 #ifndef HAS_GETDTABLESIZE
 #define HAS_GETDTABLESIZE
@@ -176,6 +180,7 @@ extern ConnectionInputPtr AllocateInputBuffer(void);
 
 extern ConnectionOutputPtr AllocateOutputBuffer(void);
 
+#if !defined(WMB_DEVEL)
 extern fd_set AllSockets;
 extern fd_set AllClients;
 extern fd_set LastSelectMask;
@@ -185,6 +190,7 @@ extern fd_set ClientsWithInput;
 extern fd_set ClientsWriteBlocked;
 extern fd_set OutputPending;
 extern fd_set IgnoredClientsWithInput;
+#endif
 
 extern int *ConnectionTranslation;
 
@@ -200,8 +206,10 @@ extern OsCommPtr AvailableInput;
 extern WorkQueuePtr workQueue;
 
 /* added by raphael */
+#if !defined(WMB_DEVEL)
 #define ffs mffs
 extern int mffs(fd_mask);
+#endif
 
 /* in auth.c */
 extern void GenerateRandomData (int len, char *buf);

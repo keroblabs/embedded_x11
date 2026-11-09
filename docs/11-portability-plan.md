@@ -27,7 +27,7 @@ Four mechanisms, in strict order of preference. **Always use the earliest one th
 | M3 | **Guard a necessary region of an upstream file.** | One line item in the patch manifest. Must be replayable; preserve the reference alternative. | The file is mostly needed but has a project-specific dependency or engine limitation |
 | M4 | **Rewrite upstream logic unconditionally.** | Forbidden. | — |
 
-M1 handles ~15,000 LOC. M2 handles the transport. M3 plans 15 files, including the
+M1 handles ~15,000 LOC. M2 handles the transport. M3 plans 17 files, including the
 three current KDrive core files. M4 never happens. Device policy uses existing
 DDX/HAL seams before M3; see [the TinyX methodology](47-tinyx-project-methodology.md).
 
@@ -60,7 +60,7 @@ Six phases with hard exit gates. Phases are sequential; each consumes the previo
 | **Q2** | Contract authoring | `hal_display.h`, `hal_input.h`, `hal_task.h`, `hal_time.h`, `wmb_os.h` exist and compile standalone against a freestanding C compiler with no includes beyond `<stdint.h>` / `<stddef.h>` / `<stdbool.h>` |
 | **Q3** | Backend re‑pointing | `tinyx/kdrive/hal/*.c` includes only `hal_*.h`; a mock backend links the DDX with no SDL present |
 | **Q4** | Transport stubs | `waitfor_wmb.c`, `connection_wmb.c`, `io_wmb.c` compile and the whole‑stack build links in the `host-pure` profile |
-| **Q5** | Guard application | The 15 planned upstream files carry their guards; the patch manifest is complete; the series replays on fresh checkouts |
+| **Q5** | Guard application | The 17 planned upstream files carry their guards; the patch manifest is complete; the series replays on fresh checkouts |
 | **Q6** | Freestanding proof | The `target` profile compiles every translation unit with `-ffreestanding -nostdinc` plus only the documented floor |
 
 Q1 and Q2 can run in parallel. Q3 depends on Q2. Q4 depends on Q1 and on [`21-`](21-inprocess-transport.md). Q5 depends on Q4. Q6 depends on everything.
@@ -225,10 +225,10 @@ exists specifically to catch this.
 
 ## 8. Phase Q5 — Guard Application
 
-The 15 planned upstream files that carry edits. The three KDrive files are
+The 17 planned upstream files that carry edits. The three KDrive files are
 already implemented and standalone-tested; the other rows remain phase work.
 
-### 8.1 `tinyx/` — 10 guarded files
+### 8.1 `tinyx/` — 12 guarded files
 
 | # | File | Guard | Edit |
 |--:|---|---|---|
@@ -242,6 +242,8 @@ already implemented and standalone-tested; the other rows remain phase work.
 | 8 | `kdrive/src/kinput.c` | `WMB_DEVEL` | Native FD/SIGIO exclusion and guarded bounds, lock/reset, startup, pointer/event, acceleration, and polling-deadline corrections |
 | 14 | `kdrive/src/kdrive.h` | `WMB_DEVEL` | Nine-button capacity/constants and wide button state; retain reference layout |
 | 15 | `kdrive/src/kdrive.c` | `WMB_DEVEL` | Project native-option/VT/shell exclusions and lifecycle/OS-initialization handling |
+| 16 | `dix/extension.c` | `WMB_DEVEL` | Observe actual successful extension registration for the P4 startup gate |
+| 17 | `mi/micmap.c` | `WMB_DEVEL` | Use an unsigned blue-mask shift; strict UBSan found signed overflow during real initialization |
 
 `os/strlcat.c` also includes `<sys/types.h>`; prefer an M2 replacement if needed.
 If edited instead, its change also requires `WMB_DEVEL` and an additional manifest
@@ -270,15 +272,16 @@ Three further JWM files (`main.c`, `misc.c`, `timing.c`) are handled by **M2 via
 
 | Tree | Cap | Planned | Slack |
 |---|---:|---:|---:|
-| `tinyx/` | 10 | 10 | 0 |
+| `tinyx/` | 12 | 12 | 0 |
 | `libX11/` (incl. `X11/Xlibint.h`) | 3 | 2 | 1 |
 | `jwm/` | 4 | 3 | 1 |
-| **Total** | **17** | **15** | **2** |
+| **Total** | **19** | **17** | **2** |
 
 Exceeding a cap requires an entry in [`90-decisions.md`](90-decisions.md) with the alternative that was rejected and why. The caps exist because every
 guarded file is a merge conflict every time upstream moves. D-51 raises the
 TinyX cap by two for necessary header-layout and lifecycle changes; copying
-engine logic into the HAL port was rejected.
+engine logic into the HAL port was rejected. D-52 adds two necessary P4 engine
+sites for truthful registration observation and defined visual-mask arithmetic.
 
 ### 8.5 Patch manifest
 

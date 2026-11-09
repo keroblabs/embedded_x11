@@ -1,0 +1,46 @@
+#ifndef _DIX_CONFIG_H_
+#define _DIX_CONFIG_H_
+
+/* Curated against docs/reference/dix-config.reference.h; see its README. */
+#define COMPILEDDEFAULTFONTPATH "built-ins"
+#define PACKAGE_STRING "WMB TinyX 1.3"
+#define XVENDORNAME "WMB"
+#define VENDOR_STRING "WMB"
+#define VENDOR_RELEASE 1
+#define OSNAME "WMB HAL"
+#define DPMSExtension 1
+#define RES 1
+#define XResExtension 1
+#define SCREENSAVER 1
+#define SMART_SCHEDULE 1
+#define HAVE_ALLOCA 1
+#define HAVE_ALLOCA_H 1
+#define HAVE_INTTYPES_H 1
+#define HAVE_STDINT_H 1
+#define HAVE_STDLIB_H 1
+#define HAVE_STRINGS_H 1
+#define HAVE_STRING_H 1
+#define HAVE_MEMMOVE 1
+#define HAVE_MEMSET 1
+#define HAVE_STRCHR 1
+#define HAVE_STRRCHR 1
+#define HAVE_STRTOL 1
+#define HAVE_VPRINTF 1
+#define HAVE_LIBM 1
+#define STDC_HEADERS 1
+#cmakedefine _XSERVER64 1
+#ifndef X_BYTE_ORDER
+#define X_BYTE_ORDER @WMB_X_BYTE_ORDER@
+#endif
+
+/* Smart-scheduler layout is retained; WMB OsInit disables its signal timer. */
+/* No native transports/processes, hardware mapper, or SHM. */
+/* XKB/DBE/XF86BIGFONT must be undefined: upstream tests presence, not value. */
+
+#if defined(__GNUC__) && !defined(_X_UNUSED)
+#define _X_UNUSED __attribute__((unused))
+#else
+#define _X_UNUSED
+#endif
+
+#endif

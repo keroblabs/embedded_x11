@@ -22,9 +22,15 @@ through KDrive. Future server targets must consume the same target in every
 profile and in Release as well as Debug; do not put this definition on HAL,
 framework, or SDL libraries. See [the methodology](47-tinyx-project-methodology.md).
 
-The full `tinyx/dix`/`os`/`mi`/`fb`, libX11, transport, and JWM image is not yet
-assembled. Generated/curated server configuration and actual root-window/client
-integration remain work for that whole-stack build.
+With `WMB_TINYX_BUILD_SERVER=ON`, the actual DIX/OS/MI/FB/extensions now build as
+`wmb_tinyx`; `wmb_host` starts a real root window with embedded bitmap fonts,
+fixed-mode RandR and cooperative waiting. Generated configuration is force-included
+consistently through `wmb_tinyx_config`. See the [P4 guide](../tinyx/wmb/README.md)
+and [reference capture](reference/README.md).
+
+Client transport, libX11 and JWM are not part of this P4 image. The old profile
+expansion examples below remain future build-planning material, not implemented
+`WMB_PROFILE` options.
 
 ### 1.2 What this document is not
 

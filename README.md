@@ -2,7 +2,10 @@
 
 X11 stack (TinyX server + libX11 + JWM window manager) running inside a cooperative fiber runtime, with an in-process transport replacing the socket. Two targets: Linux hosted (SDL backend) and a freestanding embedded platform.
 
-Status: the framework (`framework/`) and hosted platform (`linux_hosted/`) are runnable; the X11 transport (`transport/`) is scheduled. See [`docs/44-framework-module-plan.md`](docs/44-framework-module-plan.md) and [`docs/40-implementation-plan.md`](docs/40-implementation-plan.md) for the plan.
+Status: the framework, hosted HAL, and P4 TinyX server/root window are runnable.
+Client transport and JWM integration remain later milestones. See the
+[TinyX server guide](tinyx/wmb/README.md) and
+[`docs/40-implementation-plan.md`](docs/40-implementation-plan.md).
 
 ## Build
 
@@ -87,8 +90,24 @@ cmake --build build-kdrive
 ctest --test-dir build-kdrive --output-on-failure
 ```
 
-Full TinyX server/core/transport integration remains a separate milestone; see
-the [KDrive module status](docs/43-kdrive-module-plan.md).
+The standalone harness remains independent of the full server. See the
+[KDrive module status](docs/43-kdrive-module-plan.md).
+
+## TinyX P4 server
+
+```sh
+cmake -S . -B build-p4 -DWMB_TINYX_BUILD_SERVER=ON \
+    -DWMB_KDRIVE_BUILD_TESTS=ON -DWMB_SDL_BUILD_TESTS=ON
+cmake --build build-p4
+./build-p4/bin/wmb_host
+ctest --test-dir build-p4 --output-on-failure
+```
+
+This opens the real X root window. Close it to stop. The optional
+`--self-test` runs for ten seconds and verifies rendering, Damage, idle CPU,
+polling rate and cleanup. The first configure builds a pinned bitmap-font
+dependency locally. See the [build/dependency/verification guide](tinyx/wmb/README.md).
+No native X socket transport or client protocol implementation is selected.
 
 Project-specific TinyX changes use the shared `WMB_DEVEL=1` selector, including
 Release and embedded builds. Driver policy stays in the HAL port; necessary
@@ -137,3 +156,5 @@ ASan prints a boilerplate `WARNING: ASan doesn't fully support makecontext/swapc
 | `wmb_hosted_display` | INTERFACE | Hosted framework/runtime plus the selected display/input backend |
 | `wmb_kdrive` | STATIC | Actual KDrive core and generic HAL port; no SDL dependency |
 | `wmb_tinyx_project` | INTERFACE | Shared `WMB_DEVEL=1` selection for TinyX and conditional-header consumers |
+| `wmb_tinyx_config` | INTERFACE | Generated configuration prefix and consistent server protocol types (P4 option) |
+| `wmb_tinyx` | STATIC | Actual TinyX DIX/MI/FB/extensions and no-client OS integration (P4 option) |

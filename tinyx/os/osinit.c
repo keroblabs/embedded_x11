@@ -87,6 +87,7 @@ int limitNoFile = -1;
 void
 OsInit(void)
 {
+#if !defined(WMB_DEVEL)
     static Bool been_here = FALSE;
     static char* admpath = ADMPATH;
     static char* devnull = "/dev/null";
@@ -178,13 +179,18 @@ OsInit(void)
 	LockServer();
 	been_here = TRUE;
     }
+#endif
     TimerInit();
     OsVendorInit();
 
 #ifdef SMART_SCHEDULE
+#if defined(WMB_DEVEL)
+    SmartScheduleDisable = TRUE;
+#else
     if (!SmartScheduleDisable)
 	if (!SmartScheduleInit ())
 	    SmartScheduleDisable = TRUE;
+#endif
 #endif
     OsInitAllocator();
 }
@@ -194,6 +200,8 @@ OsCleanup(Bool terminating)
 {
     if (terminating)
     {
+#if !defined(WMB_DEVEL)
 	UnlockServer();
+#endif
     }
 }

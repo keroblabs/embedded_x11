@@ -409,7 +409,7 @@ Six files hold JWM's entire POSIX footprint: `command.c`, `event.c`, `font.c`, `
 | Tree | Disposition | Notes |
 |---|---|---|
 | `fonts/freetype/` | DORMANT | Full FreeType checkout. Not compiled. Built‑in bitmap fonts ship first; FreeType is the named later upgrade — [`90-`](90-decisions.md) D‑38 |
-| `X11/fonts/` | DORMANT | `libXfont` sources. Font handling in WMB is built‑in bitmap only for now |
+| `X11/fonts/` | CARRY | Font/protocol headers used by TinyX; the P4 implementation is the separately pinned bitmap-only libXfont dependency |
 | `X11/Xaw`, `X11/Xmu`, `X11/Xt` (`Intrinsic.c` etc.) | DORMANT | Present in the include root. Nothing in WMB links against them |
 | `X11/xtrans` | **EXCLUDE** | The transport abstraction being removed |
 
@@ -423,13 +423,14 @@ The build in [`30-host-build.md`](30-host-build.md) §4 defines exactly these gr
 | `WMB_HAL` | `hal/*.h` + selected backend adapters | 9 | 900 |
 | `WMB_BACKEND_SDL` | `linux_hosted/sdl_drivers/` + `linux_hosted/sdl_library/` | 9 | 1,420 |
 | `TINYX_DIX` | `tinyx/dix/*.c` | 25 | 26,685 |
-| `TINYX_OS` | `log.c`, `oscolor.c`, `strlcat.c`, `strlcpy.c`, `osinit.c`, `utils.c` + the three `*_wmb.c` stubs | 9 | 4,100 |
+| `TINYX_OS` | Six retained utilities + connection/I/O/wait replacements, cooperative timers, excluded-service stubs | 11 | ~4,500 |
 | `TINYX_MI` | `tinyx/mi/*.c` | 35 | 23,533 |
 | `TINYX_FB` | `tinyx/fb/*.c` | 32 | 14,437 |
 | `TINYX_MIEXT` | `miext/shadow/*.c` + `miext/damage/damage.c` | 21 | 3,514 |
 | `TINYX_EXT` | `render/` + `randr/` + `xfixes/` + `damageext/` + selected `Xext/` | 39 | 24,000 |
 | `TINYX_KDRIVE` | `kdrive/src/` minus `kmap.c` | 6 | 3,480 |
 | `TINYX_DDX` | `kdrive/hal/` | 3 | ~550 |
+| `TINYX_WMB` | `tinyx/wmb/server.c` lifecycle/observability | 1 | ~90 |
 | `LIBX11_API` | `libX11/src/` minus the excluded set | ~245 | ~34,000 |
 | `WMB_TRANSPORT` | `transport/x11/` | 6 | 900 |
 | `WMB_API` | `transport/api/` | 2 | 260 |
@@ -438,6 +439,11 @@ The build in [`30-host-build.md`](30-host-build.md) §4 defines exactly these gr
 
 **Approximate total compiled into WMB: ~165 kLOC across ~500 translation units.** Of that, ~5.5 kLOC is code this project writes; the rest is upstream
 carried with guards.
+
+The P4 selection is frozen as 173 server/KDrive/HAL translation units in
+[the checked source manifest](reference/tinyx-sources.reference). CMake rejects
+membership changes until the manifest is deliberately updated. The separately
+built pinned bitmap-font dependency is described in [the reference guide](reference/README.md).
 
 ## 13. Exclusion Ledger
 

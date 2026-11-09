@@ -1,0 +1,5 @@
+--- a/src/fontfile/fontdir.c
++++ b/src/fontfile/fontdir.c
+@@ -126 +126 @@
+-    if (dirName[dirlen - 1] != '/')
++    if (dirlen > 0 && dirName[dirlen - 1] != '/')

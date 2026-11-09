@@ -53,10 +53,10 @@ These run on every build and take seconds. They are the backbone of the verifica
 |---|---|---|---|
 | S1 | No backend leakage above the contract | `grep -rl 'SDL\|sdl_\|hal_drivers\.h' tinyx/ libX11/src/ jwm/src/ transport/` → empty | [`03-`](03-target-architecture.md) L1 |
 | S2 | No POSIX headers in the compiled set | `grep -rl 'include *<sys/\|include *<linux/\|include *<netinet/\|include *<pthread\.h>\|include *<dlfcn\.h>\|include *<netdb\.h>' $(cmake_source_list)` → empty | [`10-`](10-os-dependency-census.md) |
-| S3 | Only sanctioned guard macros in upstream files | `grep -rhoE '#if(n?def)? +WMB_[A-Z_]+' tinyx libX11 jwm X11/Xlibint.h \| sort -u` → exactly the five | [`11-`](11-portability-plan.md) §8.6 |
+| S3 | Only sanctioned guards in upstream files | TinyX project branches use presence-based `WMB_DEVEL`; sibling client/profile guards follow the portability ledger | [`11-`](11-portability-plan.md) §8.6 |
 | S4 | No excluded file in any source list | script diffs CMake lists against the ledger | [`01-`](01-component-inventory.md) §13 |
 | S5 | CMake module groups match the inventory | script diffs `WmbModules.cmake` against [`01-`](01-component-inventory.md) §12 | [`01-`](01-component-inventory.md) V5 |
-| S6 | Patch budget respected | `ls patches/tinyx/*.patch \| wc -l` ≤ 8, `libX11` ≤ 3, `jwm` ≤ 4 | [`11-`](11-portability-plan.md) §8.4 |
+| S6 | Patch budget respected | P6 patch manifest caps: TinyX ≤ 12, libX11 ≤ 3, JWM ≤ 4 | [`11-`](11-portability-plan.md) §8.4 |
 | S7 | Patches replay on pristine upstream | `git -C /tmp/pristine/$t apply --check patches/$t/*.patch` | [`11-`](11-portability-plan.md) §8.6 |
 | S8 | Contract headers are freestanding | compile each alone with `-ffreestanding -nostdinc` | [`12-`](12-platform-contract.md) PC‑V1 |
 | S9 | Vtable artefacts are generated, not hand‑edited | regenerate from `api.def`, `git diff` → empty | [`22-`](22-entry-point-abi.md) E‑V1 |
@@ -141,12 +141,18 @@ only checks "the task ran": each produces a timing bug rather than a functional 
 | ID | Gate | Method |
 |---|---|---|
 | V‑P4‑1 | Link with zero unresolved symbols | Build log |
-| V‑P4‑2 | Server idles < 5 % CPU | `top -b -n 10` over 10 s idle |
-| V‑P4‑3 | The SDL window shows the X root window | Screenshot |
+| V‑P4‑2 | Server idles < 5 % CPU | `wmb_host --self-test`: process CPU time / ten-second elapsed idle window |
+| V‑P4‑3 | The SDL window shows the X root window | Desktop run plus [captured framebuffer](reference/tinyx-root-rgb565.png); CI verifies mapped geometry and rendered pixels |
 | V‑P4‑4 | `KdOsFuncs.pollEvents` is reached at ≥ 30 Hz | Instrumented counter |
 | V‑P4‑5 | Startup log reports expected geometry, depth, visual list | Compare against a checked‑in reference |
 | V‑P4‑6 | Startup log's extension list matches, and excludes the four of D‑25/D‑39/D‑41 | Compare against a checked‑in reference |
 | S4, S5 | | |
+
+Implemented by `tinyx_p4_root`, `tinyx_p4_timers`, the configure-time frozen
+source/exclusion checks, and the KDrive/HAL regression suite. The startup wrapper
+compares the real log with [the checked reference](reference/tinyx-startup.reference.cmake).
+The whole-server gate is also run under ASan/strict UBSan; it does not link the
+mock X-server services used by the standalone KDrive harness.
 
 These gates deliberately involve **no client**. The stock‑client oracle (`xeyes`, `xclock`, `xterm`) was retired with the socket profile
 ([`90-`](90-decisions.md) D‑49), so P4 proves assembly only as far as "initialises, dispatches, and paints"; the first client‑driven proof is V‑P5‑5.

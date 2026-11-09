@@ -66,6 +66,9 @@ OR PERFORMANCE OF THIS SOFTWARE.
 #include "input.h"
 #include "dixfont.h"
 #include "osdep.h"
+#if defined(WMB_DEVEL)
+#include "hal_time.h"
+#endif
 #include "extension.h"
 #ifdef X_POSIX_C_SOURCE
 #define _POSIX_C_SOURCE X_POSIX_C_SOURCE
@@ -377,6 +380,9 @@ GiveUp(int sig)
 _X_EXPORT CARD32
 GetTimeInMillis(void)
 {
+#if defined(WMB_DEVEL)
+    return hal_tick_ms();
+#else
     struct timeval tv;
 
 #ifdef MONOTONIC_CLOCK
@@ -387,6 +393,7 @@ GetTimeInMillis(void)
 
     X_GETTIMEOFDAY(&tv);
     return(tv.tv_sec * 1000) + (tv.tv_usec / 1000);
+#endif
 }
 
 _X_EXPORT void
@@ -707,6 +714,7 @@ ProcessCommandLine(int argc, char *argv[])
 	    logoScreenSaver = 0;
 	}
 #endif
+#if !defined(WMB_DEVEL)
 	else if ( strcmp( argv[i], "-nolisten") == 0)
 	{
             if(++i < argc) {
@@ -716,6 +724,7 @@ ProcessCommandLine(int argc, char *argv[])
 	   } else
 		UseMsg();
 	}
+#endif
 	else if ( strcmp( argv[i], "-noreset") == 0)
 	{
 	    dispatchExceptionAtReset = 0;
@@ -893,8 +902,10 @@ ProcessCommandLine(int argc, char *argv[])
         }
     }
 
+#if !defined(WMB_DEVEL)
     if (!tcp)
 	_XSERVTransNoListen("tcp");
+#endif
 }
 
 
@@ -1637,4 +1648,3 @@ void
 CheckUserAuthorization(void)
 {
 }
-

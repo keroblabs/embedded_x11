@@ -1,0 +1,65 @@
+set(WMB_SOURCE_ROOT "${CMAKE_CURRENT_LIST_DIR}/..")
+set(TINYX_SOURCE_ROOT "${CMAKE_CURRENT_LIST_DIR}")
+include("${WMB_SOURCE_ROOT}/cmake/WmbXfont.cmake")
+include("${WMB_SOURCE_ROOT}/cmake/WmbModules.cmake")
+get_target_property(kdrive_sources wmb_kdrive SOURCES)
+get_target_property(kdrive_directory wmb_kdrive SOURCE_DIR)
+set(selected_sources)
+foreach(source IN LISTS TINYX_SERVER_SOURCES kdrive_sources)
+    if(NOT IS_ABSOLUTE "${source}")
+        set(source "${kdrive_directory}/${source}")
+    endif()
+    get_filename_component(source "${source}" REALPATH)
+    file(RELATIVE_PATH relative "${PROJECT_SOURCE_DIR}" "${source}")
+    list(APPEND selected_sources "${relative}")
+endforeach()
+list(SORT selected_sources)
+file(STRINGS "${WMB_SOURCE_ROOT}/docs/reference/tinyx-sources.reference"
+    reference_sources REGEX "^[^#]")
+if(NOT "${selected_sources}" STREQUAL "${reference_sources}")
+    message(FATAL_ERROR "TinyX source groups differ from the frozen P4 inventory; review and update docs/reference/tinyx-sources.reference")
+endif()
+include(TestBigEndian)
+test_big_endian(WMB_BIG_ENDIAN)
+if(WMB_BIG_ENDIAN)
+    set(WMB_X_BYTE_ORDER X_BIG_ENDIAN)
+else()
+    set(WMB_X_BYTE_ORDER X_LITTLE_ENDIAN)
+endif()
+include(CheckTypeSize)
+check_type_size("unsigned long" WMB_UNSIGNED_LONG_SIZE)
+if(WMB_UNSIGNED_LONG_SIZE EQUAL 8)
+    set(_XSERVER64 1)
+else()
+    unset(_XSERVER64)
+endif()
+foreach(header dix-config kdrive-config)
+    configure_file("${WMB_SOURCE_ROOT}/cmake/${header}.h.in"
+        "${CMAKE_BINARY_DIR}/generated/tinyx/${header}.h" @ONLY)
+endforeach()
+add_library(wmb_tinyx_config INTERFACE)
+target_compile_definitions(wmb_tinyx_config INTERFACE
+    HAVE_DIX_CONFIG_H=1 HAVE_KDRIVE_CONFIG_H=1 HAVE_CONFIG_H=1)
+target_include_directories(wmb_tinyx_config INTERFACE
+    "${CMAKE_BINARY_DIR}/generated/tinyx")
+target_compile_options(wmb_tinyx_config INTERFACE -include
+    "${CMAKE_BINARY_DIR}/generated/tinyx/kdrive-config.h")
+target_link_libraries(wmb_tinyx_config INTERFACE wmb_tinyx_project)
+target_link_libraries(wmb_kdrive PUBLIC wmb_tinyx_config)
+
+add_library(wmb_tinyx STATIC ${TINYX_SERVER_SOURCES})
+target_include_directories(wmb_tinyx PUBLIC
+    "${TINYX_SOURCE_ROOT}/wmb"
+    "${TINYX_SOURCE_ROOT}/xfixes" "${TINYX_SOURCE_ROOT}/damageext")
+target_link_libraries(wmb_tinyx PUBLIC wmb_tinyx_config wmb_kdrive
+    wmb_xfont wmb_hal)
+target_compile_options(wmb_tinyx PRIVATE -ffunction-sections -fdata-sections)
+
+add_executable(wmb_tinyx_timer_test
+    "${TINYX_SOURCE_ROOT}/os/timer_wmb.c" wmb/tests/timer_test.c)
+target_include_directories(wmb_tinyx_timer_test PRIVATE
+    $<TARGET_PROPERTY:wmb_kdrive,INTERFACE_INCLUDE_DIRECTORIES>)
+target_link_libraries(wmb_tinyx_timer_test PRIVATE wmb_tinyx_config)
+target_compile_options(wmb_tinyx_timer_test PRIVATE -Wall -Wextra -Werror)
+add_test(NAME tinyx_p4_timers COMMAND wmb_tinyx_timer_test)
+set_tests_properties(tinyx_p4_timers PROPERTIES TIMEOUT 10)

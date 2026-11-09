@@ -1,0 +1,6 @@
+#ifndef _KDRIVE_CONFIG_H_
+#define _KDRIVE_CONFIG_H_
+#include <dix-config.h>
+#define KDRIVESERVER 1
+/* Reference also excludes KDRIVEFBDEV/KDRIVEVESA; HAL is selected by sources. */
+#endif

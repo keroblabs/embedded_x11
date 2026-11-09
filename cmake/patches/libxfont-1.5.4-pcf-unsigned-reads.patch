@@ -1,0 +1,23 @@
+--- a/src/bitmap/pcfread.c
++++ b/src/bitmap/pcfread.c
+@@ -77,3 +77,3 @@
+-    c |= FontFileGetc(file) << 8;
+-    c |= FontFileGetc(file) << 16;
+-    c |= FontFileGetc(file) << 24;
++    c |= (CARD32) FontFileGetc(file) << 8;
++    c |= (CARD32) FontFileGetc(file) << 16;
++    c |= (CARD32) FontFileGetc(file) << 24;
+@@ -90,3 +90,3 @@
+-	c = FontFileGetc(file) << 24;
+-	c |= FontFileGetc(file) << 16;
+-	c |= FontFileGetc(file) << 8;
++	c = (CARD32) FontFileGetc(file) << 24;
++	c |= (CARD32) FontFileGetc(file) << 16;
++	c |= (CARD32) FontFileGetc(file) << 8;
+@@ -96,3 +96,3 @@
+-	c |= FontFileGetc(file) << 8;
+-	c |= FontFileGetc(file) << 16;
+-	c |= FontFileGetc(file) << 24;
++	c |= (CARD32) FontFileGetc(file) << 8;
++	c |= (CARD32) FontFileGetc(file) << 16;
++	c |= (CARD32) FontFileGetc(file) << 24;

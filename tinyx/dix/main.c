@@ -223,12 +223,20 @@ static int indexForScanlinePad[65] = {
 #define MIN(a,b) (((a) < (b)) ? (a) : (b))
 #endif
 
+#if defined(WMB_DEVEL)
+#include "server.h"
+int
+WmbTinyXRun(int argc, char *argv[])
+#else
 int
 main(int argc, char *argv[], char *envp[])
+#endif
 {
     int i;
 
+#if !defined(WMB_DEVEL)
     char *xauthfile;
+#endif
 
     HWEventQueueType alwaysCheckForInput[2];
 
@@ -238,18 +246,22 @@ main(int argc, char *argv[], char *envp[])
      * the main thread. This allows the X server main to be called again
      * from another thread. */
 
+#if !defined(WMB_DEVEL)
     CheckUserParameters(argc, argv, envp);
 
     CheckUserAuthorization();
 
+#endif
 
     InitConnectionLimits();
 
+#if !defined(WMB_DEVEL)
     /* prep X authority file from environment; this can be overriden by a
      * command line option */
     xauthfile = getenv("XAUTHORITY");
     if (xauthfile)
         InitAuthorization(xauthfile);
+#endif
     ProcessCommandLine(argc, argv);
 
     alwaysCheckForInput[0] = 0;
@@ -356,6 +368,9 @@ main(int argc, char *argv[], char *envp[])
                 FatalError("could not create connection block info");
         }
 
+#if defined(WMB_DEVEL)
+        WmbTinyXServerReady();
+#endif
         Dispatch();
 
         /* Now free up whatever must be freed */

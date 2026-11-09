@@ -11,7 +11,27 @@ typedef struct
 {
     DamagePtr damage;
     DrawablePtr drawable;
+    CloseScreenProcPtr close_screen;
 } HalScreenPrivate;
+
+static void halDropDamage(HalScreenPrivate *priv)
+{
+    if (priv->damage != NULL)
+    {
+        DamageUnregister(priv->drawable, priv->damage);
+        DamageDestroy(priv->damage);
+    }
+}
+
+static Bool halCloseScreen(int index, ScreenPtr screen)
+{
+    KdScreenPriv(screen);
+    HalScreenPrivate *priv = pScreenPriv->screen->driver;
+    CloseScreenProcPtr close_screen = priv->close_screen;
+    screen->CloseScreen = close_screen;
+    halDropDamage(priv);
+    return (*close_screen)(index, screen);
+}
 
 static Bool halCardInit(KdCardInfo *card)
 {
@@ -106,9 +126,54 @@ static Bool halInitScreen(ScreenPtr screen)
     return TRUE;
 }
 
+static Bool halRandRGetInfo(ScreenPtr screen, Rotation *rotations)
+{
+    RRScreenSizePtr size = RRRegisterSize(screen, screen->width, screen->height,
+                                         screen->mmWidth, screen->mmHeight);
+    if (size == NULL)
+    {
+        ErrorF("KDrive HAL: fixed RandR mode registration failed\n");
+        return FALSE;
+    }
+    *rotations = RR_Rotate_0;
+    RRSetCurrentConfig(screen, RR_Rotate_0, 0, size);
+    return TRUE;
+}
+
+static Bool halRandRSetConfig(ScreenPtr screen, Rotation rotation, int rate,
+                             RRScreenSizePtr size)
+{
+    if (size == NULL || rotation != RR_Rotate_0 || rate != 0 ||
+        size->width != screen->width || size->height != screen->height)
+    {
+        ErrorF("KDrive HAL: RandR cannot change the native mode\n");
+        return FALSE;
+    }
+    return TRUE;
+}
+
 static Bool halFinishInitScreen(ScreenPtr screen)
 {
-    (void)screen;
+    rrScrPrivPtr priv;
+    if (!RRScreenInit(screen))
+    {
+        ErrorF("KDrive HAL: RandR screen initialization failed\n");
+        return FALSE;
+    }
+    priv = rrGetScrPriv(screen);
+    priv->rrGetInfo = halRandRGetInfo;
+    priv->rrSetConfig = halRandRSetConfig;
+    {
+        KdScreenPriv(screen);
+        HalScreenPrivate *hal = pScreenPriv->screen->driver;
+        if (screen->CloseScreen == NULL)
+        {
+            ErrorF("KDrive HAL: screen has no close callback\n");
+            return FALSE;
+        }
+        hal->close_screen = screen->CloseScreen;
+        screen->CloseScreen = halCloseScreen;
+    }
     return TRUE;
 }
 
@@ -184,11 +249,7 @@ static void halScreenFini(KdScreenInfo *screen)
 {
     HalScreenPrivate *priv = screen->driver;
     if (priv == NULL) return;
-    if (priv->damage != NULL)
-    {
-        DamageUnregister(priv->drawable, priv->damage);
-        DamageDestroy(priv->damage);
-    }
+    halDropDamage(priv);
     free(priv);
     screen->driver = NULL;
 }

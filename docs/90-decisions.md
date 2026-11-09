@@ -977,6 +977,47 @@ The harness build checks an undefined reference variant and defined
 one/zero/empty project variants; full-server and
 freestanding gates remain separate.
 
+### D-52 - P4 is real no-client server assembly - SETTLED
+
+The optional `WMB_TINYX_BUILD_SERVER` build links actual DIX/MI/FB/extensions,
+the existing KDrive/HAL port, and project-owned no-client OS replacements.
+It reaches upstream `Dispatch()`, paints the root, processes input and timers,
+and shuts down through real server cleanup. It does not claim P5 transport or
+client semantics; attempts to attach or exchange client data are refused.
+
+The generated configuration must be a shared prefix before any X protocol
+header. The first real build exposed inconsistent `KeySym` widths and a keymap
+overrun when some port files included configuration too late. One target,
+`wmb_tinyx_config`, now supplies that prefix to every server/header consumer.
+The signal-based smart scheduler is disabled; its layout remains available to
+the upstream DAMAGE implementation.
+
+The source set is frozen at 173 units and compared at configure time.
+The pristine configure capture and every curation difference are recorded in
+[reference/](reference/README.md). C1 found no genuine DIX fd-bitset use.
+
+Build the approved pinned libXfont 1.5.4 bitmap subset locally, with checked
+repairs for built-in empty-directory handling and unsigned PCF decoding. No
+FreeType or font-server network transport is selected. This supplies P4's
+embedded fixed/cursor bootstrap fonts, not the entire D-38 shipping registry.
+
+The TinyX guard budget rises from ten to twelve: actual extension registration
+requires an observation at its private registration point, and UBSan found
+undefined signed blue-mask generation during initialization. Both changes use
+`WMB_DEVEL` with original reference alternatives. Pretending expected extensions
+were registered, or suppressing sanitizer checks, was rejected.
+
+The real close chain also exposed a HAL-port Damage lifetime bug. The port now
+unwraps/detaches Damage before underlying framebuffer destruction, rather than
+trying to unregister an already-freed pixmap in late screen finalization.
+Idle CPU measurements exposed unnecessary clean-frame uploads; only the HAL's
+damage-driven per-window SDL pump skips them. Explicit and legacy SDL refresh
+behavior is preserved and regression-tested.
+
+**Consequences:** [P4 guide](../tinyx/wmb/README.md),
+[42-](42-tinyx-module-plan.md), [43-](43-kdrive-module-plan.md),
+[41-](41-verification-plan.md), and [11-](11-portability-plan.md).
+
 ## 8. Superseded Decisions
 
 Recorded so that reading `docs_old/` does not resurrect them.
@@ -1050,6 +1091,7 @@ Recorded so that reading `docs_old/` does not resurrect them.
 | D‑49 | One X11 transport, ever; no listener, no oracle profile | SETTLED | [`11-`](11-portability-plan.md) §7 |
 | D-50 | Generic KDrive/HAL port and standalone real-core verification | SETTLED | [43-](43-kdrive-module-plan.md) |
 | D-51 | WMB_DEVEL guards all TinyX project changes; shared ABI selection and adapter-first policy | SETTLED | [47-](47-tinyx-project-methodology.md) |
+| D-52 | Real no-client P4 server, configuration-prefix ABI, checked dependencies and actual integration gates | SETTLED | [42-](42-tinyx-module-plan.md) |
 
 D‑46 is load‑bearing and easy to under‑read. Every request, from every kind of client, is executed by the `xsrv` fiber running upstream's `Dispatch()`; no
 client ever calls `ProcVector` on its own stack. The safety property is **structural** — only one fiber can enter `dix` — rather than a rule imposed on

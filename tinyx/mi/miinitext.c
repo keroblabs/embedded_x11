@@ -147,7 +147,9 @@ static const ExtensionToggle ExtensionToggleList[] =
 #ifdef SCREENSAVER
     { "MIT-SCREEN-SAVER", &noScreenSaverExtension },
 #endif
+#if !defined(WMB_DEVEL)
     { SHMNAME, &noMITShmExtension },
+#endif
     { "RANDR", &noRRExtension },
     { "RENDER", &noRenderExtension },
     { "SHAPE", &noShapeExtension },
@@ -197,7 +199,9 @@ InitExtensions(argc, argv)
     char	*argv[];
 {
     if (!noShapeExtension) ShapeExtensionInit();
+#if !defined(WMB_DEVEL)
     if (!noMITShmExtension) ShmExtensionInit();
+#endif
     if (!noTestExtensions) XTestExtensionInit();
     if (!noBigReqExtension) BigReqExtensionInit();
 #if defined(SCREENSAVER) && !defined(PRINT_ONLY_SERVER)
@@ -231,4 +235,3 @@ InitVisualWrap()
 {
     miResetInitVisuals();
 }
-

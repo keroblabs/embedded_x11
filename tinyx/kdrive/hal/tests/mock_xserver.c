@@ -18,6 +18,13 @@ KeybdCtrl defaultKeyboardControl = {.autoRepeat = TRUE};
 PtrCtrl defaultPointerControl = {.num = 1, .den = 1, .threshold = 4};
 
 static int device_count;
+int rrPrivIndex = 1;
+static rrScrPrivRec mock_rr;
+static RRScreenSize mock_rr_size;
+#ifdef SMART_SCHEDULE
+Bool SmartScheduleDisable = TRUE;
+long SmartScheduleTime;
+#endif
 
 void *__real_calloc(size_t count, size_t size);
 
@@ -29,6 +36,13 @@ void *__wrap_calloc(size_t count, size_t size)
 }
 
 static PixmapPtr getScreenPixmap(ScreenPtr screen) { (void)screen; return &mock_xserver.pixmap; }
+static Bool closeScreen(int index, ScreenPtr screen)
+{
+    (void)index; (void)screen;
+    if (mock_xserver.damage != NULL)
+        FatalError("HAL Damage must be detached before the framebuffer closes\n");
+    return TRUE;
+}
 
 void MockXServerReset(KdCardInfo *card, KdScreenInfo *screen)
 {
@@ -37,8 +51,11 @@ void MockXServerReset(KdCardInfo *card, KdScreenInfo *screen)
     mock_xserver.screen.width = screen->width;
     mock_xserver.screen.height = screen->height;
     mock_xserver.screen.GetScreenPixmap = getScreenPixmap;
+    mock_xserver.screen.CloseScreen = closeScreen;
     mock_xserver.screen.devPrivates = mock_xserver.privates;
     mock_xserver.privates[0].ptr = &mock_xserver.screen_private;
+    mock_rr = (rrScrPrivRec){0};
+    mock_xserver.privates[1].ptr = &mock_rr;
     mock_xserver.screen_private.card = card;
     mock_xserver.screen_private.screen = screen;
     mock_xserver.screen_private.enabled = TRUE;
@@ -55,6 +72,25 @@ void MockXServerReset(KdCardInfo *card, KdScreenInfo *screen)
     inputInfo = (InputInfo){0};
     device_count = 0;
     dispatchException = isItTimeToYield = 0;
+}
+
+Bool RRScreenInit(ScreenPtr screen) { (void)screen; return TRUE; }
+
+RRScreenSizePtr RRRegisterSize(ScreenPtr screen, short width, short height,
+                              short mm_width, short mm_height)
+{
+    (void)screen;
+    mock_rr_size = (RRScreenSize){.width = width, .height = height,
+                                  .mmWidth = mm_width, .mmHeight = mm_height};
+    return &mock_rr_size;
+}
+
+void RRSetCurrentConfig(ScreenPtr screen, Rotation rotation, int rate,
+                       RRScreenSizePtr size)
+{
+    (void)screen; (void)size;
+    mock_rr.rotation = rotation;
+    mock_rr.rate = rate;
 }
 
 void ErrorF(const char *format, ...)

@@ -18,7 +18,7 @@
     } \
 } while (0)
 
-static unsigned int log_errors, log_warnings, fail_point;
+static unsigned int log_errors, log_warnings, fail_point, texture_updates;
 
 void *__real_SDL_calloc(size_t count, size_t size);
 SDL_Window *__real_SDL_CreateWindow(const char *name, int x, int y, int width, int height, Uint32 flags);
@@ -59,6 +59,7 @@ SDL_Texture *__wrap_SDL_CreateTexture(SDL_Renderer *renderer, Uint32 format, int
 
 int __wrap_SDL_UpdateTexture(SDL_Texture *texture, const SDL_Rect *rect, const void *pixels, int pitch)
 {
+    texture_updates++;
     if (fail_point == 6) return SDL_SetError("Injected texture upload failure");
     return __real_SDL_UpdateTexture(texture, rect, pixels, pitch);
 }
@@ -164,6 +165,24 @@ static int test_display(void)
     CHECK(fb->format == (WMB_SDL_PIXEL_BITS == 16 ? HAL_PIXFMT_RGB565 : HAL_PIXFMT_XRGB8888));
     CHECK(hal_display_set_power(0) == -1 && hal_display_set_power(1) == -1);
     CHECK(hal_display_pump() == HAL_DISPLAY_ACTIVE);
+    {
+        unsigned int updates = texture_updates;
+        SDL_Event expose = {0};
+        SDL_Delay(VSYNC_PERIOD_MS + 1);
+        CHECK(hal_display_pump() == HAL_DISPLAY_ACTIVE);
+        CHECK(texture_updates == updates);
+        expose.type = SDL_WINDOWEVENT;
+        expose.window.windowID = id;
+        expose.window.event = SDL_WINDOWEVENT_EXPOSED;
+        CHECK(SDL_PushEvent(&expose) == 1);
+        CHECK(hal_display_pump() == HAL_DISPLAY_ACTIVE);
+        CHECK(texture_updates == updates + 1);
+        sdl_update_window(id);
+        CHECK(texture_updates == updates + 2);
+        SDL_Delay(VSYNC_PERIOD_MS + 1);
+        sdl_window_process();
+        CHECK(texture_updates == updates + 3);
+    }
 
     CHECK(framebuffer_fill_rect(fb, fb->width - 1u, fb->height - 1u,
                                 UINT32_MAX, UINT32_MAX, FRAMEBUFFER_RGB(255, 128, 64)) == 0);

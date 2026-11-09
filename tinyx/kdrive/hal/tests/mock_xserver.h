@@ -9,7 +9,7 @@ typedef struct
 {
     ScreenRec screen;
     PixmapRec pixmap;
-    DevUnion privates[1];
+    DevUnion privates[2];
     KdPrivScreenRec screen_private;
     DeviceIntRec keyboard, pointer;
     KeyClassRec key;

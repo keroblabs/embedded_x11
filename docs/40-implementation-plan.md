@@ -23,7 +23,7 @@ question is "what do I do next?".
 | P1 | Platform contract + display/input backends | "Is the HAL boundary right?" | [`43-`](43-kdrive-module-plan.md) |
 | P2 | Fiber runtime, hosted port | "Does cooperative scheduling actually work?" | [`44-`](44-framework-module-plan.md) |
 | P3 | `hal_task_*` layer | "Can components wait without an OS?" | [`44-`](44-framework-module-plan.md) |
-| P4 | TinyX whole‑stack assembly (socket path ON) | "Can 165 kLOC of upstream code be linked and made to render?" | [`42-`](42-tinyx-module-plan.md) |
+| P4 | TinyX no-client server assembly, no socket transport | "Can the real server initialize, dispatch, and render?" | [`42-`](42-tinyx-module-plan.md) |
 | P5 | In‑process transport (socket path OFF) | "Can the transport be replaced?" | [`42-`](42-tinyx-module-plan.md) + [`44-`](44-framework-module-plan.md) |
 | P6 | Linux dependency severing | "Is the OS coupling actually gone?" | all four |
 | P7 | JWM integration | "Does a real window manager work in this model?" | [`45-`](45-jwm-module-plan.md) |
@@ -156,7 +156,12 @@ debugged against its semantics. Getting the lost‑wakeup case wrong here produc
 
 ## 5. Phase P4 — TinyX Whole‑Stack Assembly
 
-**Goal:** Link and run the whole X server, with its own socket transport intact, and prove it renders.
+**Goal:** Link and run the whole X server without a client or native socket
+transport, and prove it renders (D-49).
+
+**Hosted gate implemented:** see [the runnable P4 server](../tinyx/wmb/README.md),
+[C1 audit](c1-fd-bitset-audit.md), and [configuration/source references](reference/README.md).
+Client transport, libX11 and JWM are later work, not implied by P4 success.
 
 ### 5.1 Scope
 
@@ -186,15 +191,15 @@ hit as transport‑only (safe), typedef‑only (guardable) or a genuine `dix/` d
 
 Profile: **`host-pure`** — there is no socket profile ([`90-`](90-decisions.md) D‑49).
 
-- [ ] `wmb_host` links with **zero** unresolved symbols.
-- [ ] No file from the exclusion ledger appears in any CMake source list (verified by script).
-- [ ] The server fiber reaches `Dispatch()` and idles at **< 5 % CPU** (not spinning).
-- [ ] An SDL window opens showing the X root window.
-- [ ] The server logs its screen geometry, depth, visual list and registered extension list at startup, and they match the expected values.
-- [ ] That logged extension list contains no `DOUBLE-BUFFER`, `MIT-SHM`, `XFree86-Bigfont` or `XKEYBOARD` — the four that D‑25, D‑39 and D‑41 exclude.
-- [ ] `docs/c1-fd-bitset-audit.md` exists, every hit is classified, and no hit is classified as a genuine `dix/` dependency — or, if one is, P5's scope is
+- [x] `wmb_host` links with **zero** unresolved symbols.
+- [x] The exclusion ledger and frozen module membership are checked at configure time.
+- [x] The server reaches `Dispatch()` and idles below **5% CPU** over ten seconds.
+- [x] An SDL window opens showing the real X root window.
+- [x] Geometry, depth, visuals and registered extensions match the checked startup reference.
+- [x] No `DOUBLE-BUFFER`, `MIT-SHM`, `XFree86-Bigfont` or `XKEYBOARD` is registered.
+- [x] `docs/c1-fd-bitset-audit.md` exists, every hit is classified, and no hit is classified as a genuine `dix/` dependency — or, if one is, P5's scope is
   revised **before** P5 starts.
-- [ ] The curated config templates differ from `docs/reference/*.reference.h` only in ways that have a one‑line justification.
+- [x] Reference configure outputs and curation justifications are checked in.
 
 ### 5.3 Why there is no oracle, and what replaces it
 

@@ -87,6 +87,11 @@ Creation returns `NEG_U32` on failure; unknown/destroyed IDs have `NULL` buffers
 and zero dimensions/stride. Destruction is idempotent. Never free the returned
 pixels yourself, and respect row padding, including for odd RGB565 widths.
 
+`sdl_present_window()` is the damage-driven per-window pump used by the HAL:
+an unchanged window performs no texture upload. Exposure events invalidate the
+window so it is repainted. Explicit `sdl_update_window()` and the legacy
+`sdl_window_process()` automatic refresh retain their full-frame behavior.
+
 Callbacks are window-specific and run synchronously on the event-pump thread.
 The key callback uses `key_code == 0` for modifier masks, `key_code == 1` plus an
 `EVENT_KEY_*` token for special keys, and an ASCII byte otherwise. Its `state` is

@@ -309,6 +309,7 @@ int sdl_present_window( uint32_t id )
         SDL_LogError( SDL_LOG_CATEGORY_RENDER, "Cannot present unknown window %u", id );
         return -1;
     }
+    if( !instance->has_damage ) return 0;
     return present_if_due( instance, SDL_GetTicks() );
 }
 

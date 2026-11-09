@@ -109,6 +109,10 @@ variant; passing `-DWMB_DEVEL=0` is not a way to turn it into a native driver.
   key-state bounds/reset/lock corrections, pointer map/callback/startup
   corrections, event initialization, wide button processing, overflow-safe
   acceleration magnitude, and earlier-deadline preservation.
+- P4 adds guarded server entry/lifecycle, OS initialization, native transport
+  exclusion, extension observation and unsigned visual-mask generation. The
+  generated configuration is force-included through `wmb_tinyx_config` before
+  X protocol headers, preventing mixed server ABI layouts.
 
 The low-layer HAL still transports its original bytes and descriptors.
 Scancode allocation and X-server policy are not new hardware APIs.
@@ -135,6 +139,11 @@ For each further TinyX change:
 Keep Debug, Release, and ASan/UBSan gates. Compile probes and standalone tests
 do not prove full TinyX startup, real rendering/Damage/event processing, client
 dispatch, or embedded readiness; those remain integration milestones.
+
+The separate [P4 server gate](../tinyx/wmb/README.md) now verifies actual startup,
+root rendering, real Damage, cooperative dispatch/wait and cleanup. Client
+dispatch and embedded readiness remain later gates; standalone passes still
+must not be used as their substitute.
 
 This methodology is recorded in [D-51](90-decisions.md) and in the
 [TinyX-scoped workspace instruction](../.github/instructions/tinyx-wmb.instructions.md).

@@ -18,5 +18,7 @@ Bool KdHalInputInit(void);
 void KdHalInputFini(void);
 void KdHalKeyboardPoll(void);
 void KdHalMousePoll(void);
+hal_display_status_t KdHalDisplayStatus(void);
+unsigned long KdHalPollCount(void);
 
 #endif

@@ -92,6 +92,7 @@ events passed to MI, and supply device initialization and damage callbacks.
 |---|---|
 | `kdrive_hal_framebuffer` | Real card/screen factories, RGB565 and XRGB8888, actual padded row pitch/pixel stride, colour masks, fixed geometry, and single-screen constraints. |
 | `kdrive_hal_damage` | Damage callback registration, multiple/empty regions, forwarding rectangles to HAL flush, preserved pixels on enable, power results, and callback destruction. |
+| `kdrive_hal_close` | Damage is detached before the wrapped framebuffer close callback; the real-server sanitizer gate covers the actual pixmap lifetime. |
 | `kdrive_hal_keyboard` | Every printable ASCII byte, control keys, modifier combinations, lock transitions, fragmented pairs, and invalid packets through real `KdEnqueueKeyboardEvent`. |
 | `kdrive_hal_pointer` | Five physical button IDs, releases, relative motion, pressure, all wheel directions/ticks, side-button preservation, and fragmented pairs through real `KdEnqueueMouseEvent`. |
 | `kdrive_hal_lifecycle` | Input ownership, actual block-handler polling, 20 ms poll deadline, earlier timeout preservation, disable/finalize, and display stop/error signaling. |
@@ -113,6 +114,8 @@ ctest --test-dir build-kdrive-sanitize --output-on-failure
 
 - The HAL port supports one fixed display and one pointer. It rejects incompatible
   screen geometry, pixel format, rotation, or an additional screen.
+- RandR advertises only the native mode and rotation zero. Screen close detaches
+  Damage before calling underlying framebuffer cleanup.
 - RGB565 maps to X depth 16/bpp 16; XRGB8888 maps to X depth 24/bpp 32.
   Pixel stride is derived from the **actual byte pitch**, not from visible width.
 - X-server rendering writes the HAL-owned framebuffer. A raw-region Damage
@@ -149,6 +152,11 @@ so no hardware palette interface is exposed.
 This is **standalone KDrive/HAL module verification**, beyond syntax checks or
 HAL-only tests. The generic port and tested real-core paths are built and exercised.
 
+The separate [P4 server gate](../../wmb/README.md) now executes actual full-server
+initialization, root rendering, real Damage and shutdown. Port status and poll
+count diagnostics let its host distinguish display failure from user stop and
+verify the actual polling frequency.
+
 The harness uses function/data sections and linker garbage collection to isolate
 the exercised paths from unused full-server entry points. It does **not** execute
 the complete `KdInitOutput`/DIX/MI server startup, real framebuffer rendering
@@ -156,9 +164,10 @@ operations, a real server event queue, client protocol dispatch, JWM, or transpo
 The simulated Damage service verifies the port's registration/report/lifetime
 contract, not the server's whole damage implementation.
 
-The next integration milestone is a real TinyX root window and client-driven
-rendering/input, including the cooperative server wait path. Passing this harness
-is a strong module-level gate, not a claim that the entire X11 stack is complete.
+P4 now verifies the real root window and cooperative server wait in its separate
+gate. The next integration milestone is P5 client-driven rendering/input through
+the in-process transport. Passing this standalone harness is still a module-level
+gate, not proof that the entire X11 stack is complete.
 
 See [the module plan](../../../docs/43-kdrive-module-plan.md) and
 [the low-layer HAL contract](../../../docs/12-platform-contract.md).

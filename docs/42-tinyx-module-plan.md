@@ -42,15 +42,16 @@ From [`01-`](01-component-inventory.md) §12, the module groups this team owns:
 | Group | Contents | Files | ~LOC |
 |---|---|---:|---:|
 | `TINYX_DIX` | `tinyx/dix/*.c` | 25 | 26,685 |
-| `TINYX_OS` | `log.c`, `oscolor.c`, `strlcat.c`, `strlcpy.c`, `osinit.c`, `utils.c` + the three `*_wmb.c` replacements | 9 | 4,100 |
+| `TINYX_OS` | Six retained utilities + connection/I/O/wait replacements, timers, excluded-service stubs | 11 | ~4,500 |
 | `TINYX_MI` | `tinyx/mi/*.c` | 35 | 23,533 |
 | `TINYX_FB` | `tinyx/fb/*.c` | 32 | 14,437 |
 | `TINYX_MIEXT` | `miext/shadow/*.c` + `miext/damage/damage.c` | 21 | 3,514 |
 | `TINYX_EXT` | `render/` + `randr/` + `xfixes/` + `damageext/` + selected `Xext/` | 39 | 24,000 |
 
-**~96 kLOC across 161 translation units**, of which this project writes roughly **570 lines** (the three `*_wmb.c` replacements plus
-`excluded_stubs_wmb.c`) and guards **seven files**. Everything else is upstream, carried unmodified. That ratio is the point: the module's difficulty
-is *assembly*, not authorship.
+These groups contain 163 translation units, plus the project lifecycle unit in
+`tinyx/wmb/server.c`; KDrive/HAL contributes nine more. The tested total of 173 is
+frozen in [the source manifest](reference/tinyx-sources.reference). Most code is
+upstream; OS replacements and small `WMB_DEVEL` guards provide the integration.
 
 ### 2.1 The exclusion ledger this module must hold
 
@@ -68,9 +69,9 @@ The last three require one guarded line each in `mi/miinitext.c`. The rest requi
 | P1 | None | — |
 | P2 | None | — |
 | P3 | None — but P3's `hal_yield_timeout` semantics are what `waitfor_wmb.c` is written against | — |
-| **P4** | **Primary owner.** The whole‑stack assembly is this module's phase | **Heavy** |
+| **P4** | **Primary owner. Hosted no-client server/root-window gate implemented and verified** | **Heavy** |
 | **P5** | **Server half of the transport** — `waitfor_wmb.c`, `connection_wmb.c`, `io_wmb.c` | **Heavy** |
-| P6 | Seven of the fifteen guards; the three KDrive core guards belong to [43-](43-kdrive-module-plan.md) | Medium |
+| P6 | Nine planned server guards; the three KDrive core guards belong to [43-](43-kdrive-module-plan.md) | Medium |
 | P7 | Support only: `XGrabServer` flow control lands in `io_wmb.c` / `connection_wmb.c` | Light |
 | P8 | None directly; `dix` re‑entrancy is asserted by the E4 test, not changed | — |
 | P9 | The freestanding compile of ~96 kLOC — the largest surface for libc‑floor surprises | Medium |
@@ -81,6 +82,16 @@ reference `configure` run (§4.3) are the two items that can start early and rem
 ## 4. Phase P4 — Whole‑Stack Assembly
 
 **Goal:** link and run the whole X server, and prove it renders. [`40-`](40-implementation-plan.md) §5.
+
+**Status: hosted P4 gate passed.** Enable `WMB_TINYX_BUILD_SERVER`; see the
+[runnable server guide](../tinyx/wmb/README.md). Actual DIX/MI/FB, font initialization,
+input devices, all twelve selected extensions, root rendering, `Dispatch()`,
+cooperative waiting and shutdown execute without a mock X server.
+
+Debug RGB565 and Release XRGB8888/odd-width builds pass. ASan/strict UBSan exposed
+and verified repairs for configuration/`KeySym` ABI mismatch, the visual blue-mask
+shift, legacy font decoding, and Damage detachment before framebuffer teardown.
+The framework's ASan context warning is not suppressed.
 
 ### 4.1 Work items
 
@@ -95,7 +106,9 @@ reference `configure` run (§4.3) are the two items that can start early and rem
 | T4‑7 | `dix/main.c` guard: `main()` → `TinyX_ServerFiber(void *)`; drop `envp`; guard `getenv("XAUTHORITY")` and the XDMCP arguments | Guard #1 | [`11-`](11-portability-plan.md) §8.1 |
 | T4‑8 | `mi/miinitext.c` guard: do not register `dbe`, `shm`, `xf86bigfont` | Guard #2 | [`90-`](90-decisions.md) D‑41 |
 
-Guards #1 and #2 are *written* here and *manifested as patches* at P6 (§6). Writing them at P6 would mean P4 cannot link.
+Required guards are written during P4 and exported as a patch series at P6.
+All retain their reference alternatives. D-52 records the two additional engine
+sites: extension registration observation and unsigned visual-mask generation.
 
 ### 4.2 The C1 audit — do first, before anything else in this phase
 
@@ -126,16 +139,19 @@ every profile ([`90-`](90-decisions.md) D‑39) so that turning it on is a decis
 
 Profile `host-pure`. Items marked **(shared)** also need [`43-`](43-kdrive-module-plan.md) green.
 
-- [ ] `wmb_host` links with **zero** unresolved symbols.
-- [ ] No file from the exclusion ledger appears in any CMake source list (verified by script — gate S4).
-- [ ] CMake module group membership matches [`01-`](01-component-inventory.md) §12 exactly (gate S5).
-- [ ] The server fiber reaches `Dispatch()` and idles at **< 5 % CPU** — not spinning **(shared)**.
-- [ ] The startup log reports screen geometry, depth, visual list and registered extensions, and they match a checked‑in reference.
-- [ ] That extension list contains no `DOUBLE-BUFFER`, `MIT-SHM`, `XFree86-Bigfont` or `XKEYBOARD`.
-- [ ] An SDL window opens showing the X root window **(shared — the pixels come from the DDX)**.
-- [ ] `docs/c1-fd-bitset-audit.md` exists, every hit is classified, and no hit is a genuine `dix/` dependency — or P5's scope is revised **before** P5
+- [x] `wmb_host` links with **zero** unresolved symbols.
+- [x] No file from the exclusion ledger appears in any CMake source list (configure-time S4 check).
+- [x] Module membership matches the frozen inventory (configure-time S5 check).
+- [x] The server reaches `Dispatch()` and idles below **5% CPU**; actual OS polling exceeds **30 Hz**.
+- [x] Geometry, depth, visual class/masks and all registered extensions match the checked startup reference.
+- [x] No `DOUBLE-BUFFER`, `MIT-SHM`, `XFree86-Bigfont` or `XKEYBOARD` is registered.
+- [x] The real SDL window shows the X root; [captured framebuffer reference](reference/tinyx-root-rgb565.png).
+- [x] `docs/c1-fd-bitset-audit.md` exists, every hit is classified, and no hit is a genuine `dix/` dependency — or P5's scope is revised **before** P5
   starts.
-- [ ] The curated config templates differ from `docs/reference/*.reference.h` only in ways carrying a one‑line justification.
+- [x] Reference headers and [curation differences](reference/README.md) are recorded.
+
+The no-client OS replacements deliberately refuse client attachment and I/O.
+They are not completion of P5's request/reply/event/suspension/grab semantics.
 
 Gates: V‑P4‑1, V‑P4‑2, V‑P4‑5, V‑P4‑6, S4, S5 ([`41-`](41-verification-plan.md) §4.4).
 
