@@ -1,0 +1,14 @@
+--- a/libX11/include/X11/Xlib.h
++++ b/libX11/include/X11/Xlib.h
+@@ -35,7 +35,11 @@
+ 
+ #define XlibSpecificationRelease 6
+ 
++#if defined(WMB_INPROC)
++#include <stddef.h>
++#else
+ #include <sys/types.h>
++#endif
+ 
+ #if defined(__SCO__) || defined(__UNIXWARE__)
+ #include <stdint.h>

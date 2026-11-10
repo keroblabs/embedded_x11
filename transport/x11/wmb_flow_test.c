@@ -4,6 +4,7 @@
 #include "hal_time.h"
 #include <X11/extensions/xtestproto.h>
 #include <X11/extensions/bigreqsproto.h>
+#include <X11/extensions/syncproto.h>
 #include <X11/Xatom.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -23,6 +24,64 @@ static Bool async_focus(Display *display, xReply *reply, char *bytes, int size, 
     if (reply->generic.type != X_Reply || size != 32) return False;
     (*received)++;
     return True;
+}
+
+static bool sync_deadline(Display *display)
+{
+    xSyncListSystemCountersReq *list;
+    xSyncListSystemCountersReply reply;
+    xSyncAwaitReq *await;
+    xSyncWaitCondition *condition;
+    unsigned char *data = NULL;
+    CARD32 counter = 0;
+    size_t size, offset = 0;
+    uint32_t before;
+    int opcode, event, error, index;
+
+    if (!XQueryExtension(display, "SYNC", &opcode, &event, &error)) goto failed;
+    list = _XGetRequest(display, (CARD8)opcode, sizeof(*list));
+    if (!list) goto failed;
+    list->syncReqType = X_SyncListSystemCounters;
+    if (!_XReply(display, (xReply *)&reply, 0, False)) goto failed;
+    size = (size_t)reply.length * 4;
+    if (size > WMB_WIRE_LIMIT) goto failed;
+    data = malloc(size);
+    if (!data || _XRead(display, (char *)data, (long)size) != 0) goto failed;
+    for (index = 0; index < reply.nCounters; index++) {
+        xSyncSystemCounter item = {0};
+        size_t record;
+        if (offset > size || size - offset < sz_xSyncSystemCounter) goto failed;
+        memcpy(&item, data + offset, sz_xSyncSystemCounter);
+        record = (sz_xSyncSystemCounter + (size_t)item.name_length + 3u) & ~(size_t)3u;
+        if (record > size - offset) goto failed;
+        if (item.name_length == 10 &&
+            memcmp(data + offset + sz_xSyncSystemCounter, "SERVERTIME", 10) == 0)
+            counter = item.counter;
+        offset += record;
+    }
+    free(data);
+    data = NULL;
+    if (!counter) goto failed;
+    await = _XGetRequest(display, (CARD8)opcode,
+                        sizeof(*await) + sizeof(*condition));
+    if (!await) goto failed;
+    await->syncReqType = X_SyncAwait;
+    condition = (xSyncWaitCondition *)(void *)(await + 1);
+    *condition = (xSyncWaitCondition){
+        .counter = counter,
+        .value_type = XSyncRelative,
+        .wait_value_lo = 35,
+        .test_type = XSyncPositiveComparison
+    };
+    before = hal_tick_ms();
+    _XFlush(display);
+    XSync(display, False);
+    if (hal_tick_ms() - before < 30 || hal_tick_ms() - before > 500) goto failed;
+    return true;
+failed:
+    free(data);
+    fputs("P6 SYNC SERVERTIME deadline failed\n", stderr);
+    return false;
 }
 
 static void competing_grab(void *argument)
@@ -106,6 +165,7 @@ void wmb_flow_test_client(void *argument)
     _XFlush(owner);
     if (hal_tick_ms() - before < 30 || hal_tick_ms() - before > 500) goto close;
     XSync(owner, False);
+    if (!sync_deadline(owner)) goto close;
     {
         int received = 0;
         _XAsyncHandler handler = {
@@ -159,7 +219,7 @@ close:
         fiber_destroy(query_fiber);
     } else if (query.display) XCloseDisplay(query.display);
     if (owner) XCloseDisplay(owner);
-    printf("P5 flow: clients/grab/replay, delayed input, BIG-REQUESTS, sequence wrap, XC-MISC %s\n",
+    printf("P5 flow: clients/grab/replay, delayed input, SYNC deadline, BIG-REQUESTS, sequence wrap, XC-MISC %s\n",
            result->result ? "FAIL" : "PASS");
     result->done = true;
 }

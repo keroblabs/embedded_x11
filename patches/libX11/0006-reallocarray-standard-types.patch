@@ -1,0 +1,14 @@
+--- a/libX11/src/reallocarray.c
++++ b/libX11/src/reallocarray.c
+@@ -19,7 +19,11 @@
+ #include <config.h>
+ #endif
+ 
++#if defined(WMB_INPROC)
++#include <stddef.h>
++#else
+ #include <sys/types.h>
++#endif
+ #include <errno.h>
+ #include <stdint.h>
+ #include <stdlib.h>

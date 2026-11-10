@@ -43,10 +43,11 @@ Use `SDL_VIDEODRIVER=dummy SDL_RENDER_DRIVER=software` for headless runs.
 
 ## Build and ABI boundary
 
-[The client CMake target](../../libX11/CMakeLists.txt) freezes 256 translation
-units: 253 retained native API/support files plus the transport, close adapter
-and explicit profile support. XCB, native locking and locale/resource-database
-backends are not selected.
+[The client CMake target](../../libX11/CMakeLists.txt) now freezes 248 translation
+units: 245 retained native API/support files plus the transport, close adapter
+and explicit profile support. P6 excludes the remaining unsupported file/locale/
+resource wrappers and retains native glyph-cursor creation with dynamic loading
+disabled. XCB and native locking backends are not selected.
 
 Use the **matching** `libX11/include/X11` client headers. The older `X11/Xlibint.h`
 copy does not match these sources. The client target exports the correct include
@@ -101,7 +102,8 @@ The client owns its `Display`: close it before its application fiber exits.
 Foreign OS-thread callers, transparent process-exit semantics, and the external
 wrapper/ABI remain P8/lifecycle work. Native `XInitThreads` is not supported.
 This profile uses core fonts/C-locale behavior, not XIM, fontsets, XKB, Xcms or
-resource-database files. Standard named colors still use the server path.
+resource-database files. Bitmap-file APIs diagnose and return `BitmapOpenFailed`;
+in-memory bitmaps are unchanged. Standard named colors still use the server path.
 
 ## Verification
 
@@ -146,5 +148,6 @@ padding is undefined, so the comparator zeroes only documented padding and
 normalizes resource IDs/sequence fields; all defined payload bytes still compare
 exactly. Deliberate payload corruption is rejected by its tests.
 
-Remaining phases are P6 portability closure, P7 JWM, P8 external ABI/stability,
-and P9 hardware/freestanding bring-up. P5 does not claim those gates.
+P6 portability closure is now verified; see [its guide](../../docs/48-p6-portability.md)
+for the whole-archive probe, 27 replayable guarded files and remaining libc floor.
+P7 JWM, P8 external ABI/stability and P9 hardware/freestanding bring-up remain.

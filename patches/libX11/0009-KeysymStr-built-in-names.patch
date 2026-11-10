@@ -1,0 +1,34 @@
+--- a/libX11/src/KeysymStr.c
++++ b/libX11/src/KeysymStr.c
+@@ -40,6 +40,7 @@
+ #include "Key.h"
+ 
+ 
++#if !defined(WMB_INPROC)
+ typedef struct _GRNData {
+     char *name;
+     XrmRepresentation type;
+@@ -67,6 +68,7 @@
+     }
+     return False;
+ }
++#endif
+ 
+ char *XKeysymToString(KeySym ks)
+ {
+@@ -100,6 +102,7 @@
+ 	}
+     }
+ 
++#if !defined(WMB_INPROC)
+     if ((keysymdb = _XInitKeysymDB()))
+     {
+ 	char buf[9];
+@@ -118,6 +121,7 @@
+         if (data.name)
+ 	    return data.name;
+     }
++#endif
+     if (ks >= 0x01000100 && ks <= 0x0110ffff) {
+         KeySym val = ks & 0xffffff;
+         char *s;

@@ -23,6 +23,14 @@ files are censused anyway, because an exclusion has to be *justified* by showing
 
 Counts are from the tree as it stands and are reproducible with the commands in §9.
 
+**P6 status:** the counts below describe the original static census, not current
+active dependencies. The compiler-aware audit found additional transitive
+X11/client/font headers and dormant archive functions that this initial census
+missed. [P6](48-p6-portability.md) now checks 452 selected units and complete
+archives, with no active above-HAL native OS headers/imports. Preserved native
+reference branches still contain their original includes and calls. Target libc/
+allocator/console/freestanding closure remains P9.
+
 ### 1.2 Dependency classes
 
 | Class | Meaning | Typical fate |

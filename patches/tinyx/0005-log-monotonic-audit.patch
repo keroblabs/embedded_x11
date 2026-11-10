@@ -1,0 +1,43 @@
+--- a/tinyx/os/log.c
++++ b/tinyx/os/log.c
+@@ -84,13 +84,18 @@
+ #include <X11/Xos.h>
+ #include <stdio.h>
+ #include <time.h>
++#if !defined(WMB_DEVEL)
+ #include <sys/stat.h>
++#endif
+ #include <stdarg.h>
+ #include <stdlib.h>	/* for malloc() */
+ #include <errno.h>
+ 
+ #include "site.h"
+ #include "opaque.h"
++#if defined(WMB_DEVEL)
++#include "os.h"
++#endif
+ 
+ #ifdef __GNUC__
+ static void AbortServer(void) __attribute__((noreturn));
+@@ -114,6 +119,13 @@
+ static char *
+ AuditPrefix(void)
+ {
++#if defined(WMB_DEVEL)
++    char *prefix = malloc(48);
++    if (prefix)
++        snprintf(prefix, 48, "AUDIT: WMB +%lu ms: ",
++                 (unsigned long)GetTimeInMillis());
++    return prefix;
++#else
+     time_t tm;
+     char *autime, *s;
+     char *tmpBuf;
+@@ -129,6 +141,7 @@
+ 	return NULL;
+     snprintf(tmpBuf, len, AUDIT_PREFIX, autime, (unsigned long)getpid());
+     return tmpBuf;
++#endif
+ }
+ 
+ void

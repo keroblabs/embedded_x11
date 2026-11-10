@@ -35,6 +35,14 @@ in this Software without prior written authorization from The Open Group.
 
 # include <X11/Xosdefs.h>
 
+# if defined(WMB_DEVEL) || defined(WMB_INPROC) || defined(WMB_FONT_BUILTINS_ONLY)
+#  include <stddef.h>
+#  include <stdint.h>
+#  include <string.h>
+#  include <time.h>
+#  include <X11/Xarch.h>
+# else
+
 /*
  * Get major data types (esp. caddr_t)
  */
@@ -145,4 +153,5 @@ struct timeval {
 
 # include <X11/Xarch.h>
 
+# endif
 #endif /* _XOS_H_ */

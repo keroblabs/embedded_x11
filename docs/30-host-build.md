@@ -36,6 +36,12 @@ and native SDL/Xlib symbol isolation. Python 3.10+ runs the checked wire
 comparator; system Xlib/Xvfb is only needed to regenerate reference fixtures.
 JWM is still P7.
 
+P6 adds [three automated portability gates](48-p6-portability.md), bringing the
+full suite to 30. The font cohort is built-in-only and no longer needs libfontenc.
+The whole-archive link probe has no SDL/host runtime backend in its link line.
+The root build exports the compilation database required for active-header
+verification; run from a clone containing the pinned import baseline.
+
 The directory/layout/profile expansion examples below are historical planning
 material, not the current source inventory or implemented `WMB_PROFILE` options.
 Current build files live at the root and in each implemented module.

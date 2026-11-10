@@ -3,7 +3,9 @@
 X11 stack (TinyX server + libX11 + JWM window manager) running inside a cooperative fiber runtime, with an in-process transport replacing the socket. Two targets: Linux hosted (SDL backend) and a freestanding embedded platform.
 
 Status: the framework, hosted HAL, TinyX server and P5 in-process Xlib client
-are runnable. JWM and the external ABI remain later milestones. See the
+are runnable; P6 verifies the selected windowing cohorts without native OS
+dependencies and provides replayable patches. JWM and the external ABI remain later milestones. See the
+[P6 portability guide](docs/48-p6-portability.md),
 [client transport guide](transport/x11/README.md),
 [TinyX server guide](tinyx/wmb/README.md) and
 [`docs/40-implementation-plan.md`](docs/40-implementation-plan.md).
@@ -117,6 +119,10 @@ Native X socket transport is not selected. To run the P5 Xlib application:
 It opens an unmanaged white window, draws a rectangle/text, verifies backend
 input, and closes after ten seconds. Additional flow, timeout and independent
 stock-Xlib wire gates are in the [P5 guide](transport/x11/README.md).
+
+The full suite now has 30 checks. The [P6 guide](docs/48-p6-portability.md)
+documents the whole-archive no-backend link, active include/symbol audit,
+reference-preserving patches and remaining freestanding requirements.
 
 Project-specific TinyX changes use the shared `WMB_DEVEL=1` selector, including
 Release and embedded builds. Driver policy stays in the HAL port; necessary

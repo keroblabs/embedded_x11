@@ -27,8 +27,8 @@ Four mechanisms, in strict order of preference. **Always use the earliest one th
 | M3 | **Guard a necessary region of an upstream file.** | One line item in the patch manifest. Must be replayable; preserve the reference alternative. | The file is mostly needed but has a project-specific dependency or engine limitation |
 | M4 | **Rewrite upstream logic unconditionally.** | Forbidden. | — |
 
-M1 handles ~15,000 LOC. M2 handles the transport. M3 plans 19 files, including the
-three current KDrive core files. M4 never happens. Device policy uses existing
+M1 excludes unsupported backends; M2 handles owned adapters. M3 now implements
+27 guarded files, with three future JWM sites planned at P7. M4 never happens. Device policy uses existing
 DDX/HAL seams before M3; see [the TinyX methodology](47-tinyx-project-methodology.md).
 
 ### 2.1 Naming conventions
@@ -60,7 +60,7 @@ Six phases with hard exit gates. Phases are sequential; each consumes the previo
 | **Q2** | Contract authoring | `hal_display.h`, `hal_input.h`, `hal_task.h`, `hal_time.h`, `wmb_os.h` exist and compile standalone against a freestanding C compiler with no includes beyond `<stdint.h>` / `<stddef.h>` / `<stdbool.h>` |
 | **Q3** | Backend re‑pointing | `tinyx/kdrive/hal/*.c` includes only `hal_*.h`; a mock backend links the DDX with no SDL present |
 | **Q4** | Transport stubs | `waitfor_wmb.c`, `connection_wmb.c`, `io_wmb.c` compile and the whole‑stack build links in the `host-pure` profile |
-| **Q5** | Guard application | The 19 planned upstream files carry their guards; the patch manifest is complete; the series replays on fresh checkouts |
+| **Q5** | Guard application | P6: 27 implemented sites replay on the pristine imported baseline; active headers/symbols and reference variants pass. JWM sites remain P7 |
 | **Q6** | Freestanding proof | The `target` profile compiles every translation unit with `-ffreestanding -nostdinc` plus only the documented floor |
 
 Q1 and Q2 can run in parallel. Q3 depends on Q2. Q4 depends on Q1 and on [`21-`](21-inprocess-transport.md). Q5 depends on Q4. Q6 depends on everything.
@@ -85,7 +85,7 @@ Delete nothing; simply never list the file. The work is in **proving** that each
 | `tinyx/Xext/shm.c` | ~1,000 | M1 | `ShmExtensionInit`, `ShmRegisterFuncs` → guarded out of `miinitext.c` |
 | `tinyx/Xext/xf86bigfont.c` | ~700 | M1 | `XFree86BigfontExtensionInit` → guarded out |
 | `libX11/src/xcb_io.c` | ~800 | M1 | 13 symbols → **all** reimplemented in `wmb_transport.c` (see [`20-`](20-transport-inventory.md) §3) |
-| `libX11/src/{x11_xcb,locking,CrGlCur,os2Stubs}.c` | — | M1 | `XInitThreads` explicitly refuses native threading; profile hooks in `wmb_xlib_profile.c` |
+| `libX11/src/{x11_xcb,locking,os2Stubs}.c` | — | M1 | `XInitThreads` explicitly refuses native threading; glyph-cursor creation is retained with dynamic Xcursor disabled |
 | `libX11/src/xlibi18n/`, `SetLocale.c`, `Xrm.c`, `lc*` | ~8,000 | M1 | `_XlcCurrentLC`, `XSetLocaleModifiers`, `XSupportsLocale`, `XrmInitialize`… → minimal stubs |
 | `X11/xtrans/` | header lib | M1 | — |
 
@@ -225,11 +225,13 @@ exists specifically to catch this.
 
 ## 8. Phase Q5 — Guard Application
 
-The 19 planned upstream files that carry edits. P1-P5 implement the current
-KDrive, server and client sites; P6 still owns the replayable patch series and
-remaining dependency removal. JWM edits are not implemented yet.
+**P6 is implemented and verified for the selected hosted windowing cohorts.**
+The [actual guide](48-p6-portability.md) and
+[generated manifest](../patches/MANIFEST.md) supersede earlier estimated budgets.
+There are 27 implemented sites and three future JWM sites, not a claim that JWM
+has been built. See D-54 for the user-approved budget expansion.
 
-### 8.1 `tinyx/` — 13 guarded files
+### 8.1 `tinyx/` — 15 guarded files
 
 | # | File | Guard | Edit |
 |--:|---|---|---|
@@ -246,19 +248,39 @@ remaining dependency removal. JWM edits are not implemented yet.
 | 16 | `dix/extension.c` | `WMB_DEVEL` | Observe actual successful extension registration for the P4 startup gate |
 | 17 | `mi/micmap.c` | `WMB_DEVEL` | Use an unsigned blue-mask shift; strict UBSan found signed overflow during real initialization |
 | 18 | `fb/fbbits.h` | `WMB_DEVEL` | Multiply negative Bresenham error by two instead of signed left shift; exposed by P5 line/wire test |
+| 20 | `Xext/sync.c` | `WMB_DEVEL` | Typed millisecond block-handler deadline and correct project initializer prototype |
+| 21 | `os/strlcat.c` | `WMB_DEVEL` | Standard size_t header with original reference alternative |
 
-`os/strlcat.c` also includes `<sys/types.h>`; prefer an M2 replacement if needed.
-If edited instead, its change also requires `WMB_DEVEL` and an additional manifest
-entry/budget decision. Existing manifest IDs 1-13 are retained; 14/15 record the
-two added KDrive core files.
+The strlcat include is guarded rather than copying the same function into an M2
+file. Deadline adaptation also updates the actual SYNC callback/shared type;
+only changing the wait-loop implementation would leave an incompatible ABI.
 
-### 8.2 `libX11/` — 3 guarded files
+### 8.2 `libX11/` — 10 guarded files
 
 | # | File | Guard | Edit |
 |--:|---|---|---|
 | 9 | `libX11/include/X11/Xlibint.h` | `WMB_INPROC` | Matching client ABI/header, threadless profile, `Data`/`BufAlloc` complete-batch growth through `_XBufferGrow` |
 | 10 | `libX11/src/XlibInt.c` | `WMB_INPROC` | Guard the `<sys/socket.h>` / `<sys/ioctl.h>` / `<sys/utsname.h>` block and the fd‑based `_XWaitForReadable` / `_XWaitForWritable` helpers; keep error handling and `_XEatData` |
 | 19 | `libX11/src/OpenDis.c` | `WMB_INPROC` | Internal connection/setup sourcing, preserving native parsing and destructor |
+| 22 | `libX11/include/X11/Xlib.h` | `WMB_INPROC` | Standard public types without sys/types.h |
+| 23 | `libX11/src/reallocarray.c` | `WMB_INPROC` | Retained overflow-checked allocation, standard headers |
+| 24 | `libX11/src/reallocarray.h` | `WMB_INPROC` | Standard size_t header |
+| 25 | `libX11/src/Macros.c` | `WMB_INPROC` | Public macro functions without native XCB/locking headers |
+| 26 | `libX11/src/StrKeysym.c` | `WMB_INPROC` | Built-in/Unicode names without host database lookup |
+| 27 | `libX11/src/KeysymStr.c` | `WMB_INPROC` | Built-in names without resource-database enumeration |
+| 28 | `libX11/src/WMProps.c` | `WMB_INPROC` | Caller hints and C locale without environment/process identity |
+
+### 8.2.1 Shared X11 headers — 2 guarded files
+
+| # | File | Guard | Edit |
+|--:|---|---|---|
+| 29 | `X11/Xos.h` | Presence of `WMB_DEVEL`, `WMB_INPROC` or private font profile | Standard-C include branch, no fake POSIX headers |
+| 30 | `X11/Xdefs.h` | `WMB_DEVEL` | `OSTimePtr` is a typed 32-bit millisecond-budget pointer |
+
+The pinned font library additionally has a two-file conditional profile patch
+managed by [WmbXfont.cmake](../cmake/WmbXfont.cmake). Its two prior P4 bitmap
+repairs remain separate. Disk/fontenc/catalogue backends are excluded, not
+silently left in unreachable archive sections.
 
 ### 8.3 `jwm/` — 3 guarded files (+3 mechanical)
 
@@ -275,10 +297,11 @@ Three further JWM files (`main.c`, `misc.c`, `timing.c`) are handled by **M2 via
 
 | Tree | Cap | Planned | Slack |
 |---|---:|---:|---:|
-| `tinyx/` | 13 | 13 | 0 |
-| `libX11/` | 3 | 3 | 0 |
+| `tinyx/` | 15 | 15 | 0 |
+| `libX11/` | 10 | 10 | 0 |
+| shared `X11/` | 2 | 2 | 0 |
 | `jwm/` | 4 | 3 | 1 |
-| **Total** | **20** | **19** | **1** |
+| **Total** | **31** | **30** | **1** |
 
 Exceeding a cap requires an entry in [`90-decisions.md`](90-decisions.md) with the alternative that was rejected and why. The caps exist because every
 guarded file is a merge conflict every time upstream moves. D-51 raises the
@@ -287,52 +310,39 @@ engine logic into the HAL port was rejected. D-52 adds two necessary P4 engine
 sites for truthful registration observation and defined visual-mask arithmetic.
 D-53 adds the necessary framebuffer arithmetic site rather than suppressing
 UBSan. Reusing the real Xlib setup parser consumes the existing third client slot.
+D-54 expands TinyX to 15, libX11 to 10 and explicitly budgets the two shared
+headers. The audit found real transitive dependencies missed by the old
+estimates. Fake POSIX headers, copied core files and linker garbage collection
+as a portability proof were rejected. Of the 30 planned sites, 27 are implemented;
+three JWM sites are still future P7 work.
 
 ### 8.5 Patch manifest
 
-Q5 produces `patches/` at the repository root:
+P6 produces [patches/](../patches/MANIFEST.md) at the repository root:
 
 ```
 patches/
-├── MANIFEST.md              # ordered list, one row per patch: file, guard, rationale, LOC delta
-├── tinyx/
-│   ├── 0001-main-server-fiber-entry.patch
-│   ├── 0002-miinitext-minimal-extensions.patch
-│   ├── 0003-utils-guard-process-deps.patch
-│   ├── 0004-osinit-guard-rlimit-and-log-redirect.patch
-│   ├── 0005-log-guard-file-rotation.patch
-│   ├── 0006-osdep-guard-fdset.patch
-│   ├── 0007-strlcpy-stddef.patch
-│   ├── 0008-kinput-project-input.patch
-│   ├── 0009-kdrive-project-buttons.patch
-│   ├── 0010-kdrive-project-lifecycle.patch
-│   ├── 0011-extension-registration-observation.patch
-│   ├── 0012-unsigned-visual-mask.patch
-│   └── 0013-defined-bresenham-doubling.patch
-├── libX11/
-│   ├── 0001-Xlibint-data-macro-buffer-growth.patch
-│   ├── 0002-XlibInt-guard-socket-helpers.patch
-│   └── 0003-OpenDis-internal-setup-source.patch
-└── jwm/
-    ├── 0001-jwm-h-guard-posix-includes.patch
-    ├── 0002-event-cooperative-loop.patch
-    └── 0003-command-inproc-app-table.patch
+├── MANIFEST.md              # generated human-readable reasons and LOC deltas
+├── manifest.json            # exact baseline/result hashes, selectors and caps
+├── tinyx/                  # 15 replayable patches
+├── libX11/                 # 10 replayable patches
+└── X11/                    # 2 shared-header patches
 ```
 
 ### 8.6 Q5 exit gate
 
 ```bash
-# every patch applies to a pristine upstream checkout
-for tree in tinyx libX11 jwm; do
-    git -C /tmp/pristine/$tree apply --check patches/$tree/*.patch || exit 1
-done
-
-# inventory project/profile guards, including presence-based TinyX guards
-grep -rhE '^#(if|ifdef|ifndef).*WMB_[A-Z_]+' tinyx libX11 jwm \
-    | grep -oE 'WMB_[A-Z_]+' | sort -u
-# TinyX project edits use WMB_DEVEL; existing non-TinyX profile/client guards
-# and capability refinements are reviewed separately.
+python3 tools/check_portability.py --build-dir build-p6
+ctest --test-dir build-p6 --output-on-failure -R '^tinyx_p6_'
 ```
+
+The exact baseline is the unmodified repository import, with immutable
+per-file SHA-256 values, not an asserted official upstream release identity.
+The gate reconstructs that baseline, checks/applies all patches, preserves notice
+bytes, compiles/compares 20 reference units and checks one/zero/empty variants.
+It audits all 452 active selected units and complete archives; it does not
+mistake preserved reference includes or libc implementation headers for active
+project OS dependencies. Target-floor/freestanding proof remains Q6/P9.
 
 ## 9. Phase Q6 — Freestanding Proof
 

@@ -1,0 +1,48 @@
+--- a/tinyx/os/osinit.c
++++ b/tinyx/os/osinit.c
+@@ -67,7 +67,9 @@
+ #endif
+ #endif
+ 
++#if !defined(WMB_DEVEL)
+ #include <sys/resource.h>
++#endif
+ 
+ #ifndef ADMPATH
+ #define ADMPATH "/usr/adm/X%smsgs"
+@@ -87,6 +89,7 @@
+ void
+ OsInit(void)
+ {
++#if !defined(WMB_DEVEL)
+     static Bool been_here = FALSE;
+     static char* admpath = ADMPATH;
+     static char* devnull = "/dev/null";
+@@ -178,13 +181,18 @@
+ 	LockServer();
+ 	been_here = TRUE;
+     }
++#endif
+     TimerInit();
+     OsVendorInit();
+ 
+ #ifdef SMART_SCHEDULE
++#if defined(WMB_DEVEL)
++    SmartScheduleDisable = TRUE;
++#else
+     if (!SmartScheduleDisable)
+ 	if (!SmartScheduleInit ())
+ 	    SmartScheduleDisable = TRUE;
++#endif
+ #endif
+     OsInitAllocator();
+ }
+@@ -194,6 +202,8 @@
+ {
+     if (terminating)
+     {
++#if !defined(WMB_DEVEL)
+ 	UnlockServer();
++#endif
+     }
+ }

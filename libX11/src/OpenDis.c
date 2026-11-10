@@ -244,9 +244,11 @@ XOpenDisplay (
 	xlib_buffer_size = getenv("XLIBBUFFERSIZE");
 #endif
 
+#if !defined(WMB_INPROC)
 #ifdef __sun /* Backwards compatibility for old Solaris libX11 name */
 	if (xlib_buffer_size == NULL)
 	    xlib_buffer_size = getenv("XSUNBUFFERSIZE");
+#endif
 #endif
 
 	if (xlib_buffer_size == NULL)
@@ -488,12 +490,14 @@ XOpenDisplay (
 			u.vp = (xVisualType *) (((char *) u.vp) +
 						sz_xVisualType);
 		    }
+#if !defined(WMB_INPROC)
 		    if (dp->depth == 32 && getenv ("XLIB_SKIP_ARGB_VISUALS"))
 		    {
 			Xfree (dp->visuals);
 			dp->visuals = NULL;
 			dp->nvisuals = 0;
 		    }
+#endif
 		} else {
 		    dp->visuals = (Visual *) NULL;
 		}

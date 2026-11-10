@@ -16,7 +16,11 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#if defined(WMB_DEVEL)
+#include <stddef.h>
+#else
 #include <sys/types.h>
+#endif
 #include <string.h>
 
 /*

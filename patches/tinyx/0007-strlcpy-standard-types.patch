@@ -1,0 +1,14 @@
+--- a/tinyx/os/strlcpy.c
++++ b/tinyx/os/strlcpy.c
+@@ -16,7 +16,11 @@
+  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+  */
+ 
++#if defined(WMB_DEVEL)
++#include <stddef.h>
++#else
+ #include <sys/types.h>
++#endif
+ #include <string.h>
+ 
+ /*

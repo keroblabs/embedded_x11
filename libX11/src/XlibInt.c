@@ -40,7 +40,9 @@ from The Open Group.
 #include "Xlibint.h"
 #include "Xprivate.h"
 #include "reallocarray.h"
+#if !defined(WMB_INPROC)
 #include <X11/Xpoll.h>
+#endif
 #include <assert.h>
 #include <stdio.h>
 #ifdef WIN32
@@ -48,6 +50,7 @@ from The Open Group.
 #endif
 
 /* Needed for FIONREAD on Solaris */
+#if !defined(WMB_INPROC)
 #ifdef HAVE_SYS_FILIO_H
 #include <sys/filio.h>
 #endif
@@ -56,10 +59,13 @@ from The Open Group.
 #ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
 #endif
+#endif
 
 /* Needed for ioctl() on Solaris */
+#if !defined(WMB_INPROC)
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#endif
 #endif
 
 #ifdef XTHREADS
@@ -1714,12 +1720,14 @@ _XData32(
  *       and so, you may be better off using gethostname (if it exists).
  */
 
+#if !defined(WMB_INPROC)
 #if (defined(_POSIX_SOURCE) && !defined(AIXV3) && !defined(__QNX__)) || defined(hpux) || defined(SVR4)
 #define NEED_UTSNAME
 #include <sys/utsname.h>
 #else
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#endif
 #endif
 #endif
 
@@ -1732,6 +1740,13 @@ int _XGetHostname (
 {
     int len;
 
+#if defined(WMB_INPROC)
+    if (maxlen <= 0 || buf == NULL)
+        return 0;
+    len = maxlen > 3 ? 3 : maxlen - 1;
+    memcpy(buf, "WMB", (size_t)len);
+    buf[len] = '\0';
+#else
 #ifdef NEED_UTSNAME
     struct utsname name;
 
@@ -1752,6 +1767,7 @@ int _XGetHostname (
     buf [maxlen - 1] = '\0';
     len = (int) strlen(buf);
 #endif /* NEED_UTSNAME */
+#endif
     return len;
 }
 

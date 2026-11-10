@@ -8,7 +8,7 @@ Damage to the framebuffer HAL, and reaches upstream `Dispatch()`.
 ## Build and run
 
 From the repository root, with CMake 3.16+, a GNU-compatible C11 compiler/linker,
-`patch`, SDL2 development files, zlib development files, and libfontenc:
+`patch`, Python 3.10+, SDL2 development files and zlib development files:
 
 ```sh
 cmake -S . -B build-p4 -DWMB_TINYX_BUILD_SERVER=ON \
@@ -22,7 +22,8 @@ Close the display window to shut down. The main thread owns the hosted runtime;
 the X server runs in the named `xsrv` fiber. No safety/preemption tick is armed.
 
 The first configure downloads the pinned libXfont 1.5.4 source, verifies its
-SHA-256, applies two narrowly scoped bitmap-font repairs, and builds the selected
+SHA-256, applies two narrowly scoped bitmap-font repairs plus the built-in-only
+profile patch, and builds the selected
 font sources locally. No packages are installed globally. The library uses its
 embedded fonts, not a font directory or FreeType. See
 [reference configuration and dependencies](../../docs/reference/README.md).
@@ -80,7 +81,7 @@ behavior reports are not suppressed.
 | [generated configuration templates](../../cmake/) | Shared configuration prefix; all server-side X protocol types must agree |
 | [server.c](server.c), [server.h](server.h) | Fiber entry/lifecycle, root validation and registered-extension observation |
 | [host application](../../linux_hosted/apps/wmb_host/wmb_host.c) | Hosted idle sleep, user entry point and measurable integration gate |
-| [OS replacement files](../os/) | No-client connection/I/O surface, cooperative wait, timers and excluded services |
+| [OS replacement files](../os/) | In-process connection/I/O, typed cooperative waits, timers and explicitly excluded services |
 | [HAL port](../kdrive/hal/README.md) | Fixed-mode RandR, framebuffer/Damage/input adaptation; no scheduler or SDL policy |
 
 A consumer links the real server and KDrive archives in a linker rescan group,
@@ -100,6 +101,8 @@ separate from the P4 root-only assertion.
 P5 verifies same-address-space client request/reply/event delivery. Neither phase
 proves JWM, the shipping multi-font registry, preemptive scheduling, external ABI
 callers, or a freestanding/embedded server image.
-Remaining OS/libc portability work stays in the later phases.
+The [P6 guide](../../docs/48-p6-portability.md) documents the completed
+active-header/native-symbol and patch-replay gates. Target libc/console/
+allocator/freestanding closure remains P9.
 
 Follow [the project methodology](../../docs/47-tinyx-project-methodology.md).

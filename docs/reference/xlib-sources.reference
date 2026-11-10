@@ -1,4 +1,4 @@
-# P5 retained client/API cohort; review exclusions before regenerating.
+# P6 retained client/API cohort; unsupported locale/resource backends are excluded.
 libX11/src/AllCells.c
 libX11/src/AllPlanes.c
 libX11/src/AllowEv.c
@@ -39,6 +39,7 @@ libX11/src/CrBFData.c
 libX11/src/CrCmap.c
 libX11/src/CrCursor.c
 libX11/src/CrGC.c
+libX11/src/CrGlCur.c
 libX11/src/CrPFBData.c
 libX11/src/CrPixmap.c
 libX11/src/CrWindow.c
@@ -48,7 +49,6 @@ libX11/src/DelProp.c
 libX11/src/Depths.c
 libX11/src/DestSubs.c
 libX11/src/DestWind.c
-libX11/src/DisName.c
 libX11/src/DrArc.c
 libX11/src/DrArcs.c
 libX11/src/DrLine.c
@@ -62,7 +62,6 @@ libX11/src/ErrDes.c
 libX11/src/ErrHndlr.c
 libX11/src/EvToWire.c
 libX11/src/FSSaver.c
-libX11/src/FSWrap.c
 libX11/src/FetchName.c
 libX11/src/FillArc.c
 libX11/src/FillArcs.c
@@ -85,7 +84,6 @@ libX11/src/GCMisc.c
 libX11/src/Geom.c
 libX11/src/GetAtomNm.c
 libX11/src/GetColor.c
-libX11/src/GetDflt.c
 libX11/src/GetEventData.c
 libX11/src/GetFPath.c
 libX11/src/GetFProp.c
@@ -143,10 +141,7 @@ libX11/src/Misc.c
 libX11/src/ModMap.c
 libX11/src/MoveWin.c
 libX11/src/NextEvent.c
-libX11/src/OCWrap.c
-libX11/src/OMWrap.c
 libX11/src/OpenDis.c
-libX11/src/ParseCmd.c
 libX11/src/ParseCol.c
 libX11/src/ParseGeom.c
 libX11/src/PeekEvent.c
@@ -175,7 +170,6 @@ libX11/src/QuTileShp.c
 libX11/src/QuTree.c
 libX11/src/Quarks.c
 libX11/src/RaiseWin.c
-libX11/src/RdBitF.c
 libX11/src/RecolorC.c
 libX11/src/ReconfWM.c
 libX11/src/ReconfWin.c
@@ -245,12 +239,10 @@ libX11/src/WarpPtr.c
 libX11/src/WinEvent.c
 libX11/src/Window.c
 libX11/src/Withdraw.c
-libX11/src/WrBitF.c
 libX11/src/XlibAsync.c
 libX11/src/XlibInt.c
 libX11/src/evtomask.c
 libX11/src/globals.c
-libX11/src/imConv.c
 libX11/src/reallocarray.c
 transport/x11/wmb_close.c
 transport/x11/wmb_transport.c

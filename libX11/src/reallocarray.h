@@ -25,7 +25,11 @@
 #include <config.h>
 #endif
 
+#if defined(WMB_INPROC)
+#include <stddef.h>
+#else
 #include <sys/types.h>
+#endif
 #include <stdlib.h>
 #include <X11/Xfuncproto.h>
 

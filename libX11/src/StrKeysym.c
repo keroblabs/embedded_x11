@@ -52,6 +52,10 @@ static XrmQuark Qkeysym[2];
 XrmDatabase
 _XInitKeysymDB(void)
 {
+#if defined(WMB_INPROC)
+    initialized = True;
+    return NULL;
+#else
     if (!initialized)
     {
 	const char *dbname;
@@ -68,6 +72,7 @@ _XInitKeysymDB(void)
 	initialized = True;
     }
     return keysymdb;
+#endif
 }
 
 KeySym
@@ -109,6 +114,7 @@ XStringToKeysym(_Xconst char *s)
 	    i -= KTABLESIZE;
     }
 
+#if !defined(WMB_INPROC)
     if (!initialized)
 	(void)_XInitKeysymDB();
     if (keysymdb)
@@ -135,6 +141,7 @@ XStringToKeysym(_Xconst char *s)
 	    return val;
 	}
     }
+#endif
 
     if (*s == 'U') {
     	val = 0;

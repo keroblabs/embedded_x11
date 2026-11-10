@@ -68,7 +68,7 @@ the reserved portable `wmb_main()`/external ABI lifecycle is still later work.
 | P3 | — | — |
 | P4 | `wmb_boot.c` creates the server fiber and calls `TinyX_ServerFiber` | Light |
 | **P5** | **Implemented hosted client gate** — retained Xlib, real wire transport, queues and visible client | **Heavy** |
-| **P6** | Formalize three library guards and remaining portability work | Medium |
+| **P6** | **Implemented and verified:** ten library guards, supported-profile exclusions and replay/native dependency gates | Medium |
 | P7 | The server-readiness gate inside `wmb_main()`; `wmb_app_table` plumbing | Light |
 | **P8** | **Primary owner** — the external ABI, the wrapper, `wmb_hello` | **Heavy** |
 | P9 | `wmb_boot.c`'s freestanding half, `.wmb_api` placement, the link floor | Medium |
@@ -118,7 +118,7 @@ demonstration surface, not to this module.
 ### 4.3 The `Data()` edit is the highest-leverage line in the project
 
 The matching client header and `XlibInt.c` prepare complete batches under
-`WMB_INPROC`; the 253 retained native source files are frozen independently of
+`WMB_INPROC`; the 245 retained native source files are frozen independently of
 the three owned client adapters. Two consequences remain important:
 
 - Upstream code does `GetReq(...); req->field = x; Data(...); req->other = y;` — **a reallocation invalidates a live `xReq*`** (risk R2). The grow
@@ -140,21 +140,36 @@ the three owned client adapters. Two consequences remain important:
   the reason the test exists.**
 - [x] Valgrind: no errors, no definitely/possibly lost bytes over the sixty-second client session.
 
-## 5. Phase P6 — The Three `libX11/` Guards
+## 5. Phase P6 — Verified Client Portability
+
+The old three-file estimate missed public/header, resource-name, macro/XCB and
+environment dependencies. The user-approved D-54 expands the cap to ten narrow
+guarded files; [the manifest](../patches/MANIFEST.md) is authoritative.
 
 | # | File | Guard | Edit |
 |--:|---|---|---|
 | 9 | `libX11/include/X11/Xlibint.h` | `WMB_INPROC` | Matching client header, complete-builder growth and single-threaded profile |
 | 10 | `libX11/src/XlibInt.c` | `WMB_INPROC` | Guard the `<sys/socket.h>` / `<sys/ioctl.h>` / `<sys/utsname.h>` block and the fd-based `_XWaitForReadable` / `_XWaitForWritable` helpers; **keep error handling and `_XEatData`** |
 | 19 | `libX11/src/OpenDis.c` | `WMB_INPROC` | Reuse actual setup parsing with internal connection/setup/close hooks |
+| 22 | `libX11/include/X11/Xlib.h` | `WMB_INPROC` | Standard public types |
+| 23/24 | `libX11/src/reallocarray.c`, `reallocarray.h` | `WMB_INPROC` | Retained checked allocation and standard headers |
+| 25 | `libX11/src/Macros.c` | `WMB_INPROC` | Macro functions without native XCB/locking headers |
+| 26/27 | `libX11/src/StrKeysym.c`, `KeysymStr.c` | `WMB_INPROC` | Built-in/Unicode names without host resource files |
+| 28 | `libX11/src/WMProps.c` | `WMB_INPROC` | Explicit caller hints, WMB identity and C locale |
 
-- [ ] All three patches replay on a pristine `libX11` checkout (S7).
-- [x] `libX11/` guarded-file count **3**, within the existing cap (S6).
-- [ ] Gate N6: no `xcb` symbol anywhere in the link.
-- [ ] `grep -rl "SDL" libX11/` is empty (S1).
+- [x] Ten patches replay on exact pristine imported files and preserve reference compilation/notices.
+- [x] Ten guarded files remain within the expanded cap.
+- [x] No active native/XCB/pthread/backend headers or imports in the client archive.
+- [x] Whole-archive no-backend linkage, without garbage collection, passes.
+- [x] P5 regressions and P6 profile checks pass in Debug/Release and ASan/UBSan.
 
-The `libX11/` exclusions — `xcb_io.c`, `x11_xcb.c`, `locking.c`, `CrGlCur.c`, `os2Stubs.c`, `SetLocale.c`, `Xrm.c`, `lc*`, `xlibi18n/` — are a
-source-list matter, not a patch: **~8,800 LOC removed with no upstream diff at all**.
+The supported cohort excludes native transport, locale/fontset/input-method,
+resource-file and bitmap-file backends. Exported bitmap/default refusals diagnose
+unsupported use; in-memory APIs remain. `CrGlCur.c` is now retained with dynamic
+Xcursor disabled, rather than losing actual core glyph-cursor creation.
+`LockDis.c` supplies the threadless lock no-ops; duplicate owned definitions were
+removed after the whole-archive gate exposed them. See
+[the P6 guide](48-p6-portability.md) for all 248 selected units and exact gates.
 
 ## 6. Phase P8 — External ABI and Stability
 
@@ -228,7 +243,7 @@ regenerated in CI so that an upstream header change appears as a diff rather tha
 | | Value |
 |---|---|
 | New LOC | ~1,100 (P5) + ~700 (P8) |
-| Upstream files guarded | **3 of the `libX11/` cap of 3** - no remaining client slack |
+| Upstream files guarded | **10 of the `libX11/` cap of 10** - no remaining client slack |
 | Files this module *removes* from the build with no diff | ~10 kLOC of `libX11/src/` |
 
 ## 10. What to Do First

@@ -59,10 +59,12 @@ OR PERFORMANCE OF THIS SOFTWARE.
 #include <time.h>
 #include "misc.h"
 #include <X11/X.h>
+#if !defined(WMB_DEVEL)
 #define XSERV_t
 #define TRANS_SERVER
 #define TRANS_REOPEN
 #include <X11/Xtrans/Xtrans.h>
+#endif
 #include "input.h"
 #include "dixfont.h"
 #include "osdep.h"
@@ -70,6 +72,7 @@ OR PERFORMANCE OF THIS SOFTWARE.
 #include "hal_time.h"
 #endif
 #include "extension.h"
+#if !defined(WMB_DEVEL)
 #ifdef X_POSIX_C_SOURCE
 #define _POSIX_C_SOURCE X_POSIX_C_SOURCE
 #include <signal.h>
@@ -86,6 +89,7 @@ OR PERFORMANCE OF THIS SOFTWARE.
 #include <sys/wait.h>
 #include <sys/resource.h>
 #include <sys/stat.h>
+#endif
 #include <ctype.h>    /* for isspace */
 #include <stdarg.h>
 
@@ -131,8 +135,10 @@ _X_EXPORT Bool noXFree86BigfontExtension = FALSE;
 #endif
 _X_EXPORT Bool noXFixesExtension = FALSE;
 
+#if !defined(WMB_DEVEL)
 #define X_INCLUDE_NETDB_H
 #include <X11/Xos_r.h>
+#endif
 
 #include <errno.h>
 
@@ -156,6 +162,7 @@ long Memory_fail = 0;
 
 char *dev_tty_from_init = NULL;		/* since we need to parse it anyway */
 
+#if !defined(WMB_DEVEL)
 OsSigHandlerPtr
 OsSignal(sig, handler)
     int sig;
@@ -346,6 +353,7 @@ UnlockServer(void)
   (void) unlink(LockFile);
   }
 }
+#endif
 
 /* Force connections to close on SIGHUP from init */
 
@@ -399,6 +407,11 @@ GetTimeInMillis(void)
 _X_EXPORT void
 AdjustWaitForDelay (pointer waitTime, unsigned long newdelay)
 {
+#if defined(WMB_DEVEL)
+    CARD32 *delay = waitTime;
+    if (newdelay < *delay)
+        *delay = (CARD32)newdelay;
+#else
     static struct timeval   delay_val;
     struct timeval	    **wt = (struct timeval **) waitTime;
     unsigned long	    olddelay;
@@ -418,6 +431,7 @@ AdjustWaitForDelay (pointer waitTime, unsigned long newdelay)
 	    (*wt)->tv_usec = 1000 * (newdelay % 1000);
 	}
     }
+#endif
 }
 
 void UseMsg(void)
@@ -458,7 +472,9 @@ void UseMsg(void)
 #ifdef RLIMIT_STACK
     ErrorF("-ls int                limit stack space to N Kb\n");
 #endif
+#if !defined(WMB_DEVEL)
     ErrorF("-nolock                disable the locking mechanism\n");
+#endif
 #ifndef NOLOGOHACK
     ErrorF("-logo                  enable logo in screen saver\n");
     ErrorF("nologo                 disable logo in screen saver\n");
@@ -697,6 +713,7 @@ ProcessCommandLine(int argc, char *argv[])
 		UseMsg();
 	}
 #endif
+#if !defined(WMB_DEVEL)
 	else if ( strcmp ( argv[i], "-nolock") == 0)
 	{
 	  if (getuid() != 0)
@@ -704,6 +721,7 @@ ProcessCommandLine(int argc, char *argv[])
 	  else
 	    nolock = TRUE;
 	}
+#endif
 #ifndef NOLOGOHACK
 	else if ( strcmp( argv[i], "-logo") == 0)
 	{
@@ -996,8 +1014,10 @@ unsigned long	SmartScheduleIdleCount;
 Bool		SmartScheduleIdle;
 Bool		SmartScheduleTimerStopped;
 
+#if !defined(WMB_DEVEL)
 #ifdef SIGVTALRM
 #define SMART_SCHEDULE_POSSIBLE
+#endif
 #endif
 
 #ifdef SMART_SCHEDULE_POSSIBLE
@@ -1086,14 +1106,17 @@ SmartScheduleInit (void)
 }
 #endif
 
+#if !defined(WMB_DEVEL)
 #ifdef SIG_BLOCK
 static sigset_t	PreviousSignalMask;
 static int	BlockedSignalCount;
+#endif
 #endif
 
 void
 OsBlockSignals (void)
 {
+#if !defined(WMB_DEVEL)
 #ifdef SIG_BLOCK
     if (BlockedSignalCount++ == 0)
     {
@@ -1102,6 +1125,7 @@ OsBlockSignals (void)
 	sigemptyset (&set);
 #ifdef SIGALRM
 	sigaddset (&set, SIGALRM);
+#endif
 #endif
 #ifdef SIGVTALRM
 	sigaddset (&set, SIGVTALRM);
@@ -1132,14 +1156,17 @@ OsBlockSignals (void)
 void
 OsReleaseSignals (void)
 {
+#if !defined(WMB_DEVEL)
 #ifdef SIG_BLOCK
     if (--BlockedSignalCount == 0)
     {
 	sigprocmask (SIG_SETMASK, &PreviousSignalMask, 0);
     }
 #endif
+#endif
 }
 
+#if !defined(WMB_DEVEL)
 /*
  * "safer" versions of system(3), popen(3) and pclose(3) which give up
  * all privs before running a command.
@@ -1648,3 +1675,4 @@ void
 CheckUserAuthorization(void)
 {
 }
+#endif

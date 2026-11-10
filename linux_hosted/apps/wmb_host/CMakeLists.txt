@@ -23,7 +23,7 @@ set_tests_properties(tinyx_p5_raw PROPERTIES
     PASS_REGULAR_EXPRESSION "P5 raw:.*PASS" TIMEOUT 15)
 add_test(NAME tinyx_p5_client COMMAND wmb_host --client-test)
 set_tests_properties(tinyx_p5_client PROPERTIES
-    ENVIRONMENT "SDL_VIDEODRIVER=dummy;SDL_RENDER_DRIVER=software"
+    ENVIRONMENT "SDL_VIDEODRIVER=dummy;SDL_RENDER_DRIVER=software;RESOURCE_NAME=ignored-native-environment"
     PASS_REGULAR_EXPRESSION "P5 client PASS: close" TIMEOUT 35)
 add_test(NAME tinyx_p5_flow COMMAND wmb_host --flow-test)
 set_tests_properties(tinyx_p5_flow PROPERTIES

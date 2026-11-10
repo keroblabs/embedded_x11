@@ -1,6 +1,7 @@
 set(XLIB_ROOT "${CMAKE_CURRENT_LIST_DIR}")
 file(GLOB XLIB_SOURCES CONFIGURE_DEPENDS "${XLIB_ROOT}/src/*.c")
-foreach(name xcb_io xcb_disp x11_xcb locking CrGlCur os2Stubs SetLocale Xrm ClDisplay)
+foreach(name xcb_io xcb_disp x11_xcb locking os2Stubs SetLocale Xrm ClDisplay
+    DisName GetDflt ParseCmd FSWrap OCWrap OMWrap imConv RdBitF WrBitF)
     list(REMOVE_ITEM XLIB_SOURCES "${XLIB_ROOT}/src/${name}.c")
 endforeach()
 configure_file("${PROJECT_SOURCE_DIR}/cmake/xlib-config.h.in"

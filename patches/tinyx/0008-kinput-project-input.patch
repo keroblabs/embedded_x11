@@ -1,0 +1,492 @@
+--- a/tinyx/kdrive/src/kinput.c
++++ b/tinyx/kdrive/src/kinput.c
+@@ -33,7 +33,9 @@
+ #include <X11/XF86keysym.h>
+ #endif
+ #include "kkeymap.h"
++#if !defined(WMB_DEVEL)
+ #include <signal.h>
++#endif
+ #include <stdio.h>
+ 
+ static DeviceIntPtr pKdKeyboard, pKdPointer;
+@@ -49,6 +51,9 @@
+ static int kdBellDuration;
+ 
+ static int kdLeds;
++#if defined(WMB_DEVEL)
++static unsigned int locks;
++#endif
+ 
+ static Bool kdInputEnabled;
+ 
+@@ -77,12 +82,17 @@
+ 
+ void KdResetInputMachine(void);
+ 
++#if defined(WMB_DEVEL)
++#define KD_KEY_COUNT		MAP_LENGTH
++#else
+ #define KD_KEY_COUNT		248
++#endif
+ 
+ CARD8 kdKeyState[KD_KEY_COUNT / 8];
+ 
+ #define IsKeyDown(key) ((kdKeyState[(key) >> 3] >> ((key) & 7)) & 1)
+ 
++#if !defined(WMB_DEVEL)
+ #define KD_MAX_INPUT_FDS    8
+ 
+ typedef struct _kdInputFd {
+@@ -96,8 +106,10 @@
+ 
+ static KdInputFd kdInputFds[KD_MAX_INPUT_FDS];
+ static int kdNumInputFds;
++#endif
+ static int kdInputTypeSequence;
+ 
++#if !defined(WMB_DEVEL)
+ static void KdSigio(int sig)
+ {
+ 	int i;
+@@ -105,27 +117,32 @@
+ 	for (i = 0; i < kdNumInputFds; i++)
+ 		(*kdInputFds[i].read) (kdInputFds[i].fd, kdInputFds[i].closure);
+ }
++#endif
+ 
+ static void KdBlockSigio(void)
+ {
++#if !defined(WMB_DEVEL)
+ 	sigset_t set;
+ 
+ 	sigemptyset(&set);
+ 	sigaddset(&set, SIGIO);
+ 	sigprocmask(SIG_BLOCK, &set, 0);
++#endif
+ }
+ 
+ static void KdUnblockSigio(void)
+ {
++#if !defined(WMB_DEVEL)
+ 	sigset_t set;
+ 
+ 	sigemptyset(&set);
+ 	sigaddset(&set, SIGIO);
+ 	sigprocmask(SIG_UNBLOCK, &set, 0);
++#endif
+ }
+ 
+ #undef VERIFY_SIGIO
+-#ifdef VERIFY_SIGIO
++#if defined(VERIFY_SIGIO) && !defined(WMB_DEVEL)
+ 
+ void KdAssertSigioBlocked(char *where)
+ {
+@@ -143,6 +160,7 @@
+ 
+ #endif
+ 
++#if !defined(WMB_DEVEL)
+ static int kdnFds;
+ 
+ #ifdef FNONBLOCK
+@@ -199,6 +217,7 @@
+ 		sigaction(SIGIO, &act, 0);
+ 	}
+ }
++#endif
+ 
+ int KdAllocInputType(void)
+ {
+@@ -209,6 +228,11 @@
+ KdRegisterFd(int type, int fd, void (*read) (int fd, void *closure),
+ 	     void *closure)
+ {
++#if defined(WMB_DEVEL)
++	(void)type; (void)fd; (void)read; (void)closure;
++	ErrorF("WMB TinyX does not support native input file descriptors\n");
++	return FALSE;
++#else
+ 	if (kdNumInputFds == KD_MAX_INPUT_FDS)
+ 		return FALSE;
+ 	kdInputFds[kdNumInputFds].type = type;
+@@ -221,6 +245,7 @@
+ 	if (kdInputEnabled)
+ 		KdAddFd(fd);
+ 	return TRUE;
++#endif
+ }
+ 
+ void
+@@ -228,6 +253,10 @@
+ 			  int (*enable) (int fd, void *closure),
+ 			  void (*disable) (int fd, void *closure))
+ {
++#if defined(WMB_DEVEL)
++	(void)fd; (void)enable; (void)disable;
++	ErrorF("WMB TinyX does not support native input file descriptors\n");
++#else
+ 	int i;
+ 
+ 	for (i = 0; i < kdNumInputFds; i++)
+@@ -236,10 +265,14 @@
+ 			kdInputFds[i].disable = disable;
+ 			break;
+ 		}
++#endif
+ }
+ 
+ void KdUnregisterFds(int type, Bool do_close)
+ {
++#if defined(WMB_DEVEL)
++	(void)type; (void)do_close;
++#else
+ 	int i, j;
+ 
+ 	for (i = 0; i < kdNumInputFds;) {
+@@ -254,30 +287,42 @@
+ 		} else
+ 			i++;
+ 	}
++#endif
+ }
+ 
+ void KdDisableInput(void)
+ {
++#if !defined(WMB_DEVEL)
+ 	int i;
++#endif
+ 
+ 	KdBlockSigio();
+ 
++#if !defined(WMB_DEVEL)
+ 	for (i = 0; i < kdNumInputFds; i++) {
+ 		KdRemoveFd(kdInputFds[i].fd);
+ 		if (kdInputFds[i].disable)
+ 			(*kdInputFds[i].disable) (kdInputFds[i].fd,
+ 						  kdInputFds[i].closure);
+ 	}
++#endif
+ 	kdInputEnabled = FALSE;
+ }
+ 
+ void KdEnableInput(void)
+ {
++#if defined(WMB_DEVEL)
++	xEvent xE = {0};
++#else
+ 	xEvent xE;
+-
++#endif
++
++#if !defined(WMB_DEVEL)
+ 	int i;
++#endif
+ 
+ 	kdInputEnabled = TRUE;
++#if !defined(WMB_DEVEL)
+ 	for (i = 0; i < kdNumInputFds; i++) {
+ 		KdNonBlockFd(kdInputFds[i].fd);
+ 		if (kdInputFds[i].enable)
+@@ -286,6 +331,7 @@
+ 						     kdInputFds[i].closure);
+ 		KdAddFd(kdInputFds[i].fd);
+ 	}
++#endif
+ 
+ 	/* reset screen saver */
+ 	xE.u.keyButtonPointer.time = GetTimeInMillis();
+@@ -294,13 +340,28 @@
+ 	KdUnblockSigio();
+ }
+ 
++#if defined(WMB_DEVEL)
++static void KdPointerControl(DeviceIntPtr device, PtrCtrl *control)
++{
++	(void)device;
++	(void)control;
++}
++#endif
++
+ static int KdMouseProc(DeviceIntPtr pDevice, int onoff)
+ {
++#if defined(WMB_DEVEL)
++	BYTE map[KD_MAX_BUTTON + 1] = {0};
++#else
+ 	BYTE map[KD_MAX_BUTTON];
++#endif
+ 
+ 	DevicePtr pDev = (DevicePtr) pDevice;
+ 
+ 	int i;
++#if defined(WMB_DEVEL)
++	KdMouseInfo *mi;
++#endif
+ 
+ 	if (!pDev)
+ 		return BadImplementation;
+@@ -309,17 +370,36 @@
+ 	case DEVICE_INIT:
+ 		for (i = 1; i <= kdMouseButtonCount; i++)
+ 			map[i] = i;
++#if defined(WMB_DEVEL)
++		if (!InitPointerDeviceStruct(pDev, map, kdMouseButtonCount,
++					miPointerGetMotionEvents,
++					KdPointerControl,
++					miPointerGetMotionBufferSize()))
++			return BadImplementation;
++#else
+ 		InitPointerDeviceStruct(pDev, map, kdMouseButtonCount,
+ 					miPointerGetMotionEvents,
+ 					(PtrCtrlProcPtr) NoopDDA,
+ 					miPointerGetMotionBufferSize());
++#endif
+ 		break;
+ 
+ 	case DEVICE_ON:
++#if defined(WMB_DEVEL)
++		pKdPointer = pDevice;
++		for (i = 0; i < kdNMouseFuncs; i++)
++			if (!(*kdMouseFuncs[i]->Init) ()) {
++				while (i > 0) (*kdMouseFuncs[--i]->Fini) ();
++				pKdPointer = NULL;
++				return BadImplementation;
++			}
++		pDev->on = TRUE;
++#else
+ 		pDev->on = TRUE;
+ 		pKdPointer = pDevice;
+ 		for (i = 0; i < kdNMouseFuncs; i++)
+ 			(*kdMouseFuncs[i]->Init) ();
++#endif
+ 		break;
+ 	case DEVICE_OFF:
+ 	case DEVICE_CLOSE:
+@@ -328,6 +408,10 @@
+ 			pKdPointer = 0;
+ 			for (i = 0; i < kdNMouseFuncs; i++)
+ 				(*kdMouseFuncs[i]->Fini) ();
++#if defined(WMB_DEVEL)
++			for (mi = kdMouseInfo; mi; mi = mi->next)
++				mi->buttonState = 0;
++#endif
+ 		}
+ 		break;
+ 	}
+@@ -441,14 +525,28 @@
+ 			return BadImplementation;
+ 		break;
+ 	case DEVICE_ON:
++#if defined(WMB_DEVEL)
++		pKdKeyboard = pDevice;
++		if (kdKeyboardFuncs)
++			if (!(*kdKeyboardFuncs->Init) ()) {
++				pKdKeyboard = NULL;
++				return BadImplementation;
++			}
++		pDev->on = TRUE;
++#else
+ 		pDev->on = TRUE;
+ 		pKdKeyboard = pDevice;
+ 		if (kdKeyboardFuncs)
+ 			(*kdKeyboardFuncs->Init) ();
++#endif
+ 		break;
+ 	case DEVICE_OFF:
+ 	case DEVICE_CLOSE:
+ 		pKdKeyboard = 0;
++#if defined(WMB_DEVEL)
++		locks = 0;
++		memset(kdKeyState, 0, sizeof(kdKeyState));
++#endif
+ 		if (pDev->on) {
+ 			pDev->on = FALSE;
+ 			if (kdKeyboardFuncs)
+@@ -546,6 +644,10 @@
+ 		KdParseMouse(0);
+ 	kdMouseButtonCount = 0;
+ 	for (mi = kdMouseInfo; mi; mi = mi->next) {
++#if defined(WMB_DEVEL)
++		if (mi->nbutton < 1 || mi->nbutton > KD_MAX_BUTTON)
++			FatalError("Invalid KDrive pointer button count\n");
++#endif
+ 		if (mi->nbutton > kdMouseButtonCount)
+ 			kdMouseButtonCount = mi->nbutton;
+ 	}
+@@ -553,6 +655,9 @@
+ 	kdNMouseFuncs = 0;
+ 	KdAddMouseDriver(pMouseFuncs);
+ 	kdKeyboardFuncs = pKeyboardFuncs;
++#if defined(WMB_DEVEL)
++	locks = 0;
++#endif
+ 	memset(kdKeyState, '\0', sizeof(kdKeyState));
+ 	if (kdKeyboardFuncs)
+ 		(*kdKeyboardFuncs->Load) ();
+@@ -571,6 +676,10 @@
+ 	KdResetInputMachine();
+ 	pPointer = AddInputDevice(KdMouseProc, TRUE);
+ 	pKeyboard = AddInputDevice(KdKeybdProc, TRUE);
++#if defined(WMB_DEVEL)
++	if (!pPointer || !pKeyboard)
++		FatalError("KDrive input-device allocation failed\n");
++#endif
+ 	RegisterPointerDevice(pPointer);
+ 	RegisterKeyboardDevice(pKeyboard);
+ 	miRegisterPointerDevice(screenInfo.screens[0], pPointer);
+@@ -1162,7 +1271,11 @@
+ 
+ void KdReleaseAllKeys(void)
+ {
++#if defined(WMB_DEVEL)
++	xEvent xE = {0};
++#else
+ 	xEvent xE;
++#endif
+ 
+ 	int key;
+ 
+@@ -1179,10 +1292,19 @@
+ 
+ static void KdCheckLock(void)
+ {
++#if defined(WMB_DEVEL)
++	KeyClassPtr keyc;
++#else
+ 	KeyClassPtr keyc = pKdKeyboard->key;
++#endif
+ 
+ 	Bool isSet, shouldBeSet;
+ 
++#if defined(WMB_DEVEL)
++	if (!pKdKeyboard || !pKdKeyboard->key || !kdKeyboardFuncs)
++		return;
++	keyc = pKdKeyboard->key;
++#endif
+ 	if (kdKeyboardFuncs->LockLed) {
+ 		isSet = (kdLeds & (1 << (kdKeyboardFuncs->LockLed - 1))) != 0;
+ 		shouldBeSet = (keyc->state & LockMask) != 0;
+@@ -1247,9 +1369,13 @@
+ void KdEnqueueKeyboardEvent(unsigned char scan_code, unsigned char is_up)
+ {
+ 	unsigned char key_code;
++#if defined(WMB_DEVEL)
++	xEvent xE = {0};
++#else
+ 	static unsigned int locks = 0;
+ 
+ 	xEvent xE;
++#endif
+ 	KeyClassPtr keyc;
+ 
+ 	if (!pKdKeyboard)
+@@ -1285,7 +1411,11 @@
+ 				break;
+ 			}
+ 		}
++#if defined(WMB_DEVEL)
++		keyc->state = (keyc->state & ~(LockMask | Mod2Mask)) | locks;
++#else
+ 		keyc->state |= locks;
++#endif
+ 
+ 		/*
+ 		 * Check pressed keys which are already down
+@@ -1343,7 +1473,11 @@
+ {
+ 	PtrCtrl *pCtrl = &device->ptrfeed->ctrl;
+ 
++#if defined(WMB_DEVEL)
++	double speed = hypot((double)*dx, (double)*dy);
++#else
+ 	double speed = sqrt(*dx * *dx + *dy * *dy);
++#endif
+ 
+ 	double accel;
+ 
+@@ -1377,9 +1511,15 @@
+ {
+ 	CARD32 ms;
+ 
++#if defined(WMB_DEVEL)
++	xEvent xE = {0};
++
++	unsigned long buttons;
++#else
+ 	xEvent xE;
+ 
+ 	unsigned char buttons;
++#endif
+ 
+ 	int x, y;
+ 
+@@ -1424,9 +1564,15 @@
+ 	xE.u.u.detail = 0;
+ 	KdHandleMouseEvent(mi, &xE);
+ 
++#if defined(WMB_DEVEL)
++	buttons = flags & ((1UL << KD_MAX_BUTTON) - 1);
++
++	for (button = KD_BUTTON_1, n = 0; n < mi->nbutton && n < KD_MAX_BUTTON;
++#else
+ 	buttons = flags;
+ 
+ 	for (button = KD_BUTTON_1, n = 0; button <= KD_BUTTON_5;
++#endif
+ 	     button <<= 1, n++) {
+ 		if ((mi->buttonState & button) ^ (buttons & button)) {
+ 			if (buttons & button) {
+@@ -1441,7 +1587,11 @@
+ 
+ void KdEnqueueMotionEvent(KdMouseInfo * mi, int x, int y)
+ {
++#if defined(WMB_DEVEL)
++	xEvent xE = {0};
++#else
+ 	xEvent xE;
++#endif
+ 
+ 	CARD32 ms;
+ 
+@@ -1476,7 +1626,12 @@
+ 	/* if we need to poll for events, do that */
+ 	if (kdOsFuncs->pollEvents) {
+ 		(*kdOsFuncs->pollEvents) ();
++#if defined(WMB_DEVEL)
++		if (myTimeout == 0 || myTimeout > 20)
++			myTimeout = 20;
++#else
+ 		myTimeout = 20;
++#endif
+ 	}
+ 	if (myTimeout > 0)
+ 		AdjustWaitForDelay(timeout, myTimeout);
+@@ -1486,14 +1641,19 @@
+ KdWakeupHandler(int screen,
+ 		pointer data, unsigned long lresult, pointer readmask)
+ {
++#if !defined(WMB_DEVEL)
+ 	int result = (int)lresult;
+ 
+ 	fd_set *pReadmask = (fd_set *) readmask;
+ 
+ 	int i;
++#else
++	(void)lresult; (void)readmask;
++#endif
+ 
+ 	KdMouseInfo *mi;
+ 
++#if !defined(WMB_DEVEL)
+ 	if (kdInputEnabled && result > 0) {
+ 		for (i = 0; i < kdNumInputFds; i++)
+ 			if (FD_ISSET(kdInputFds[i].fd, pReadmask)) {
+@@ -1503,6 +1663,7 @@
+ 				KdUnblockSigio();
+ 			}
+ 	}
++#endif
+ 	for (mi = kdMouseInfo; mi; mi = mi->next) {
+ 		if (mi->timeoutPending) {
+ 			if ((long)(GetTimeInMillis() - mi->emulationTimeout) >=

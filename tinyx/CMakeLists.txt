@@ -63,3 +63,44 @@ target_link_libraries(wmb_tinyx_timer_test PRIVATE wmb_tinyx_config)
 target_compile_options(wmb_tinyx_timer_test PRIVATE -Wall -Wextra -Werror)
 add_test(NAME tinyx_p4_timers COMMAND wmb_tinyx_timer_test)
 set_tests_properties(tinyx_p4_timers PROPERTIES TIMEOUT 10)
+
+add_library(wmb_xlib_portability_test OBJECT
+    "${WMB_SOURCE_ROOT}/transport/x11/tests/profile_test.c")
+target_link_libraries(wmb_xlib_portability_test PRIVATE wmb_xlib)
+target_compile_options(wmb_xlib_portability_test PRIVATE -Wall -Wextra -Werror)
+
+add_library(wmb_font_portability_test OBJECT wmb/tests/font_profile_test.c)
+target_link_libraries(wmb_font_portability_test PRIVATE wmb_xfont)
+target_include_directories(wmb_font_portability_test PRIVATE
+    "${WMB_SOURCE_ROOT}" "${CMAKE_BINARY_DIR}/generated/xfont")
+target_compile_options(wmb_font_portability_test PRIVATE -Wall -Wextra -Werror)
+
+add_executable(wmb_portability_link wmb/tests/portability_link.c
+    wmb/tests/contract_stubs.c $<TARGET_OBJECTS:wmb_xlib_portability_test>
+    $<TARGET_OBJECTS:wmb_font_portability_test>)
+target_include_directories(wmb_portability_link PRIVATE
+    $<TARGET_PROPERTY:wmb_kdrive,INTERFACE_INCLUDE_DIRECTORIES>
+    $<TARGET_PROPERTY:wmb_xfont,INTERFACE_INCLUDE_DIRECTORIES>
+    $<TARGET_PROPERTY:wmb_framework,INTERFACE_INCLUDE_DIRECTORIES>)
+target_link_libraries(wmb_portability_link PRIVATE wmb_tinyx_config
+    -Wl,--start-group -Wl,--whole-archive
+    "$<TARGET_FILE:wmb_tinyx>" "$<TARGET_FILE:wmb_kdrive>"
+    "$<TARGET_FILE:wmb_xlib>" "$<TARGET_FILE:wmb_transport_core>"
+    "$<TARGET_FILE:wmb_xfont>" "$<TARGET_FILE:wmb_framework>"
+    -Wl,--no-whole-archive -Wl,--end-group ZLIB::ZLIB m)
+add_dependencies(wmb_portability_link wmb_tinyx wmb_kdrive wmb_xlib
+    wmb_transport_core wmb_xfont wmb_framework)
+target_compile_options(wmb_portability_link PRIVATE -Wall -Wextra -Werror)
+target_link_options(wmb_portability_link PRIVATE -Wl,--no-gc-sections
+    -Wl,--exclude-libs,libwmb_xlib.a)
+add_test(NAME tinyx_p6_detachability COMMAND wmb_portability_link)
+set_tests_properties(tinyx_p6_detachability PROPERTIES TIMEOUT 10)
+
+find_package(Python3 3.10 REQUIRED COMPONENTS Interpreter)
+file(GENERATE OUTPUT "${CMAKE_BINARY_DIR}/portability-targets.json" CONTENT
+    "{\"archives\":[\"$<TARGET_FILE:wmb_tinyx>\",\"$<TARGET_FILE:wmb_kdrive>\",\"$<TARGET_FILE:wmb_xlib>\",\"$<TARGET_FILE:wmb_xfont>\",\"$<TARGET_FILE:wmb_transport_core>\"],\"probe\":\"$<TARGET_FILE:wmb_portability_link>\"}\n")
+add_test(NAME tinyx_p6_portability COMMAND "${Python3_EXECUTABLE}"
+    "${WMB_SOURCE_ROOT}/tools/check_portability.py" --build-dir "${CMAKE_BINARY_DIR}")
+set_tests_properties(tinyx_p6_portability PROPERTIES TIMEOUT 120)
+add_test(NAME tinyx_p6_gate_checks COMMAND "${Python3_EXECUTABLE}"
+    "${WMB_SOURCE_ROOT}/tools/test_check_portability.py")

@@ -1,0 +1,37 @@
+--- a/libX11/src/StrKeysym.c
++++ b/libX11/src/StrKeysym.c
+@@ -52,6 +52,10 @@
+ XrmDatabase
+ _XInitKeysymDB(void)
+ {
++#if defined(WMB_INPROC)
++    initialized = True;
++    return NULL;
++#else
+     if (!initialized)
+     {
+ 	const char *dbname;
+@@ -68,6 +72,7 @@
+ 	initialized = True;
+     }
+     return keysymdb;
++#endif
+ }
+ 
+ KeySym
+@@ -109,6 +114,7 @@
+ 	    i -= KTABLESIZE;
+     }
+ 
++#if !defined(WMB_INPROC)
+     if (!initialized)
+ 	(void)_XInitKeysymDB();
+     if (keysymdb)
+@@ -135,6 +141,7 @@
+ 	    return val;
+ 	}
+     }
++#endif
+ 
+     if (*s == 'U') {
+     	val = 0;

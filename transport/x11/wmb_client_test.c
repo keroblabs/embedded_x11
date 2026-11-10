@@ -3,6 +3,7 @@
 #include <X11/Xlib.h>
 #include <X11/Xatom.h>
 #include <X11/Xutil.h>
+#include <X11/cursorfont.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -56,6 +57,27 @@ void wmb_xlib_test_client(void *argument)
     window = XCreateSimpleWindow(dpy, DefaultRootWindow(dpy), 20, 20, 240, 110,
         0, BlackPixel(dpy, 0), WhitePixel(dpy, 0));
     CHECK(window != None);
+    {
+        Cursor cursor = XCreateFontCursor(dpy, XC_left_ptr);
+        XClassHint hints = {.res_name = NULL, .res_class = "WMB"};
+        XClassHint actual;
+        XTextProperty machine;
+        char *arguments[] = {"wmb-client"};
+        CHECK(cursor != None);
+        XFreeCursor(dpy, cursor);
+        XSetWMProperties(dpy, window, NULL, NULL, arguments, 1, NULL, NULL, &hints);
+        CHECK(XGetClassHint(dpy, window, &actual));
+        CHECK(strcmp(actual.res_name, "wmb-client") == 0 &&
+              strcmp(actual.res_class, "WMB") == 0);
+        XFree(actual.res_name);
+        XFree(actual.res_class);
+        CHECK(XGetWMClientMachine(dpy, window, &machine));
+        CHECK(machine.format == 8 && machine.nitems == 3 &&
+              memcmp(machine.value, "WMB", 3) == 0);
+        XFree(machine.value);
+        XSync(dpy, False);
+        CHECK(errors == 0);
+    }
     result->window = (uint32_t)window;
     puts("P5 client PASS: create window");
     XSelectInput(dpy, window, ExposureMask | StructureNotifyMask | KeyPressMask |

@@ -1,0 +1,14 @@
+--- a/tinyx/os/strlcat.c
++++ b/tinyx/os/strlcat.c
+@@ -17,7 +17,11 @@
+  */
+ 
+ 
++#if defined(WMB_DEVEL)
++#include <stddef.h>
++#else
+ #include <sys/types.h>
++#endif
+ #include <string.h>
+ 
+ /*

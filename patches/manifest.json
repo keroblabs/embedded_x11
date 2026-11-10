@@ -1,0 +1,283 @@
+{
+  "baseline": "73ab9f28bccf8e2ff56638896a4d82f079a2e5a7",
+  "baseline_description": "Unmodified source files from the repository's initial import; not a claim that the entire import is an official upstream release.",
+  "caps": {
+    "tinyx": 15,
+    "libX11": 10,
+    "X11": 2,
+    "jwm": 4
+  },
+  "files": [
+    {
+      "file": "tinyx/dix/main.c",
+      "patch": "tinyx/0001-main-server-fiber-entry.patch",
+      "selector": "WMB_DEVEL",
+      "reason": "Server entry, lifecycle and native environment exclusion",
+      "base_sha256": "42c68192e3354997fd14c7c7d10afb5907e203cbdec258ae77f549fafb3d29e0",
+      "result_sha256": "e2fee9efbdecb1a4c8d0cb75d00d6acdf9f8d5baeccccb3dc3d4c6cdffb2bdce",
+      "added": 15,
+      "removed": 0
+    },
+    {
+      "file": "tinyx/mi/miinitext.c",
+      "patch": "tinyx/0002-miinitext-project-extensions.patch",
+      "selector": "WMB_DEVEL",
+      "reason": "Select implemented extensions without native SHM",
+      "base_sha256": "699737aac7a2c7b4ad89d1c1d33e06456dc209c68d352eff58696d425201b10b",
+      "result_sha256": "6214c7d1f5f920859c76857b0ffbf913914b1ba22e4235f0762cf1bbee45f56d",
+      "added": 4,
+      "removed": 1
+    },
+    {
+      "file": "tinyx/os/utils.c",
+      "patch": "tinyx/0003-utils-portable-runtime.patch",
+      "selector": "WMB_DEVEL",
+      "reason": "HAL time, millisecond deadlines and exclusion of process/signal/file helpers",
+      "base_sha256": "79d624a6f8dc50ae47d21796a896f1ed43c5974f14793fd17037f35b7f943af5",
+      "result_sha256": "d7d71cf278573e854c26a54b36bfea941b1527e24538780f7942864ee34f6544",
+      "added": 41,
+      "removed": 3
+    },
+    {
+      "file": "tinyx/os/osinit.c",
+      "patch": "tinyx/0004-osinit-no-process-setup.patch",
+      "selector": "WMB_DEVEL",
+      "reason": "Exclude native process limits, redirection and signal scheduler",
+      "base_sha256": "6f18afc6f1ab4c234540edcded802270e642b215c2a50a71a18dd5b8265f7fe6",
+      "result_sha256": "bed986f48758fe317434d47c2f1db3f714679a7e21ad776b2cd7e4f958f77629",
+      "added": 10,
+      "removed": 0
+    },
+    {
+      "file": "tinyx/os/log.c",
+      "patch": "tinyx/0005-log-monotonic-audit.patch",
+      "selector": "WMB_DEVEL",
+      "reason": "Monotonic audit prefix without process ID or wall clock",
+      "base_sha256": "a70d30794ef91e52b5e44245a2339a53206214c5590cbce9d31e5aebcbcff75a",
+      "result_sha256": "ba9c89ef3282584e26514d2eda2f1fcb2848d6207b6f7880759f1c73ad2176b3",
+      "added": 13,
+      "removed": 0
+    },
+    {
+      "file": "tinyx/os/osdep.h",
+      "patch": "tinyx/0006-osdep-no-native-fdsets.patch",
+      "selector": "WMB_DEVEL",
+      "reason": "Exclude native descriptors and fd-set declarations",
+      "base_sha256": "1b813669769791a505edda0aeb4e30b93296fc570f1cc7bfae1b3b9a0a9305e9",
+      "result_sha256": "47457bef640a4934d6e7ea0cc493967dee323f8b98e39df15ec33a56a8a07175",
+      "added": 13,
+      "removed": 0
+    },
+    {
+      "file": "tinyx/os/strlcpy.c",
+      "patch": "tinyx/0007-strlcpy-standard-types.patch",
+      "selector": "WMB_DEVEL",
+      "reason": "Use standard size_t header",
+      "base_sha256": "723ceef6dad9359c9c720e37d5f501c89224b5905aaf26e83326e6095aff8fc4",
+      "result_sha256": "25de3a2fe661b10faf082e668cbd08a702a48f7f8384fce22e6ae69acb30839f",
+      "added": 4,
+      "removed": 0
+    },
+    {
+      "file": "tinyx/kdrive/src/kinput.c",
+      "patch": "tinyx/0008-kinput-project-input.patch",
+      "selector": "WMB_DEVEL",
+      "reason": "HAL input bounds, lifecycle, extended buttons and no native SIGIO",
+      "base_sha256": "fd4e8b1f350a6b390159875edd11284fcb50a98aaf1434af144ae0614e756e6b",
+      "result_sha256": "65620890a72f6eaa179235913b4660aeaa78e70e2f7b992a72ecef805e0d8994",
+      "added": 163,
+      "removed": 2
+    },
+    {
+      "file": "tinyx/kdrive/src/kdrive.h",
+      "patch": "tinyx/0009-kdrive-project-buttons.patch",
+      "selector": "WMB_DEVEL",
+      "reason": "Project button constants, capacity and state layout",
+      "base_sha256": "e5640561427fadb391a8c493fa79b33ee5020caf06cda508b1d8ab85c0128857",
+      "result_sha256": "a6a9f10c7c00ec61134b4b7b9e5b380a373649a847cf1e4b21fecc1bed81ec29",
+      "added": 14,
+      "removed": 0
+    },
+    {
+      "file": "tinyx/kdrive/src/kdrive.c",
+      "patch": "tinyx/0010-kdrive-project-lifecycle.patch",
+      "selector": "WMB_DEVEL",
+      "reason": "HAL lifecycle and native VT/shell/option exclusion",
+      "base_sha256": "9580df3150e44cdcc6ebd2e31911a14176c881abc8851d23219401100c483baa",
+      "result_sha256": "116e254d24f8e01c6ea4c26920301725d4e26221d5ea15e9f7b8c77a943a05ff",
+      "added": 35,
+      "removed": 0
+    },
+    {
+      "file": "tinyx/dix/extension.c",
+      "patch": "tinyx/0011-extension-registration-observation.patch",
+      "selector": "WMB_DEVEL",
+      "reason": "Observe actual successful extension registration",
+      "base_sha256": "7de2cdc059bc8bb631f7943e5216126b6def01aae10d815e9a7b2e4e10be5fd8",
+      "result_sha256": "4aa091a5ef7cb35632cff0f30ac1d4eb7fac4782f95d8e69bb8b6d868a7cdf45",
+      "added": 6,
+      "removed": 0
+    },
+    {
+      "file": "tinyx/mi/micmap.c",
+      "patch": "tinyx/0012-unsigned-visual-mask.patch",
+      "selector": "WMB_DEVEL",
+      "reason": "Defined unsigned visual-mask arithmetic",
+      "base_sha256": "c84bacff56d823a69c6dd1da343dcb4eb188e10b473778d6116f42349faea662",
+      "result_sha256": "8f9d473138d364ea8e58a72dfd88cf2fff0715e883ac3dbd459e2662802e4fa8",
+      "added": 4,
+      "removed": 1
+    },
+    {
+      "file": "tinyx/fb/fbbits.h",
+      "patch": "tinyx/0013-defined-bresenham-doubling.patch",
+      "selector": "WMB_DEVEL",
+      "probe": "tinyx/fb/fbbits.c",
+      "reason": "Defined negative Bresenham-error doubling",
+      "base_sha256": "fc85744f797ba3d8ec3b45b43376c1106006dab19387da0218dbeafd5f6b8837",
+      "result_sha256": "c08fcce326c6c32fda150f7a933e5fbf0bab13045d2ad156afbff2d3c5ee5796",
+      "added": 8,
+      "removed": 0
+    },
+    {
+      "file": "tinyx/Xext/sync.c",
+      "patch": "tinyx/0014-sync-portable-deadline.patch",
+      "selector": "WMB_DEVEL",
+      "reason": "Portable block-handler deadline type and initializer signature",
+      "base_sha256": "bdb953fe3f9caf520dc0f2b7bb73017495ec4dbfb25f8cbe1ba55c6bcaff3542",
+      "result_sha256": "1658233fdfa1901e217af43146c2cc77cfdb17aff246ead2e5cc543751d9b03f",
+      "added": 15,
+      "removed": 0
+    },
+    {
+      "file": "tinyx/os/strlcat.c",
+      "patch": "tinyx/0015-strlcat-standard-types.patch",
+      "selector": "WMB_DEVEL",
+      "reason": "Use standard size_t header",
+      "base_sha256": "a9ca1cde20d4eeb5cb672a640a91c907826f4096459526cebf421e56c44bb411",
+      "result_sha256": "a420aaf1719d30dff6a4b05ae183f284c2a1b8de97166eab67b456d15ee944c6",
+      "added": 4,
+      "removed": 0
+    },
+    {
+      "file": "libX11/include/X11/Xlibint.h",
+      "patch": "libX11/0001-Xlibint-complete-builders.patch",
+      "selector": "WMB_INPROC",
+      "reason": "Matching threadless client ABI and complete request-builder growth",
+      "base_sha256": "5409a9c28f09b92d9774fc29bbd646358c1b769042512111350f0defc613b93e",
+      "result_sha256": "13bed5ad30aee21ad4b933dd5bab0e60e29376fa3bfbdee40dc74fa797c4eb7e",
+      "added": 44,
+      "removed": 0
+    },
+    {
+      "file": "libX11/src/XlibInt.c",
+      "patch": "libX11/0002-XlibInt-no-native-io.patch",
+      "selector": "WMB_INPROC",
+      "reason": "Preserve error handling and builders without fd transport or host identity",
+      "base_sha256": "e67ba40c1e35466906fa70beff4e493dd1e21d17c29ec1e9ca0894e67faeade0",
+      "result_sha256": "f4ff0c78c5c5a9e0318fd26827734bb9d0b5740423b755c25da5e903eca14a5c",
+      "added": 31,
+      "removed": 0
+    },
+    {
+      "file": "libX11/src/OpenDis.c",
+      "patch": "libX11/0003-OpenDis-native-setup-parser.patch",
+      "selector": "WMB_INPROC",
+      "reason": "Reuse setup parser/destructor with in-process hooks and fixed configuration",
+      "base_sha256": "883cf51c12660b182a0481c3523ab2930d88f6dc84914edb19258d58ffeab484",
+      "result_sha256": "b58eb27641ed0cbe24cce2534150074dc894bd4880c911db731a53518af6a4d4",
+      "added": 46,
+      "removed": 1
+    },
+    {
+      "file": "libX11/include/X11/Xlib.h",
+      "patch": "libX11/0004-Xlib-standard-types.patch",
+      "selector": "WMB_INPROC",
+      "reason": "Public client header without POSIX typedef dependency",
+      "base_sha256": "748265b305975ae8396cdb310bcafa47d338211c977bfda9bf88d187a3a37c03",
+      "result_sha256": "f72823e2f0f30223042514e934cb9e864b9fe471fee8bfb8e4ad9cdd7f1f28b8",
+      "added": 4,
+      "removed": 0
+    },
+    {
+      "file": "libX11/src/reallocarray.h",
+      "patch": "libX11/0005-reallocarray-header-standard-types.patch",
+      "selector": "WMB_INPROC",
+      "reason": "Checked allocation header uses standard size_t",
+      "base_sha256": "e63a358ab6718ba222fa9d8eff2aa308fac1b315b644ff89df9c92245772b157",
+      "result_sha256": "d78110636caa700bf5f671407a4d92df3344930fdb3923c5373c0da9ff39d2c3",
+      "added": 4,
+      "removed": 0
+    },
+    {
+      "file": "libX11/src/reallocarray.c",
+      "patch": "libX11/0006-reallocarray-standard-types.patch",
+      "selector": "WMB_INPROC",
+      "reason": "Use retained overflow-checked allocation without host reallocarray",
+      "base_sha256": "1dcb0926e277273b1374fd444d419b7a044820a17833dfa010f1615d2151cccc",
+      "result_sha256": "f07d4f997735d6c18a79bb7ae99b8f36ce257511874be4b2e54a7f4c3c120427",
+      "added": 4,
+      "removed": 0
+    },
+    {
+      "file": "libX11/src/Macros.c",
+      "patch": "libX11/0007-Macros-no-XCB-locking.patch",
+      "selector": "WMB_INPROC",
+      "reason": "Keep public macro functions without XCB or pthread headers",
+      "base_sha256": "697538a3b1f0dc8628108307c0b777a35add82b472ddff8e6b8844cbb6db6fa2",
+      "result_sha256": "ef9b013a6401c92a043cd2c340705feaae92e0b846484f2043c488a8c4177889",
+      "added": 4,
+      "removed": 0
+    },
+    {
+      "file": "libX11/src/StrKeysym.c",
+      "patch": "libX11/0008-StrKeysym-built-in-names.patch",
+      "selector": "WMB_INPROC",
+      "reason": "Built-in/Unicode key names without host database files",
+      "base_sha256": "596675b361a2d866896c0aebf3ab3120485ab510ad5032fd19e05c1631524eb7",
+      "result_sha256": "f53727110930854f516a9498995dbefc6ec3d99c56cc50e1f435a067d8456b09",
+      "added": 7,
+      "removed": 0
+    },
+    {
+      "file": "libX11/src/KeysymStr.c",
+      "patch": "libX11/0009-KeysymStr-built-in-names.patch",
+      "selector": "WMB_INPROC",
+      "reason": "Retain key-name decoding without resource-database enumeration",
+      "base_sha256": "319728965f9ecbabc9c99284925bcd7d3e146bf0baa0292291abf57b34075747",
+      "result_sha256": "b3927c87e76548d0c6813eecd13a56eac94a273c6d3b3a726ece5a5484c65f61",
+      "added": 4,
+      "removed": 0
+    },
+    {
+      "file": "libX11/src/WMProps.c",
+      "patch": "libX11/0010-WMProps-portable-identity.patch",
+      "selector": "WMB_INPROC",
+      "reason": "Caller-provided WM hints and fixed C locale without environment reads",
+      "base_sha256": "680a1696ab1b7dc43339ef2090b23c4eeb2d4962bf3012c4b11dfe984e864742",
+      "result_sha256": "6077c9310aba0d4a99bef8963cb116348cce2655a3bf6cbe39f6a8d5209cbb2b",
+      "added": 8,
+      "removed": 1
+    },
+    {
+      "file": "X11/Xos.h",
+      "patch": "X11/0001-Xos-standard-C-profile.patch",
+      "selector": "WMB_DEVEL",
+      "reason": "Shared standard-C header branch for server, client and built-in font cohorts",
+      "base_sha256": "5f67e501d11c1efb17cc87e748c3a02716b1b56edf9321a74a793298128a2d73",
+      "result_sha256": "d919b135dca461724a6124a8b22a635674a3a460192ecdf63c50a8122580778f",
+      "added": 9,
+      "removed": 0
+    },
+    {
+      "file": "X11/Xdefs.h",
+      "patch": "X11/0002-Xdefs-project-deadline-type.patch",
+      "selector": "WMB_DEVEL",
+      "reason": "Typed millisecond deadlines instead of native timeval pointers",
+      "base_sha256": "a550be8c24c0d711e664ba24de1681a347be6c973b7889c2aae8966025ece25a",
+      "result_sha256": "fe7c2b6c1922ab330fd7bcab49d38757fd6f16b27c06b45d20751a0b55bf5e4e",
+      "added": 5,
+      "removed": 0
+    }
+  ]
+}

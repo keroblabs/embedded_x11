@@ -58,6 +58,13 @@ The checked patches repair an empty-directory read-before-buffer in built-in
 font setup and signed shifts while reading 32-bit PCF values. Both were found
 by the real-server sanitizer gate; checks are not disabled to accommodate them.
 
+P6 adds a separate conditional built-in-only profile patch: standard headers and
+memory `BufFile` operations remain, native descriptor operations do not. Disk/
+catalogue/fontenc source backends are excluded and directory access is explicitly
+refused by an owned adapter. zlib remains necessary for embedded compressed
+fonts; libfontenc is no longer a dependency. The historical configure environment
+above is unchanged evidence, not the current build prerequisite list.
+
 This is the P4 bootstrap font set, not completion of D-38's larger shipping font
 registry. The dependency's notices remain in its downloaded source tree.
 
@@ -120,5 +127,7 @@ payload mutation is not normalized away, and truncated captures are rejected.
 
 [The P5 client image](tinyx-client-rgb565.png) captures the actual white window,
 black rectangle, text and software cursor. Client pixels are also checked in CI.
-[The client source manifest](xlib-sources.reference) freezes the 256-unit
-client/API/profile cohort independently of the 173-unit server cohort.
+[The client source manifest](xlib-sources.reference) now freezes the 248-unit
+P6 client/API/profile cohort independently of the unchanged 173-unit server
+cohort. [The font manifest](xfont-sources.reference) freezes 30 units including
+its owned refusal adapter. The wire fixtures are unchanged and still pass.

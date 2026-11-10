@@ -6,9 +6,6 @@
 #define HAVE_STRING_H 1
 #define HAVE_STRINGS_H 1
 #define HAVE_INTTYPES_H 1
-#define HAVE_UNISTD_H 1
-#define HAVE_SYS_TYPES_H 1
-#define HAVE_SYS_STAT_H 1
 #define STDC_HEADERS 1
 #define XFONT_BITMAP 1
 #define XFONT_BUILTINS 1
@@ -19,5 +16,7 @@
 #define PACKAGE_VERSION_MINOR 5
 #define PACKAGE_VERSION_PATCHLEVEL 4
 #define PACKAGE_STRING "libXfont 1.5.4"
+#define WMB_FONT_BUILTINS_ONLY 1
+#define NO_LOCALE 1
 /* No FreeType, BDF/SNF, font server transport, or dynamic loading. */
 #endif

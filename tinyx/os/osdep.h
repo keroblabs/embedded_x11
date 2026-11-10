@@ -61,6 +61,10 @@ SOFTWARE.
 
 #include <X11/Xdmcp.h>
 
+#if defined(WMB_DEVEL)
+#include <limits.h>
+#define MAXSOCKS 256
+#else
 #ifdef _POSIX_SOURCE
 #include <limits.h>
 #else
@@ -93,6 +97,7 @@ SOFTWARE.
 #define MAXSOCKS (OPEN_MAX - 1)
 #else
 #define MAXSOCKS 256
+#endif
 #endif
 
 /* MAXSELECT is the number of fds that select() can handle */

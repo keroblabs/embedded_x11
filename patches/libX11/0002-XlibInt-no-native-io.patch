@@ -1,0 +1,115 @@
+--- a/libX11/src/XlibInt.c
++++ b/libX11/src/XlibInt.c
+@@ -40,7 +40,9 @@
+ #include "Xlibint.h"
+ #include "Xprivate.h"
+ #include "reallocarray.h"
++#if !defined(WMB_INPROC)
+ #include <X11/Xpoll.h>
++#endif
+ #include <assert.h>
+ #include <stdio.h>
+ #ifdef WIN32
+@@ -48,6 +50,7 @@
+ #endif
+ 
+ /* Needed for FIONREAD on Solaris */
++#if !defined(WMB_INPROC)
+ #ifdef HAVE_SYS_FILIO_H
+ #include <sys/filio.h>
+ #endif
+@@ -56,10 +59,13 @@
+ #ifdef HAVE_SYS_SOCKET_H
+ #include <sys/socket.h>
+ #endif
++#endif
+ 
+ /* Needed for ioctl() on Solaris */
++#if !defined(WMB_INPROC)
+ #ifdef HAVE_UNISTD_H
+ #include <unistd.h>
++#endif
+ #endif
+ 
+ #ifdef XTHREADS
+@@ -1257,6 +1263,10 @@
+ static int
+ SocketBytesReadable(Display *dpy)
+ {
++#if defined(WMB_INPROC)
++    (void)dpy;
++    return 0; /* The fatal-error diagnostic has no socket to inspect. */
++#else
+     int bytes = 0, last_error;
+ #ifdef WIN32
+     last_error = WSAGetLastError();
+@@ -1268,6 +1278,7 @@
+     errno = last_error;
+ #endif
+     return bytes;
++#endif
+ }
+ 
+ _X_NORETURN void _XDefaultIOErrorExit(
+@@ -1677,6 +1688,9 @@
+     register int *buf;
+     register long i;
+ 
++#if defined(WMB_INPROC)
++    if (_XBufferGrow(dpy, len) != 0) { _XIOError(dpy); return -1; }
++#endif
+     while (len) {
+ 	buf = (int *)dpy->bufptr;
+ 	i = dpy->bufmax - (char *)buf;
+@@ -1706,6 +1720,7 @@
+  *       and so, you may be better off using gethostname (if it exists).
+  */
+ 
++#if !defined(WMB_INPROC)
+ #if (defined(_POSIX_SOURCE) && !defined(AIXV3) && !defined(__QNX__)) || defined(hpux) || defined(SVR4)
+ #define NEED_UTSNAME
+ #include <sys/utsname.h>
+@@ -1714,6 +1729,7 @@
+ #include <unistd.h>
+ #endif
+ #endif
++#endif
+ 
+ /*
+  * _XGetHostname - similar to gethostname but allows special processing.
+@@ -1724,6 +1740,13 @@
+ {
+     int len;
+ 
++#if defined(WMB_INPROC)
++    if (maxlen <= 0 || buf == NULL)
++        return 0;
++    len = maxlen > 3 ? 3 : maxlen - 1;
++    memcpy(buf, "WMB", (size_t)len);
++    buf[len] = '\0';
++#else
+ #ifdef NEED_UTSNAME
+     struct utsname name;
+ 
+@@ -1744,6 +1767,7 @@
+     buf [maxlen - 1] = '\0';
+     len = (int) strlen(buf);
+ #endif /* NEED_UTSNAME */
++#endif
+     return len;
+ }
+ 
+@@ -1783,6 +1807,13 @@
+ {
+     xReq *req;
+ 
++#if defined(WMB_INPROC)
++    wmb_xlib_prepare_ids(dpy);
++    if (_XBufferGrow(dpy, len) != 0) {
++        _XIOError(dpy);
++        return NULL;
++    }
++#endif
+     if (dpy->bufptr + len > dpy->bufmax)
+ 	_XFlush(dpy);
+     /* Request still too large, so do not allow it to overflow. */

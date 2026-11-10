@@ -19,7 +19,11 @@
 #include <config.h>
 #endif
 
+#if defined(WMB_INPROC)
+#include <stddef.h>
+#else
 #include <sys/types.h>
+#endif
 #include <errno.h>
 #include <stdint.h>
 #include <stdlib.h>

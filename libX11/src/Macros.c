@@ -30,7 +30,11 @@ in this Software without prior written authorization from The Open Group.
 #include "Xlibint.h"
 #define XUTIL_DEFINE_FUNCTIONS
 #include "Xutil.h"
+#if defined(WMB_INPROC)
+extern unsigned long _XNextRequest(Display *dpy);
+#else
 #include "Xxcbint.h"
+#endif
 
 /*
  * This file makes full definitions of routines for each macro.

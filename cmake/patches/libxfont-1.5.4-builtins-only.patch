@@ -1,0 +1,31 @@
+--- a/include/X11/fonts/fontmisc.h
++++ b/include/X11/fonts/fontmisc.h
+@@ -34,7 +34,9 @@
+ #include <X11/Xfuncs.h>
+ #include <stdlib.h>
+ #include <stdio.h>
++#if !defined(WMB_FONT_BUILTINS_ONLY)
+ #include <unistd.h>
++#endif
+ #include <X11/Xdefs.h>
+ 
+ 
+--- a/src/fontfile/bufio.c
++++ b/src/fontfile/bufio.c
+@@ -62,6 +62,7 @@
+     return f;
+ }
+ 
++#if !defined(WMB_FONT_BUILTINS_ONLY)
+ #define FileDes(f)  ((int)(long) (f)->private)
+ 
+ static int
+@@ -169,6 +170,8 @@
+     return f;
+ }
+ 
++#endif
++
+ int
+ BufFileRead (BufFilePtr f, char *b, int n)
+ {

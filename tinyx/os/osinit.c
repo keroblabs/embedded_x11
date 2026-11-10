@@ -67,7 +67,9 @@ SOFTWARE.
 #endif
 #endif
 
+#if !defined(WMB_DEVEL)
 #include <sys/resource.h>
+#endif
 
 #ifndef ADMPATH
 #define ADMPATH "/usr/adm/X%smsgs"

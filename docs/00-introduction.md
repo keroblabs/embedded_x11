@@ -46,8 +46,9 @@ runnable. JWM and the external ABI are not yet assembled:
   tests now verify actual Xlib requests, replies, events and backend input.
 
 So: the **components are present**, a **design has been argued at length** (see `docs_old/`, ~33.6 kLOC of prior planning across four generations of
-documents), and **the server and a real Xlib application are running**. The next
-phase is P6 portability closure, followed by P7 JWM, not a native socket server.
+documents), and **the server and a real Xlib application are running**.
+[P6 portability/patch closure](48-p6-portability.md) is also verified for the
+selected hosted cohorts. Next is P7 JWM, not a native socket server.
 
 ### 1.2 Why this is not a normal X11 port
 

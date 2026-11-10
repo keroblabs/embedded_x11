@@ -151,5 +151,16 @@ root rendering, real Damage, cooperative dispatch/wait and cleanup. Separate
 events and backend input. Embedded readiness remains later; standalone passes
 still must not be used as a substitute for either integration gate.
 
+P6 now automates reference preservation across the
+[complete guarded manifest](../patches/MANIFEST.md). Run
+`python3 tools/check_portability.py --build-dir BUILD` after intentional changes.
+It checks exact patch coverage, original notice bytes, pristine imported
+reference compilation, and presence-based one/zero/empty equivalence, including
+the framebuffer template consumer. Native client probes enable host feature/
+annotation compatibility only inside the probe, not the portable build.
+It also audits actual active includes and complete archives; a raw grep of
+reference branches or a dead-stripped executable is not a portability proof.
+See [the P6 guide](48-p6-portability.md) and D-54 before adding guard sites.
+
 This methodology is recorded in [D-51](90-decisions.md) and in the
 [TinyX-scoped workspace instruction](../.github/instructions/tinyx-wmb.instructions.md).

@@ -17,7 +17,11 @@
  */
 
 
+#if defined(WMB_DEVEL)
+#include <stddef.h>
+#else
 #include <sys/types.h>
+#endif
 #include <string.h>
 
 /*

@@ -39,7 +39,10 @@ Every file or module group gets exactly one disposition.
 have implemented several originally planned components. The checked
 [server](reference/tinyx-sources.reference) and
 [client](reference/xlib-sources.reference) manifests freeze the actual selected
-cohorts; see the [P5 guide](../transport/x11/README.md).
+cohorts; the [P6 font manifest](reference/xfont-sources.reference) adds the
+built-in-only dependency. See the [P5 guide](../transport/x11/README.md) and
+[P6 evidence](48-p6-portability.md). The current client has 248 units, not the
+original 256-unit P5 cohort; supported exclusions and guarded files are explicit.
 
 ## 3. Component Map
 

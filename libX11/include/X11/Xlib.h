@@ -35,7 +35,11 @@ in this Software without prior written authorization from The Open Group.
 
 #define XlibSpecificationRelease 6
 
+#if defined(WMB_INPROC)
+#include <stddef.h>
+#else
 #include <sys/types.h>
+#endif
 
 #if defined(__SCO__) || defined(__UNIXWARE__)
 #include <stdint.h>

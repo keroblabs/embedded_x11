@@ -98,7 +98,12 @@ typedef FSID AccContext;
 
 /* OS independent time value 
    XXX Should probably go in Xos.h */
+#if defined(WMB_DEVEL)
+#include <stdint.h>
+typedef uint32_t *OSTimePtr;
+#else
 typedef struct timeval **OSTimePtr;
+#endif
 
 
 typedef void (* BlockHandlerProcPtr)(void * /* blockData */,

@@ -52,21 +52,24 @@ These run on every build and take seconds. They are the backbone of the verifica
 | ID | Gate | Command | From |
 |---|---|---|---|
 | S1 | No backend leakage above the contract | `grep -rl 'SDL\|sdl_\|hal_drivers\.h' tinyx/ libX11/src/ jwm/src/ transport/` → empty | [`03-`](03-target-architecture.md) L1 |
-| S2 | No POSIX headers in the compiled set | `grep -rl 'include *<sys/\|include *<linux/\|include *<netinet/\|include *<pthread\.h>\|include *<dlfcn\.h>\|include *<netdb\.h>' $(cmake_source_list)` → empty | [`10-`](10-os-dependency-census.md) |
+| S2 | No active above-HAL POSIX/backend headers | `check_portability.py --build-dir BUILD` scans actual compiler `-E -dI` output, including transitive project/font headers; preserved reference branches and libc internals are not false positives | [48-](48-p6-portability.md) |
 | S3 | Only sanctioned guards in upstream files | TinyX project branches use presence-based `WMB_DEVEL`; sibling client/profile guards follow the portability ledger | [`11-`](11-portability-plan.md) §8.6 |
 | S4 | No excluded file in any source list | script diffs CMake lists against the ledger | [`01-`](01-component-inventory.md) §13 |
 | S5 | CMake module groups match the inventory | script diffs `WmbModules.cmake` against [`01-`](01-component-inventory.md) §12 | [`01-`](01-component-inventory.md) V5 |
-| S6 | Patch budget respected | P6 patch manifest caps: TinyX ≤ 12, libX11 ≤ 3, JWM ≤ 4 | [`11-`](11-portability-plan.md) §8.4 |
-| S7 | Patches replay on pristine upstream | `git -C /tmp/pristine/$t apply --check patches/$t/*.patch` | [`11-`](11-portability-plan.md) §8.6 |
+| S6 | Patch budget respected | Checked manifest caps: TinyX 15, libX11 10, shared X11 2; JWM future cap 4 | [11-](11-portability-plan.md) section 8.4, D-54 |
+| S7 | Patches replay on pristine imported files | Reconstruct exact import, check/apply every patch, compare SHA-256/current bytes and original notices; compile/preprocess native reference variants | [48-](48-p6-portability.md) |
 | S8 | Contract headers are freestanding | compile each alone with `-ffreestanding -nostdinc` | [`12-`](12-platform-contract.md) PC‑V1 |
 | S9 | Vtable artefacts are generated, not hand‑edited | regenerate from `api.def`, `git diff` → empty | [`22-`](22-entry-point-abi.md) E‑V1 |
-| S10 | **The windowing set is detachable** | link `libtinyx.a libx11_wmb.a libjwm.a libwmb_api.a` against contract stubs + runtime substrate, with no backend and no `wmb_boot.o` → resolves | [`03-`](03-target-architecture.md) L7, [`90-`](90-decisions.md) D‑42 |
+| S10 | **The built windowing set is detachable** | P6 `wmb_portability_link` links all six real archives using `--whole-archive --no-gc-sections`, contract stubs and libc/math/zlib; no backend/host launcher. Extend with JWM/API archives at P7/P8 | [48-](48-p6-portability.md), D-42 |
 | S11 | **The framework is shareable** | `grep -rn '#include' framework/ \| grep -E 'tinyx\|libX11\|jwm\|transport\|Xlib\|dix'` → empty | [`03-`](03-target-architecture.md) L8 |
 | S12 | **`framework/` is platform‑free** | `grep -rl 'SDL\|<linux/\|clock_gettime\|ucontext\|termios' framework/ --include=*.c --include=*.h` → empty | [`03-`](03-target-architecture.md) L9 |
 
 ### 3.2 Symbol gates
 
-Run against the linked image. **These are the gates that make the project's claims true.**
+Run against the complete above-HAL archives and no-backend image, not merely
+the hosted executable after dead-section elimination. **These are the gates
+that make the project's claims true.** SDL/host runtime imports below HAL are
+not windowing dependencies.
 
 | ID | Gate | Command |
 |---|---|---|
@@ -217,7 +220,18 @@ manufacture a passing transport gate.
 | ID | Gate |
 |---|---|
 | V‑P6‑1 | Every P5 gate still passes after the guards are applied |
-| S2, S3, S6, S7, N1, N2, N3, N4 | |
+| V-P6-2 | Whole-archive no-backend link and runtime profile/deadline refusal checks pass |
+| V-P6-3 | Active compiler includes and complete-archive native symbols pass |
+| V-P6-4 | 27-file patch replay/coverage/notices and 20 native-reference compilation probes pass; project one/zero/empty variants agree |
+| S2, S3, S6, S7, S10, N1, N2, N4, N6 | |
+
+P6 evidence: **30/30** for Debug RGB565 800x480, Release XRGB8888 319x177,
+ASan/strict UBSan padded RGB565 319x177, and ASan/strict UBSan XRGB8888 319x177.
+The [P6 guide](48-p6-portability.md) gives exact commands and interpretation.
+The active-header audit covers 452 units; no-backend linkage includes the
+runtime archive, not its hosted implementation. Native font/resource file
+opening is also absent. The broader target libc/termination/floor checks in
+N3/N8 remain P9, not a claim made by the hosted test.
 
 ### 4.7 P7 — JWM
 

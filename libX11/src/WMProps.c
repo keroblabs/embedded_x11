@@ -115,7 +115,11 @@ void XSetWMProperties (
 	XClassHint tmp;
 
 	if (!classHints->res_name) {
+#if defined(WMB_INPROC)
+	    tmp.res_name = NULL;
+#else
 	    tmp.res_name = getenv ("RESOURCE_NAME");
+#endif
 	    if (!tmp.res_name && argv && argv[0]) {
 		/*
 		 * UNIX uses /dir/subdir/.../basename; other operating
@@ -138,10 +142,13 @@ void XSetWMProperties (
 	XSetClassHint (dpy, w, classHints);
     }
 
+#if defined(WMB_INPROC)
+    locale = "C";
+#else
     locale = setlocale(LC_CTYPE, (char *)NULL);
+#endif
     if (locale)
         XChangeProperty (dpy, w, XInternAtom(dpy, "WM_LOCALE_NAME", False),
         XA_STRING, 8, PropModeReplace,
         (unsigned char *)locale, (int) strlen(locale));
 }
-

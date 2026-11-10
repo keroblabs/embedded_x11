@@ -1,0 +1,210 @@
+--- a/tinyx/os/utils.c
++++ b/tinyx/os/utils.c
+@@ -59,14 +59,20 @@
+ #include <time.h>
+ #include "misc.h"
+ #include <X11/X.h>
++#if !defined(WMB_DEVEL)
+ #define XSERV_t
+ #define TRANS_SERVER
+ #define TRANS_REOPEN
+ #include <X11/Xtrans/Xtrans.h>
++#endif
+ #include "input.h"
+ #include "dixfont.h"
+ #include "osdep.h"
++#if defined(WMB_DEVEL)
++#include "hal_time.h"
++#endif
+ #include "extension.h"
++#if !defined(WMB_DEVEL)
+ #ifdef X_POSIX_C_SOURCE
+ #define _POSIX_C_SOURCE X_POSIX_C_SOURCE
+ #include <signal.h>
+@@ -83,6 +89,7 @@
+ #include <sys/wait.h>
+ #include <sys/resource.h>
+ #include <sys/stat.h>
++#endif
+ #include <ctype.h>    /* for isspace */
+ #include <stdarg.h>
+ 
+@@ -128,8 +135,10 @@
+ #endif
+ _X_EXPORT Bool noXFixesExtension = FALSE;
+ 
++#if !defined(WMB_DEVEL)
+ #define X_INCLUDE_NETDB_H
+ #include <X11/Xos_r.h>
++#endif
+ 
+ #include <errno.h>
+ 
+@@ -153,6 +162,7 @@
+ 
+ char *dev_tty_from_init = NULL;		/* since we need to parse it anyway */
+ 
++#if !defined(WMB_DEVEL)
+ OsSigHandlerPtr
+ OsSignal(sig, handler)
+     int sig;
+@@ -343,6 +353,7 @@
+   (void) unlink(LockFile);
+   }
+ }
++#endif
+ 
+ /* Force connections to close on SIGHUP from init */
+ 
+@@ -377,6 +388,9 @@
+ _X_EXPORT CARD32
+ GetTimeInMillis(void)
+ {
++#if defined(WMB_DEVEL)
++    return hal_tick_ms();
++#else
+     struct timeval tv;
+ 
+ #ifdef MONOTONIC_CLOCK
+@@ -387,11 +401,17 @@
+ 
+     X_GETTIMEOFDAY(&tv);
+     return(tv.tv_sec * 1000) + (tv.tv_usec / 1000);
++#endif
+ }
+ 
+ _X_EXPORT void
+ AdjustWaitForDelay (pointer waitTime, unsigned long newdelay)
+ {
++#if defined(WMB_DEVEL)
++    CARD32 *delay = waitTime;
++    if (newdelay < *delay)
++        *delay = (CARD32)newdelay;
++#else
+     static struct timeval   delay_val;
+     struct timeval	    **wt = (struct timeval **) waitTime;
+     unsigned long	    olddelay;
+@@ -411,6 +431,7 @@
+ 	    (*wt)->tv_usec = 1000 * (newdelay % 1000);
+ 	}
+     }
++#endif
+ }
+ 
+ void UseMsg(void)
+@@ -451,7 +472,9 @@
+ #ifdef RLIMIT_STACK
+     ErrorF("-ls int                limit stack space to N Kb\n");
+ #endif
++#if !defined(WMB_DEVEL)
+     ErrorF("-nolock                disable the locking mechanism\n");
++#endif
+ #ifndef NOLOGOHACK
+     ErrorF("-logo                  enable logo in screen saver\n");
+     ErrorF("nologo                 disable logo in screen saver\n");
+@@ -690,6 +713,7 @@
+ 		UseMsg();
+ 	}
+ #endif
++#if !defined(WMB_DEVEL)
+ 	else if ( strcmp ( argv[i], "-nolock") == 0)
+ 	{
+ 	  if (getuid() != 0)
+@@ -697,6 +721,7 @@
+ 	  else
+ 	    nolock = TRUE;
+ 	}
++#endif
+ #ifndef NOLOGOHACK
+ 	else if ( strcmp( argv[i], "-logo") == 0)
+ 	{
+@@ -707,6 +732,7 @@
+ 	    logoScreenSaver = 0;
+ 	}
+ #endif
++#if !defined(WMB_DEVEL)
+ 	else if ( strcmp( argv[i], "-nolisten") == 0)
+ 	{
+             if(++i < argc) {
+@@ -716,6 +742,7 @@
+ 	   } else
+ 		UseMsg();
+ 	}
++#endif
+ 	else if ( strcmp( argv[i], "-noreset") == 0)
+ 	{
+ 	    dispatchExceptionAtReset = 0;
+@@ -893,8 +920,10 @@
+         }
+     }
+ 
++#if !defined(WMB_DEVEL)
+     if (!tcp)
+ 	_XSERVTransNoListen("tcp");
++#endif
+ }
+ 
+ 
+@@ -985,8 +1014,10 @@
+ Bool		SmartScheduleIdle;
+ Bool		SmartScheduleTimerStopped;
+ 
++#if !defined(WMB_DEVEL)
+ #ifdef SIGVTALRM
+ #define SMART_SCHEDULE_POSSIBLE
++#endif
+ #endif
+ 
+ #ifdef SMART_SCHEDULE_POSSIBLE
+@@ -1075,14 +1106,17 @@
+ }
+ #endif
+ 
++#if !defined(WMB_DEVEL)
+ #ifdef SIG_BLOCK
+ static sigset_t	PreviousSignalMask;
+ static int	BlockedSignalCount;
+ #endif
++#endif
+ 
+ void
+ OsBlockSignals (void)
+ {
++#if !defined(WMB_DEVEL)
+ #ifdef SIG_BLOCK
+     if (BlockedSignalCount++ == 0)
+     {
+@@ -1092,6 +1126,7 @@
+ #ifdef SIGALRM
+ 	sigaddset (&set, SIGALRM);
+ #endif
++#endif
+ #ifdef SIGVTALRM
+ 	sigaddset (&set, SIGVTALRM);
+ #endif
+@@ -1121,14 +1156,17 @@
+ void
+ OsReleaseSignals (void)
+ {
++#if !defined(WMB_DEVEL)
+ #ifdef SIG_BLOCK
+     if (--BlockedSignalCount == 0)
+     {
+ 	sigprocmask (SIG_SETMASK, &PreviousSignalMask, 0);
+     }
+ #endif
+-}
+-
++#endif
++}
++
++#if !defined(WMB_DEVEL)
+ /*
+  * "safer" versions of system(3), popen(3) and pclose(3) which give up
+  * all privs before running a command.
+@@ -1637,4 +1675,4 @@
+ CheckUserAuthorization(void)
+ {
+ }
+-
++#endif

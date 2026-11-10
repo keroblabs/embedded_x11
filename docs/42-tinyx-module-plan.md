@@ -71,7 +71,7 @@ The last three require one guarded line each in `mi/miinitext.c`. The rest requi
 | P3 | None — but P3's `hal_yield_timeout` semantics are what `waitfor_wmb.c` is written against | — |
 | **P4** | **Primary owner. Hosted no-client server/root-window gate implemented and verified** | **Heavy** |
 | **P5** | **Implemented and verified server transport/client gate** — real setup, dispatch, replies/events, replay and grabs | **Heavy** |
-| P6 | Ten server guard sites and portability closure; the three KDrive core sites belong to [43-](43-kdrive-module-plan.md) | Medium |
+| **P6** | **Verified portability/patch closure:** twelve server sites plus three KDrive sites; full native-reference and no-backend gates | Medium |
 | P7 | Support only: `XGrabServer` flow control lands in `io_wmb.c` / `connection_wmb.c` | Light |
 | P8 | None directly; `dix` re‑entrancy is asserted by the E4 test, not changed | — |
 | P9 | The freestanding compile of ~96 kLOC — the largest surface for libc‑floor surprises | Medium |
@@ -260,9 +260,10 @@ is the only possible cause.
 
 ## 6. Phase P6 — Guard Application
 
-**Goal:** formalize the implemented server sites plus remaining dependency
-removal as a replayable patch series. The authoritative guard ledger and
-13-file TinyX cap are in [11-](11-portability-plan.md) section 8.
+**Status: implemented and verified for the selected hosted cohorts.** The
+[P6 guide](48-p6-portability.md) records commands, evidence and target boundaries.
+The authoritative [generated patch ledger](../patches/MANIFEST.md) and 15-file
+TinyX cap are explained in [11-](11-portability-plan.md) section 8 and D-54.
 
 | # | File | Guard | Edit |
 |--:|---|---|---|
@@ -276,21 +277,25 @@ removal as a replayable patch series. The authoritative guard ledger and
 | 16 | `dix/extension.c` | `WMB_DEVEL` | Actual extension registration observation |
 | 17 | `mi/micmap.c` | `WMB_DEVEL` | Defined unsigned visual-mask arithmetic |
 | 18 | `fb/fbbits.h` | `WMB_DEVEL` | Defined negative Bresenham-error doubling |
+| 20 | `Xext/sync.c` | `WMB_DEVEL` | Typed millisecond callback/deadline and project initializer prototype |
+| 21 | `os/strlcat.c` | `WMB_DEVEL` | Standard size_t header with unchanged native alternative |
 
 KDrive's `kinput.c`, `kdrive.h` and `kdrive.c` belong to
-[43-](43-kdrive-module-plan.md) and draw on the same cap. A future `strlcat.c`
-edit would be another file, not a free uncounted exception.
+[43-](43-kdrive-module-plan.md) and draw on the same cap. Shared `Xos.h` and
+`Xdefs.h` have their own explicit two-file budget; they are not uncounted changes.
 
 ### 6.1 Definition of Done — TinyX slice
 
-- [ ] All ledger sites have replayable patches and manifest rows.
-- [ ] Every patch applies cleanly to a pristine upstream checkout (`git apply --check`) — gate S7.
-- [ ] Every upstream TinyX project deviation uses presence-based `WMB_DEVEL`, preserving the reference alternative.
-- [ ] `tinyx/` guarded-file count <=13 including the three KDrive core files.
-- [ ] Every P5 gate still passes after the guards are applied — V‑P6‑1.
-- [ ] `grep -rl 'include *<sys/\|include *<linux/\|include *<netinet/\|include *<pthread\.h>\|include *<dlfcn\.h>'` over the compiled `tinyx/` set is
-  empty — gate S2.
-- [ ] `grep -rl "SDL" tinyx/` is empty — gate V6/S1.
+- [x] All ledger sites have exact replayable patches, hashes, reasons and LOC deltas.
+- [x] Every patch checks/applies to the pristine imported source and reproduces current bytes/notices.
+- [x] TinyX uses presence-based `WMB_DEVEL`; native reference compilation and one/zero/empty variants pass.
+- [x] TinyX guarded-file count is 15, including KDrive's three files.
+- [x] Every P5 gate passes, including added native SYNC deadline, glyph cursor and WM identity checks.
+- [x] Compiler-active includes and complete-archive symbol audits pass; reference-only POSIX includes are deliberately retained.
+- [x] The full windowing/runtime archive set links with contract stubs and no backend, host launcher or dead-section elimination.
+
+The full suite is 30/30 in the documented Debug/Release and both-format
+ASan/UBSan matrix. This closes hosted P6, not the freestanding/P9 gates below.
 
 **P6 is deliberately after P5.** A guard applied to code that has never been compiled is a guess; once `host-pure` runs, each guard is applied and
 immediately re‑verified against a working system.
@@ -341,8 +346,8 @@ The seams, stated as contracts so that a change on either side is a conversation
 |---|---|
 | New files | `excluded_stubs_wmb.c`, `waitfor_wmb.c`, `connection_wmb.c`, `io_wmb.c` + two config templates |
 | New LOC | ~750 |
-| Upstream files guarded | **7 of the `tinyx/` cap of 8** (the eighth is `kinput.c`, owned by [`43-`](43-kdrive-module-plan.md)) |
-| Slack | **0.** An eighth guard in this module requires a [`90-decisions.md`](90-decisions.md) entry with the rejected alternative |
+| Upstream files guarded | **12 server files plus 3 KDrive files, cap 15**; shared protocol headers are budgeted separately |
+| Slack | **0.** Additional sites require a decision with the rejected alternative; D-54 records the approved P6 expansion |
 
 ## 11. What to Do First
 

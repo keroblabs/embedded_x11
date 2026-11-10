@@ -2,18 +2,57 @@
 #include "Xlcint.h"
 #include "XlcPublic.h"
 #include <X11/Xresource.h>
+#include <X11/Xutil.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 /* The selected profile uses core fonts and no locale/input-method backend. */
+char *XDisplayName(const char *display)
+{
+    (void)display;
+    return "WMB";
+}
+
+char *XGetDefault(Display *display, const char *program, const char *option)
+{
+    (void)display; (void)program; (void)option;
+    fputs("WMB Xlib: resource defaults are unsupported\n", stderr);
+    return NULL;
+}
+
+int XReadBitmapFileData(const char *filename, unsigned int *width,
+                       unsigned int *height, unsigned char **data, int *x_hot, int *y_hot)
+{
+    (void)filename; (void)width; (void)height; (void)data; (void)x_hot; (void)y_hot;
+    fputs("WMB Xlib: bitmap files are unsupported; use bitmap data\n", stderr);
+    return BitmapOpenFailed;
+}
+
+int XReadBitmapFile(Display *display, Drawable drawable, const char *filename,
+                    unsigned int *width, unsigned int *height, Pixmap *pixmap,
+                    int *x_hot, int *y_hot)
+{
+    (void)display; (void)drawable; (void)filename; (void)width; (void)height;
+    (void)pixmap; (void)x_hot; (void)y_hot;
+    fputs("WMB Xlib: bitmap files are unsupported; use bitmap data\n", stderr);
+    return BitmapOpenFailed;
+}
+
+int XWriteBitmapFile(Display *display, const char *filename, Pixmap bitmap,
+                     unsigned int width, unsigned int height, int x_hot, int y_hot)
+{
+    (void)display; (void)filename; (void)bitmap; (void)width; (void)height;
+    (void)x_hot; (void)y_hot;
+    fputs("WMB Xlib: bitmap files are unsupported\n", stderr);
+    return BitmapOpenFailed;
+}
+
 Status XInitThreads(void)
 {
     fputs("WMB Xlib: native Xlib threading is unsupported; use client fibers\n", stderr);
     return 0;
 }
-void XLockDisplay(Display *display) { (void)display; }
-void XUnlockDisplay(Display *display) { (void)display; }
 Bool XSupportsLocale(void) { return False; }
 char *XSetLocaleModifiers(const char *modifiers)
 {

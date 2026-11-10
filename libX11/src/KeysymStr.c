@@ -40,6 +40,7 @@ in this Software without prior written authorization from The Open Group.
 #include "Key.h"
 
 
+#if !defined(WMB_INPROC)
 typedef struct _GRNData {
     char *name;
     XrmRepresentation type;
@@ -67,6 +68,7 @@ SameValue(
     }
     return False;
 }
+#endif
 
 char *XKeysymToString(KeySym ks)
 {
@@ -100,6 +102,7 @@ char *XKeysymToString(KeySym ks)
 	}
     }
 
+#if !defined(WMB_INPROC)
     if ((keysymdb = _XInitKeysymDB()))
     {
 	char buf[9];
@@ -118,6 +121,7 @@ char *XKeysymToString(KeySym ks)
         if (data.name)
 	    return data.name;
     }
+#endif
     if (ks >= 0x01000100 && ks <= 0x0110ffff) {
         KeySym val = ks & 0xffffff;
         char *s;

@@ -1070,6 +1070,61 @@ Those remain later lifecycle/P6/P7/P8/P9 work.
 [46-](46-transport-module-plan.md), [11-](11-portability-plan.md),
 and [the run guide](../transport/x11/README.md).
 
+### D-54 - P6 verifies active dependencies and complete archives - SETTLED
+
+The P5 build still compiled native headers/helpers hidden by linker garbage
+collection. The full audit found transitive public Xlib/X11/font headers, a
+native XCB/locking include in the public macro helpers, and dormant process,
+environment, file, resource and locale backends. A clean final host link did not
+prove that the reusable archives were portable.
+
+The user approved completing P6 with necessary narrow guards rather than
+preserving an inaccurate file estimate. Caps become **15 TinyX, 10 libX11 and
+two shared X11 headers**. JWM's four-file cap remains future P7 work. The
+implemented 27 files are exactly enumerated in
+[the generated manifest](../patches/MANIFEST.md). Copying core files, fake POSIX
+headers/typedefs and dead-section elimination as a negative proof were rejected.
+
+Block handlers now share a typed 32-bit millisecond budget under `WMB_DEVEL`;
+SYNC's callback and `OSTimePtr` agree with the wait loop and
+`AdjustWaitForDelay`. Real SYNC SERVERTIME waits, native XTEST delay/replay,
+earlier/zero/oversized deadlines and the existing input polling gates verify
+the behavior. Audit identity uses monotonic HAL time, not wall time/PIDs.
+
+Client profile selection excludes unsupported native file/resource/locale
+backends. Exported bitmap/default refusals diagnose failure. Retain the checked
+allocation fallback, core glyph-cursor creation, built-in/Unicode key names and
+caller WM hints with fixed WMB/C-locale identity. The whole-archive probe exposed
+duplicate owned lock functions; reuse the already retained threadless source.
+Font source selection is built-in-only, with an explicit refusal adapter and
+a two-file conditional dependency patch. zlib remains; libfontenc does not.
+
+Every P6 test checks the actual configured source set, including transitive
+headers, without mistaking libc implementation headers or intentionally retained
+reference branches for active project dependencies. Every complete windowing
+archive and the no-backend image must reject native imports. The six actual
+archives link with contract stubs and libc/math/zlib using `--whole-archive`
+and `--no-gc-sections`, without SDL, hosted fiber/system backends or the launcher.
+
+The patch base is the exact unmodified repository import
+`73ab9f28bccf8e2ff56638896a4d82f079a2e5a7`; do not invent an official upstream
+release identity not recorded by that import. SHA-256 values, original notice
+bytes, exact replay and coverage are checked. Twenty affected reference units
+are preprocessed and compiled; one/zero/empty project definitions agree.
+Host-feature/legacy-annotation definitions needed for native client probes are
+confined to the probe, not the portable client.
+
+P6 closes the **selected hosted source/patch boundary**, not freestanding
+certification. Libc diagnostics/termination/allocator and the observed math/
+string/zlib floor require P9 work. JWM, external ABI, portable launcher and
+abandoned-Display cleanup remain later milestones. The platform-neutral HAL
+contracts and one-server-fiber dispatch architecture are unchanged.
+
+**Consequences:** [P6 guide](48-p6-portability.md),
+[11-](11-portability-plan.md), [41-](41-verification-plan.md),
+[42-](42-tinyx-module-plan.md), [46-](46-transport-module-plan.md),
+and [47-](47-tinyx-project-methodology.md).
+
 ## 8. Superseded Decisions
 
 Recorded so that reading `docs_old/` does not resurrect them.
@@ -1145,6 +1200,7 @@ Recorded so that reading `docs_old/` does not resurrect them.
 | D-51 | WMB_DEVEL guards all TinyX project changes; shared ABI selection and adapter-first policy | SETTLED | [47-](47-tinyx-project-methodology.md) |
 | D-52 | Real no-client P4 server, configuration-prefix ABI, checked dependencies and actual integration gates | SETTLED | [42-](42-tinyx-module-plan.md) |
 | D-53 | Real P5 client/transport, ABI/library isolation, framing/serial contracts and necessary guarded framebuffer repair | SETTLED | [21-](21-inprocess-transport.md) |
+| D-54 | Active/whole-archive P6 proof, approved guard budgets, built-in profile and exact imported-source patch provenance | SETTLED | [48-](48-p6-portability.md) |
 
 D‑46 is load‑bearing and easy to under‑read. Every request, from every kind of client, is executed by the `xsrv` fiber running upstream's `Dispatch()`; no
 client ever calls `ProcVector` on its own stack. The safety property is **structural** — only one fiber can enter `dix` — rather than a rule imposed on

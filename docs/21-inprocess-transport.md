@@ -17,7 +17,8 @@ and completing only on the next read were not correct implementations.
 
 - The external application ABI: [22-](22-entry-point-abi.md), P8.
 - The runtime/scheduling API: [12-](12-platform-contract.md).
-- Freestanding certification or the hardware port: P6/P9.
+- Freestanding certification or the hardware port: P9; [P6](48-p6-portability.md)
+  now verifies the selected hosted source/patch boundary.
 - A JWM integration claim: JWM is P7.
 
 ### 1.2 The core flow
@@ -173,6 +174,10 @@ The existing server entry calls ordinary `Dispatch()`. Controls, timers,
 block/wakeup handlers, HAL input, eligible-client collection, and native client
 resource teardown all remain on that fiber. P5 adds no alternate dispatcher or
 direct `ProcVector` calls in a client.
+
+At P6, block handlers share a typed 32-bit millisecond budget, not a native
+`timeval`. The SYNC callback/shared type and `AdjustWaitForDelay` agree; real
+SERVERTIME waits and the original XTEST sleep path verify that seam.
 
 ### 4.5 Recovering diagnostics
 

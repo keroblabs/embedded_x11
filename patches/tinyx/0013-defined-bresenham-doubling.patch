@@ -1,0 +1,26 @@
+--- a/tinyx/fb/fbbits.h
++++ b/tinyx/fb/fbbits.h
+@@ -718,7 +718,11 @@
+                 }
+                 e = -len;
+                 e1 <<= 1;
++#if defined(WMB_DEVEL)
++                e3 = e * 2;
++#else
+                 e3 = e << 1;
++#endif
+                 FIXUP_ERROR(e, octant, bias);
+                 if (and == 0) {
+                     while (len--) {
+@@ -897,7 +901,11 @@
+                 }
+                 e = -len;
+                 e1 <<= 1;
++#if defined(WMB_DEVEL)
++                e3 = e * 2;
++#else
+                 e3 = e << 1;
++#endif
+                 FIXUP_ERROR(e, octant, bias);
+                 if (!capNotLast)
+                     len++;

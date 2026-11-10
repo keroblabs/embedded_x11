@@ -308,20 +308,23 @@ live `xReq*`) at the point where they are cheap to fix.
 
 ### 7.1 Scope
 
-Portability phase Q5. The 13 guarded files from [`11-`](11-portability-plan.md) §8, plus the patch manifest.
+Portability phase Q5. The [27 implemented guarded sites](../patches/MANIFEST.md)
+and actual [P6 guide](48-p6-portability.md), with JWM deferred to P7.
 
 ### 7.2 Definition of Done
 
-- [ ] All 13 guards applied; the patch manifest is complete and matches.
-- [ ] Every patch applies cleanly to a pristine upstream checkout (`git apply --check`).
-- [ ] Only the five sanctioned guard macros appear in upstream files.
-- [ ] Patch budget respected: `tinyx` ≤ 8, `libX11` ≤ 3, `jwm` ≤ 4.
-- [ ] `host-pure` still passes every P5 gate after the guards are applied.
-- [ ] `grep -rl 'include *<sys/\|include *<linux/\|include *<netinet/\|include *<pthread\.h>\|include *<dlfcn\.h>' <the compiled file set>` is empty.
-- [ ] `nm --undefined-only wmb_host | grep -E 'socket|bind|listen|accept|connect|select|poll|readv|writev|fcntl|sigaction|fork|execve|waitpid'` is empty.
-- [ ] `grep -rl "SDL" tinyx/ libX11/ jwm/` is empty.
-- [ ] **Rule L7**: `libtinyx.a`, `libx11_wmb.a` and `libjwm.a` link against contract stubs plus the runtime substrate with **no backend and no
-  `wmb_boot.o`** — the detachability check ([`90-`](90-decisions.md) D‑42). Extended to `libwmb_api.a` at P8.
+- [x] Manifest exactly covers all 27 original source/header deltas.
+- [x] Every patch checks/applies against exact pristine imported files and reproduces current bytes/notices.
+- [x] Presence-based TinyX/client guards preserve native reference compilation; one/zero/empty project variants agree.
+- [x] User-approved D-54 budgets: TinyX 15, libX11 10, shared X11 2. JWM remains unmodified.
+- [x] All P5 gates still pass; the full P6 suite is 30/30 in the documented matrix.
+- [x] Compiler-active include audit finds no above-HAL native/backend headers in 452 selected units.
+- [x] Every full archive and the no-backend image pass native transport/process/thread/environment/file-opening symbol checks.
+- [x] **Rule L7, built cohorts:** whole server, KDrive, client, bridge, font and runtime archives link without a backend, host launcher or dead-section elimination.
+
+JWM and the external API archive extend detachability at P7/P8, when they exist.
+Libc diagnostics/termination/allocator and target math/zlib floor closure remain
+P9; P6 does not claim a freestanding image.
 
 ### 7.3 Note
 

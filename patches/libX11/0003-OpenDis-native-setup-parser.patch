@@ -1,0 +1,153 @@
+--- a/libX11/src/OpenDis.c
++++ b/libX11/src/OpenDis.c
+@@ -28,7 +28,11 @@
+ #include <config.h>
+ #endif
+ #include "Xlibint.h"
++#if defined(WMB_INPROC)
++#include "wmb_xlib_internal.h"
++#else
+ #include "Xxcbint.h"
++#endif
+ #include <X11/Xatom.h>
+ #include <X11/Xresource.h>
+ #include <stdio.h>
+@@ -91,6 +95,10 @@
+ 	 * If the display specifier string supplied as an argument to this
+ 	 * routine is NULL or a pointer to NULL, read the DISPLAY variable.
+ 	 */
++#if defined(WMB_INPROC)
++        (void)display;
++        display_name = "WMB";
++#else
+ 	if (display == NULL || *display == '\0') {
+ 		if ((display_name = getenv("DISPLAY")) == NULL) {
+ 			/* Oops! No DISPLAY environment variable - error. */
+@@ -101,6 +109,7 @@
+ 		/* Display is non-NULL, copy the pointer */
+ 		display_name = (char *)display;
+ 	}
++#endif
+ 
+ /*
+  * Set the default error handlers.  This allows the global variables to
+@@ -126,7 +135,12 @@
+  * If NULL is returned, the connection failed.
+  */
+ 
++#if defined(WMB_INPROC)
++        iscreen = 0;
++        if (wmb_xlib_connect(dpy) != 0) {
++#else
+ 	if(!_XConnectXCB(dpy, display, &iscreen)) {
++#endif
+ 		OutOfMemory(dpy);
+ 		return NULL;
+ 	}
+@@ -224,11 +238,17 @@
+ #ifndef XLIBMINBUFSIZE
+ #define XLIBMINBUFSIZE BUFSIZE /* old default buffer size */
+ #endif
++#if defined(WMB_INPROC)
++        xlib_buffer_size = NULL;
++#else
+ 	xlib_buffer_size = getenv("XLIBBUFFERSIZE");
+-
++#endif
++
++#if !defined(WMB_INPROC)
+ #ifdef __sun /* Backwards compatibility for old Solaris libX11 name */
+ 	if (xlib_buffer_size == NULL)
+ 	    xlib_buffer_size = getenv("XSUNBUFFERSIZE");
++#endif
+ #endif
+ 
+ 	if (xlib_buffer_size == NULL)
+@@ -242,8 +262,12 @@
+ 	    OutOfMemory (dpy);
+ 	    return(NULL);
+ 	}
++#if defined(WMB_INPROC)
++        dpy->bufmax = dpy->buffer + conn_buf_size;
++#else
+ 	dpy->xcb->real_bufmax = dpy->buffer + conn_buf_size;
+ 	dpy->bufmax = dpy->buffer;
++#endif
+ 
+ 	/* Set up the input event queue and input event queue parameters. */
+ 	dpy->head = dpy->tail = NULL;
+@@ -256,7 +280,11 @@
+ 	}
+ 
+ 	{
++#if defined(WMB_INPROC)
++                const void *xcbsetup = wmb_xlib_setup(dpy);
++#else
+ 		const struct xcb_setup_t *xcbsetup = xcb_get_setup(dpy->xcb->connection);
++#endif
+ 		memcpy(&prefix, xcbsetup, sizeof(prefix));
+ 		setuplength = prefix.length << 2;
+ 		setup = (char *) xcbsetup;
+@@ -462,12 +490,14 @@
+ 			u.vp = (xVisualType *) (((char *) u.vp) +
+ 						sz_xVisualType);
+ 		    }
++#if !defined(WMB_INPROC)
+ 		    if (dp->depth == 32 && getenv ("XLIB_SKIP_ARGB_VISUALS"))
+ 		    {
+ 			Xfree (dp->visuals);
+ 			dp->visuals = NULL;
+ 			dp->nvisuals = 0;
+ 		    }
++#endif
+ 		} else {
+ 		    dp->visuals = (Visual *) NULL;
+ 		}
+@@ -499,9 +529,13 @@
+ /*
+  * get availability of large requests
+  */
++#if defined(WMB_INPROC)
++        dpy->bigreq_size = wmb_xlib_big_requests(dpy);
++#else
+ 	dpy->bigreq_size = xcb_get_maximum_request_length(dpy->xcb->connection);
+ 	if(dpy->bigreq_size <= dpy->max_request_size)
+ 		dpy->bigreq_size = 0;
++#endif
+ 
+ /*
+  * Set up other stuff clients are always going to use.
+@@ -566,6 +600,9 @@
+ /*
+  * and return successfully
+  */
++#if defined(WMB_INPROC)
++        dpy->synchandler = wmb_xlib_sync;
++#endif
+  	return(dpy);
+ }
+ 
+@@ -695,7 +732,11 @@
+ 
+ 	Xfree (dpy->filedes);
+ 
++#if defined(WMB_INPROC)
++        wmb_xlib_free_state(dpy);
++#else
+ 	_XFreeX11XCBStructure(dpy);
++#endif
+ 
+ 	Xfree (dpy);
+ }
+@@ -705,7 +746,11 @@
+ 
+ static void OutOfMemory(Display *dpy)
+ {
++#if defined(WMB_INPROC)
++    if (dpy->xcb) wmb_xlib_disconnect(dpy);
++#else
+     if(dpy->xcb->connection)
+ 	xcb_disconnect(dpy->xcb->connection);
++#endif
+     _XFreeDisplayStructure (dpy);
+ }

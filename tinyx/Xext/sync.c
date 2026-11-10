@@ -69,7 +69,9 @@ PERFORMANCE OF THIS SOFTWARE.
 #include <X11/extensions/syncstr.h>
 
 #include <stdio.h>
+#if !defined(WMB_DEVEL)
 #include <sys/time.h>
+#endif
 
 #include "extinit.h"
 
@@ -150,7 +152,11 @@ static void
 
 static void
  ServertimeBlockHandler(pointer /* env */ ,
+#if defined(WMB_DEVEL)
+                        OSTimePtr /* wt */ ,
+#else
                         struct timeval ** /* wt */ ,
+#endif
                         pointer /* LastSelectMask */
     );
 
@@ -2295,8 +2301,13 @@ ExtensionEntry *extEntry;
 /*
  * ** Initialise the extension.
  */
+#if defined(WMB_DEVEL)
+void
+SyncExtensionInit(void)
+#else
 void
 SyncExtensionInit(INITARGS)
+#endif
 {
     ExtensionEntry *extEntry;
 
@@ -2365,7 +2376,11 @@ static XSyncValue *pnext_time;
 ServertimeBlockHandler(env, wt, LastSelectMask)
 pointer env;
 
+#if defined(WMB_DEVEL)
+OSTimePtr wt;
+#else
 struct timeval **wt;
+#endif
 
 pointer LastSelectMask;
 {
