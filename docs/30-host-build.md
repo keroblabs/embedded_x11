@@ -28,9 +28,17 @@ fixed-mode RandR and cooperative waiting. Generated configuration is force-inclu
 consistently through `wmb_tinyx_config`. See the [P4 guide](../tinyx/wmb/README.md)
 and [reference capture](reference/README.md).
 
-Client transport, libX11 and JWM are not part of this P4 image. The old profile
-expansion examples below remain future build-planning material, not implemented
-`WMB_PROFILE` options.
+P5 adds the retained `wmb_xlib` and `wmb_transport_core` targets. Run
+`build-p4/bin/wmb_host --client-test` for the real unmanaged window and
+`ctest --test-dir build-p4 --output-on-failure` for all 27 checks. See
+[the P5 guide](../transport/x11/README.md) for leases, limits, client ownership
+and native SDL/Xlib symbol isolation. Python 3.10+ runs the checked wire
+comparator; system Xlib/Xvfb is only needed to regenerate reference fixtures.
+JWM is still P7.
+
+The directory/layout/profile expansion examples below are historical planning
+material, not the current source inventory or implemented `WMB_PROFILE` options.
+Current build files live at the root and in each implemented module.
 
 ### 1.2 What this document is not
 

@@ -47,7 +47,7 @@ KDrive code and mocks only the HAL and required X-server services.
 | Poll/deadline/stop/error handling | Standard KDrive block-handler path tested |
 | Fixed-mode RandR | One native mode, rotation zero; incompatible changes refused |
 | Full TinyX startup/root window | Verified by the separate [P4 server gate](../tinyx/wmb/README.md), not by the standalone harness |
-| Client dispatch | Still P5; no client is admitted by P4 |
+| Client dispatch/input | Verified separately by the real [P5 Xlib client/flow gates](../transport/x11/README.md), not by the standalone harness |
 | Real embedded device | Still a hardware port milestone |
 
 The old adapter directory and identifiers have been removed. This is a generic
@@ -156,7 +156,8 @@ remain intact.
 4. **Done at P4:** connect the cooperative wait/dispatch loop to the standard
    `KdBlockHandler` polling/deadline path. A 20 ms poll bound is a maximum;
    earlier timeouts are retained.
-5. Verify actual clients receive keyboard/pointer/wheel events and clean shutdown.
+5. **Done at P5:** actual clients receive keyboard/pointer-button events and close
+   cleanly. The standalone harness still owns detailed wheel/extended-button cases.
 6. Repeat on a board implementation of the same low-layer HAL.
 
 The driver does not implement its own blocking scheduler or a proprietary wait

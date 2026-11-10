@@ -1018,6 +1018,58 @@ behavior is preserved and regression-tested.
 [42-](42-tinyx-module-plan.md), [43-](43-kdrive-module-plan.md),
 [41-](41-verification-plan.md), and [11-](11-portability-plan.md).
 
+### D-53 - P5 uses real Xlib and native server dispatch - SETTLED
+
+P5 adds bounded in-process connection controls, borrowed complete request
+batches, replay storage, streaming setup/reply/event/error framing and client
+predicate waits. Actual native `Dispatch()` remains unchanged on `xsrv`;
+registration and close also run there. The 173-unit server cohort is unchanged.
+The client cohort is frozen at 256 units: 253 native API/support sources and
+three owned transport/profile adapters.
+
+The original pseudocode was not an implementation contract. `_XGetRequest`
+must append, not reset complete batches. `_XSend` must append/send for retained
+direct callers, not be a no-op. Completion must include the server wait boundary
+because errors/grabs can bypass another read. Output is framed across writes,
+with native padding. Full internal serial metadata disambiguates more than
+65,535 outstanding requests without changing the 16-bit wire serial.
+
+Use the matching `libX11/include/X11` cohort. The older root private header is
+not ABI-compatible with these sources. The client never inherits the server
+configuration prefix or `_XSERVER64`; shared bridge structures contain no X
+types. Hide the client archive and link it before SDL's native dependencies,
+so SDL's separate system Xlib cannot bind to the in-process API.
+
+Socket gates are scoped above HAL by caller provenance. On this host even
+dummy SDL video initializes D-Bus/udev sockets. Tracing every observed network
+and fd-wait call back through SDL proves the boundary; demanding zero descriptors
+from the entire process would test the platform rather than the X transport.
+
+Three existing client files are guarded by `WMB_INPROC`: canonical `Xlibint.h`,
+`XlibInt.c`, and `OpenDis.c`. Keeping the real setup parser/destructor consumes
+the existing third client-budget slot; duplicating that parser was rejected.
+No upstream client structure layout changes are needed.
+
+The TinyX cap rises from twelve to thirteen for `fb/fbbits.h`. The real
+500-point line/wire test exposed left shifts of negative Bresenham errors.
+Use multiplication under presence-based `WMB_DEVEL`, preserving the original
+undefined-selector branch. Disabling UBSan or hiding the report was rejected.
+
+Wire goldens come from genuine system Xlib with isolated Xvfb servers, not a
+second build of the subject. Normalize identities, serials and only
+protocol-defined padding. Undefined padding cannot be a byte-equivalence gate;
+defined payload remains exact and negative tests reject its corruption.
+
+The application owns its `Display` and closes it before fiber exit. Automatic
+abandoned-fiber cleanup, the portable launcher, JWM, external ABI and
+freestanding/hardware proof are not implied by the hosted P5 test entry.
+Those remain later lifecycle/P6/P7/P8/P9 work.
+
+**Consequences:** [21-](21-inprocess-transport.md),
+[41-](41-verification-plan.md), [42-](42-tinyx-module-plan.md),
+[46-](46-transport-module-plan.md), [11-](11-portability-plan.md),
+and [the run guide](../transport/x11/README.md).
+
 ## 8. Superseded Decisions
 
 Recorded so that reading `docs_old/` does not resurrect them.
@@ -1092,6 +1144,7 @@ Recorded so that reading `docs_old/` does not resurrect them.
 | D-50 | Generic KDrive/HAL port and standalone real-core verification | SETTLED | [43-](43-kdrive-module-plan.md) |
 | D-51 | WMB_DEVEL guards all TinyX project changes; shared ABI selection and adapter-first policy | SETTLED | [47-](47-tinyx-project-methodology.md) |
 | D-52 | Real no-client P4 server, configuration-prefix ABI, checked dependencies and actual integration gates | SETTLED | [42-](42-tinyx-module-plan.md) |
+| D-53 | Real P5 client/transport, ABI/library isolation, framing/serial contracts and necessary guarded framebuffer repair | SETTLED | [21-](21-inprocess-transport.md) |
 
 D‑46 is load‑bearing and easy to under‑read. Every request, from every kind of client, is executed by the `xsrv` fiber running upstream's `Dispatch()`; no
 client ever calls `ProcVector` on its own stack. The safety property is **structural** — only one fiber can enter `dix` — rather than a rule imposed on

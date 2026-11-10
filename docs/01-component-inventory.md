@@ -35,6 +35,12 @@ Every file or module group gets exactly one disposition.
 | **NEW** | Does not exist yet; this project writes it. | Owned by `framework/` or by a WMB‑prefixed file in an upstream tree. |
 | **DORMANT** | Present in the repository, not used by WMB now, retained for a possible future phase. | Not compiled, not deleted, explicitly noted. |
 
+`NEW` is an ownership/disposition label, not a current completion status. P1-P5
+have implemented several originally planned components. The checked
+[server](reference/tinyx-sources.reference) and
+[client](reference/xlib-sources.reference) manifests freeze the actual selected
+cohorts; see the [P5 guide](../transport/x11/README.md).
+
 ## 3. Component Map
 
 WMB is eight components. Everything below is one of these.
@@ -341,21 +347,23 @@ pristine checkout — never guessed, and never copied in wholesale ([`90-`](90-d
 | `xcb_io.c` | 1 | **EXCLUDE** | The transport. 13 non‑static functions — see [`20-`](20-transport-inventory.md) §3 |
 | `xcb_disp.c` | 1 | **STUB** | `xcb_get_setup()` etc.; the setup blob comes from the server over the normal reply path ([`21-`](21-inprocess-transport.md) §3.3) |
 | `x11_xcb.c` | 1 | **EXCLUDE** | XCB interop |
-| `OpenDis.c` | 1 | **STUB** | `XOpenDisplay` — replaced by an in‑process variant that registers a `ClientRec` |
+| `OpenDis.c` | 1 | **GUARD** | Reuse actual setup parsing/destructor with internal connection/setup hooks |
 | `ClDisplay.c` | 1 | **STUB** | `XCloseDisplay` |
 | `SetLocale.c`, `lc*` , `Xrm.c`, `im/`, `xlibi18n/` | many | **EXCLUDE** | Locale, input methods, resource manager. Out of scope per [`00-`](00-introduction.md) §4.2 |
-| `X11/Xlibint.h` | 1 header | GUARD | The `Data()` macro must resize `dpy->buffer` instead of calling `_XSend`. **One targeted edit; the highest‑leverage patch in the project** |
+| `libX11/include/X11/Xlibint.h` | 1 header | GUARD | Matching client header: `Data`/`BufAlloc` grow complete batches, client ABI/profile checks; the older root copy is not selected |
+| `libX11/src/XlibInt.c` | 1 | GUARD | Request/Data32 preparation and transport-independent I/O diagnostics |
 
 ### 9.1 Transport shim — **NEW**
 
 | File | Est. LOC | Disposition | Notes |
 |---|---:|---|---|
 | `transport/x11/wmb_transport.c` | ~280 | NEW (P5) | Replaces `xcb_io.c`. Implement from Document 21/D-46, **not** the retired direct-`ProcVector` sketch |
-| `transport/x11/wmb_open.c` | ~140 | NEW | In‑process `XOpenDisplay`: build `Display`, register `ClientRec`, install `dpy->synchandler` |
+| `transport/x11/wmb_transport.c` setup hooks | included above | IMPLEMENTED | Registration, native setup exchange and setup storage consumed by guarded `OpenDis.c` |
 | `transport/x11/wmb_close.c` | ~60 | NEW | Teardown |
-| `transport/x11/wmb_setup.c` | ~120 | NEW | Synthesise the `xConnSetup` blob that `XOpenDisplay` normally reads off the wire |
-| `transport/x11/Xlibint_wmb.h` | declarations (exists) | KEEP / ADAPT | Declares the future checked `_XBufferGrow` hook; the unsafe allocation and `Data()` macro overrides were removed |
-| `transport/x11/wmb_x11_internal.h` | — | NEW (P5) | Per-`Display` state specified in Document 21 §3.1; replaces the intended role of the empty `wmb_io.h` |
+| `transport/x11/wmb_queue.c`, `wmb_bridge.h` | implemented | NEW (P5) | Standard-C shared state, control mailbox, borrowed batches and copied/framed output |
+| `transport/x11/Xlibint_wmb.h` | declarations (exists) | KEEP | Declares the tested `_XBufferGrow` hook; the selected matching header contains the macro adaptations |
+| `transport/x11/wmb_xlib_internal.h` | implemented | NEW (P5) | Client-only per-Display state; no server X headers |
+| `transport/x11/wmb_xlib_profile.c` | implemented | NEW (P5) | Explicit threadless/core-font profile support and refusal of native threading |
 
 ### 9.2 Retired sketch — `transport/x11/wmb_io.c` (Git history only)
 

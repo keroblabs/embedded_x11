@@ -10,11 +10,11 @@ The four inputs, as they sit in the tree today:
 
 | Tree | What it is | Size | Local state |
 |---|---|---|---|
-| `tinyx/` | TinyX — the KDrive‑based framebuffer X server (X11R6.9‑era `xserver` reduced to `dix` + `os` + `mi` + `fb` + `kdrive` + a handful of extensions) | 193 `.c`, ~117.6 kLOC | Upstream‑ish; one additive local module (`kdrive/hal/`) |
-| `libX11/` | The reference Xlib implementation | 262 `.c`, ~37.3 kLOC | Unmodified |
+| `tinyx/` | TinyX — the KDrive‑based framebuffer X server (X11R6.9‑era `xserver` reduced to `dix` + `os` + `mi` + `fb` + `kdrive` + a handful of extensions) | 193 `.c`, ~117.6 kLOC | Project-guarded engine plus generic KDrive/HAL and owned OS adapters |
+| `libX11/` | The reference Xlib implementation | 262 `.c`, ~37.3 kLOC | Three `WMB_INPROC`-guarded client files; retained API cohort now built |
 | `jwm/` | Joe's Window Manager — a compact, dependency‑light reparenting WM | 50 `.c`, ~26.3 kLOC (+4.5 kLOC headers) | Unmodified |
 | `X11/` | The X11 header/protocol root (`X.h`, `Xlib.h`, `Xproto.h`, `Xutil.h`) plus the Xt/Xaw/Xmu/`xtrans` trees | headers‑dominant | Unmodified; used as the include root |
-| `framework/` | Our own code: the hosted SDL backend, a bare‑metal fiber runtime, heap/buffer helpers, and the first transport‑shim sketch | ~4.2 kLOC | **This is the only tree we own outright** |
+| `framework/` | Our portable fiber runtime and library helpers | ~4.2 kLOC baseline | Owned, alongside the separate HAL, ports and transport trees |
 
 `fonts/freetype/` remains dormant. The font/protocol headers in `X11/fonts/` are
 used by the P4 server; bitmap font implementation comes from its pinned libXfont
@@ -22,31 +22,32 @@ dependency.
 
 ### 1.1 What the tree does today
 
-The hosted foundations and no-client TinyX server are runnable; the complete
-client/transport/window-manager stack is not yet assembled:
+The hosted foundations, real TinyX server, and P5 in-process Xlib clients are
+runnable. JWM and the external ABI are not yet assembled:
 
 - The top-level `CMakeLists.txt` builds the framework, hosted fiber/system ports, optional SDL backends, the KDrive/HAL library, and smoke/demo executables.
   `transport/x11/wmb_main.c` now reserves the portable lifecycle entry point without exporting a competing `main()`.
 - With `WMB_TINYX_BUILD_SERVER=ON`, actual DIX/OS/MI/FB/extensions and KDrive/HAL
   initialize, paint an X root window, reach `Dispatch()`, wait cooperatively and
   shut down. See the [P4 server guide](../tinyx/wmb/README.md).
-  `libX11/`, the in-process client transport, and `jwm/` remain later work.
+  The same option now adds the retained client library and
+  [P5 transport/client gates](../transport/x11/README.md). `jwm/` remains P7 work.
 - `framework/fiber/` contains a complete, portable cooperative fiber core (`fiber.c`, `fiber_sync.c`, `hal_task.c` and its headers) **and a working hosted
   port** in `linux_hosted/fiber_linux/`. Both are exercised by the smoke programs under `linux_hosted/`, one of which — `sdl_fiber_example_v2/` — is a
   running proof of concept of the in‑process transport's client–server handshake ([`21-`](21-inprocess-transport.md) §11). The preemption tick is
   deliberately disarmed ([`90-`](90-decisions.md) D‑47).
 - The obsolete `transport/x11/wmb_io.c` direct-dispatch sketch and its empty header were removed from the working tree. They remain in Git history;
-  P5 will implement per-`Display` state and server-fiber dispatch according to [`21-`](21-inprocess-transport.md) and D-46.
+  P5 implements per-`Display` state and server-fiber dispatch according to [`21-`](21-inprocess-transport.md) and D-46.
   `transport/api/wmb_app_table.h` is retained as the application-launch contract.
 - The generic `tinyx/kdrive/hal/` port uses the new low-layer display/input HAL.
   Its standalone harness runs actual KDrive factory, input, and block-handler code
   with mock HAL/server services, without SDL. The separate P4 gate now verifies
-  real startup, Damage/rendering, cooperative waiting and cleanup. Client
-  request/reply/event delivery remains P5.
+  real startup, Damage/rendering, cooperative waiting and cleanup. Separate P5
+  tests now verify actual Xlib requests, replies, events and backend input.
 
 So: the **components are present**, a **design has been argued at length** (see `docs_old/`, ~33.6 kLOC of prior planning across four generations of
-documents), and **the server has reached first light**. The next integration work
-is the P5 in-process client transport, not another native socket server.
+documents), and **the server and a real Xlib application are running**. The next
+phase is P6 portability closure, followed by P7 JWM, not a native socket server.
 
 ### 1.2 Why this is not a normal X11 port
 

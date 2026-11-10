@@ -41,7 +41,21 @@ from The Open Group.
 #include <stdint.h>
 #include <X11/Xlib.h>
 #include <X11/Xproto.h>		/* to declare xEvent */
+#if !defined(WMB_INPROC)
 #include <X11/XlibConf.h>	/* for configured options like XTHREADS */
+#endif
+#if defined(WMB_INPROC)
+#define WMB_XLIB_CANONICAL_HEADER 1
+#if defined(_XSERVER64)
+#error "Client Xlib must not inherit the TinyX server configuration"
+#endif
+#endif
+#if defined(WMB_INPROC) && !defined(_X_COLD)
+#define _X_COLD __attribute__((cold))
+#endif
+#if defined(WMB_INPROC) && !defined(_X_UNUSED)
+#define _X_UNUSED __attribute__((unused))
+#endif
 
 #ifdef XTHREADS
 #include <X11/Xthreads.h>
@@ -647,6 +661,21 @@ extern void _XFlushGCCache(Display *dpy, GC gc);
  * "len" is the length of the data buffer.
  */
 #ifndef DataRoutineIsProcedure
+#if defined(WMB_INPROC)
+extern int _XBufferGrow(Display *, size_t);
+extern void wmb_xlib_prepare_ids(Display *);
+#define Data(dpy, data, len) do { \
+    size_t _wmb_length = (size_t)(len); \
+    size_t _wmb_padded = (_wmb_length + 3u) & ~(size_t)3u; \
+    if (_wmb_length > 1024u * 1024u || _XBufferGrow((dpy), _wmb_padded) != 0) { \
+        _XIOError(dpy); \
+    } else { \
+        if (_wmb_length) memcpy((dpy)->bufptr, (data), _wmb_length); \
+        if (_wmb_padded > _wmb_length) memset((dpy)->bufptr + _wmb_length, 0, _wmb_padded - _wmb_length); \
+        (dpy)->bufptr += _wmb_padded; \
+    } \
+} while (0)
+#else
 #define Data(dpy, data, len) {\
 	if (dpy->bufptr + (len) <= dpy->bufmax) {\
 		memcpy(dpy->bufptr, data, (size_t)(len));\
@@ -654,6 +683,7 @@ extern void _XFlushGCCache(Display *dpy, GC gc);
 	} else\
 		_XSend(dpy, (_Xconst char*)(data), (long)(len));\
 }
+#endif /* WMB_INPROC */
 #endif /* DataRoutineIsProcedure */
 
 
@@ -671,12 +701,26 @@ extern void _XFlushGCCache(Display *dpy, GC gc);
  *    BufAlloc (xTextElt *, elt, nbytes)
  */
 
+#if defined(WMB_INPROC)
+#define BufAlloc(type, ptr, n) do { \
+    size_t _wmb_size = (size_t)(n); \
+    if (_XBufferGrow((dpy), _wmb_size) != 0) { \
+        _XIOError(dpy); \
+        ptr = NULL; \
+    } else { \
+        ptr = (type)(dpy)->bufptr; \
+        memset(ptr, 0, _wmb_size); \
+        (dpy)->bufptr += _wmb_size; \
+    } \
+} while (0)
+#else
 #define BufAlloc(type, ptr, n) \
     if (dpy->bufptr + (n) > dpy->bufmax) \
         _XFlush (dpy); \
     ptr = (type) dpy->bufptr; \
     memset(ptr, '\0', (size_t)(n)); \
     dpy->bufptr += (n);
+#endif
 
 #define Data16(dpy, data, len) Data((dpy), (_Xconst char *)(data), (len))
 #define _XRead16Pad(dpy, data, len) _XReadPad((dpy), (char *)(data), (len))

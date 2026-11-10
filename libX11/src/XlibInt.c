@@ -1257,6 +1257,10 @@ _XWireToEvent(
 static int
 SocketBytesReadable(Display *dpy)
 {
+#if defined(WMB_INPROC)
+    (void)dpy;
+    return 0; /* The fatal-error diagnostic has no socket to inspect. */
+#else
     int bytes = 0, last_error;
 #ifdef WIN32
     last_error = WSAGetLastError();
@@ -1268,6 +1272,7 @@ SocketBytesReadable(Display *dpy)
     errno = last_error;
 #endif
     return bytes;
+#endif
 }
 
 _X_NORETURN void _XDefaultIOErrorExit(
@@ -1677,6 +1682,9 @@ _XData32(
     register int *buf;
     register long i;
 
+#if defined(WMB_INPROC)
+    if (_XBufferGrow(dpy, len) != 0) { _XIOError(dpy); return -1; }
+#endif
     while (len) {
 	buf = (int *)dpy->bufptr;
 	i = dpy->bufmax - (char *)buf;
@@ -1783,6 +1791,13 @@ void *_XGetRequest(Display *dpy, CARD8 type, size_t len)
 {
     xReq *req;
 
+#if defined(WMB_INPROC)
+    wmb_xlib_prepare_ids(dpy);
+    if (_XBufferGrow(dpy, len) != 0) {
+        _XIOError(dpy);
+        return NULL;
+    }
+#endif
     if (dpy->bufptr + len > dpy->bufmax)
 	_XFlush(dpy);
     /* Request still too large, so do not allow it to overflow. */

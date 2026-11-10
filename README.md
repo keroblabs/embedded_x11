@@ -2,8 +2,9 @@
 
 X11 stack (TinyX server + libX11 + JWM window manager) running inside a cooperative fiber runtime, with an in-process transport replacing the socket. Two targets: Linux hosted (SDL backend) and a freestanding embedded platform.
 
-Status: the framework, hosted HAL, and P4 TinyX server/root window are runnable.
-Client transport and JWM integration remain later milestones. See the
+Status: the framework, hosted HAL, TinyX server and P5 in-process Xlib client
+are runnable. JWM and the external ABI remain later milestones. See the
+[client transport guide](transport/x11/README.md),
 [TinyX server guide](tinyx/wmb/README.md) and
 [`docs/40-implementation-plan.md`](docs/40-implementation-plan.md).
 
@@ -107,7 +108,15 @@ This opens the real X root window. Close it to stop. The optional
 `--self-test` runs for ten seconds and verifies rendering, Damage, idle CPU,
 polling rate and cleanup. The first configure builds a pinned bitmap-font
 dependency locally. See the [build/dependency/verification guide](tinyx/wmb/README.md).
-No native X socket transport or client protocol implementation is selected.
+Native X socket transport is not selected. To run the P5 Xlib application:
+
+```sh
+./build-p4/bin/wmb_host --client-test
+```
+
+It opens an unmanaged white window, draws a rectangle/text, verifies backend
+input, and closes after ten seconds. Additional flow, timeout and independent
+stock-Xlib wire gates are in the [P5 guide](transport/x11/README.md).
 
 Project-specific TinyX changes use the shared `WMB_DEVEL=1` selector, including
 Release and embedded builds. Driver policy stays in the HAL port; necessary
@@ -157,4 +166,6 @@ ASan prints a boilerplate `WARNING: ASan doesn't fully support makecontext/swapc
 | `wmb_kdrive` | STATIC | Actual KDrive core and generic HAL port; no SDL dependency |
 | `wmb_tinyx_project` | INTERFACE | Shared `WMB_DEVEL=1` selection for TinyX and conditional-header consumers |
 | `wmb_tinyx_config` | INTERFACE | Generated configuration prefix and consistent server protocol types (P4 option) |
-| `wmb_tinyx` | STATIC | Actual TinyX DIX/MI/FB/extensions and no-client OS integration (P4 option) |
+| `wmb_tinyx` | STATIC | Actual TinyX DIX/MI/FB/extensions and owned cooperative OS integration |
+| `wmb_transport_core` | STATIC | Standard-C request leases, framing, copied packet/event queues and control mailbox |
+| `wmb_xlib` | STATIC | Retained client API and in-process transport; matching client headers, no server ABI prefix |

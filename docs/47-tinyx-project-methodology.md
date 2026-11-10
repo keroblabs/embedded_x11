@@ -113,6 +113,11 @@ variant; passing `-DWMB_DEVEL=0` is not a way to turn it into a native driver.
   exclusion, extension observation and unsigned visual-mask generation. The
   generated configuration is force-included through `wmb_tinyx_config` before
   X protocol headers, preventing mixed server ABI layouts.
+- P5 adds one guarded framebuffer arithmetic correction in
+  [fbbits.h](../tinyx/fb/fbbits.h), exposed by real line rendering under UBSan.
+  Transport policy stays in the owned OS/client adapters; `Dispatch()` is not
+  patched. Client code uses its own matching headers and never inherits the
+  server prefix or `_XSERVER64`.
 
 The low-layer HAL still transports its original bytes and descriptors.
 Scancode allocation and X-server policy are not new hardware APIs.
@@ -141,9 +146,10 @@ do not prove full TinyX startup, real rendering/Damage/event processing, client
 dispatch, or embedded readiness; those remain integration milestones.
 
 The separate [P4 server gate](../tinyx/wmb/README.md) now verifies actual startup,
-root rendering, real Damage, cooperative dispatch/wait and cleanup. Client
-dispatch and embedded readiness remain later gates; standalone passes still
-must not be used as their substitute.
+root rendering, real Damage, cooperative dispatch/wait and cleanup. Separate
+[P5 gates](../transport/x11/README.md) now verify client dispatch, replies,
+events and backend input. Embedded readiness remains later; standalone passes
+still must not be used as a substitute for either integration gate.
 
 This methodology is recorded in [D-51](90-decisions.md) and in the
 [TinyX-scoped workspace instruction](../.github/instructions/tinyx-wmb.instructions.md).

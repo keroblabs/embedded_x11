@@ -52,7 +52,7 @@ target_include_directories(wmb_tinyx PUBLIC
     "${TINYX_SOURCE_ROOT}/wmb"
     "${TINYX_SOURCE_ROOT}/xfixes" "${TINYX_SOURCE_ROOT}/damageext")
 target_link_libraries(wmb_tinyx PUBLIC wmb_tinyx_config wmb_kdrive
-    wmb_xfont wmb_hal)
+    wmb_xfont wmb_hal wmb_transport_core)
 target_compile_options(wmb_tinyx PRIVATE -ffunction-sections -fdata-sections)
 
 add_executable(wmb_tinyx_timer_test

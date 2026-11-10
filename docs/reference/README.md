@@ -74,3 +74,51 @@ expected visual/depth/masks and extension set. The CTest startup wrapper compare
 the actual log with it for the selected backend's native geometry/format.
 [The RGB565 root image](tinyx-root-rgb565.png) is an 800x480 capture of the actual
 framebuffer at SDL's presentation point, including the software X cursor.
+
+## P5 stock-Xlib wire references
+
+[The depth-16](xlib-wire-golden-16.json) and
+[depth-24/XRGB8888](xlib-wire-golden-32.json) fixtures were captured from system
+Xlib 1.8.7 against separate stock Xvfb servers. The collector records
+actual native socket writes/reads, not a reconstruction made from WMB.
+The shared ten-call script is compiled once with stock headers/library and once
+with the matching WMB client cohort.
+
+```sh
+cmake -S . -B build-p5 -DWMB_TINYX_BUILD_SERVER=ON -DWMB_BUILD_WIRE_REFERENCE=ON
+cmake --build build-p5 --target wmb_wire_reference wmb_host
+```
+
+In a separate terminal, launch a temporary reference server:
+
+```sh
+Xvfb -displayfd 1 -screen 0 800x480x16 -nolisten tcp -noreset -ac
+```
+
+Use the printed display number as `N`:
+
+```sh
+DISPLAY=:N ./build-p5/bin/wmb_wire_reference build-p5/reference.wire 16
+python3 transport/x11/tests/compare_wire.py build-p5/reference.wire \
+    --record docs/reference/xlib-wire-golden-16.json
+SDL_VIDEODRIVER=dummy SDL_RENDER_DRIVER=software \
+    ./build-p5/bin/wmb_host --wire-test build-p5/subject.wire
+python3 transport/x11/tests/compare_wire.py build-p5/subject.wire \
+    --compare docs/reference/xlib-wire-golden-16.json
+```
+
+Stop that reference server afterward. Repeat with screen depth `24`, collector
+argument `24`, and `xlib-wire-golden-32.json` for the other format. The collector
+is a host-only verification program; it is not linked into WMB and does not
+reintroduce a native transport profile.
+
+IDs, sequence fields and **only protocol-defined padding** are normalized.
+Padding is not specified by X11 and stock servers may leave it uninitialized;
+comparing it would not test protocol equivalence. All defined request/reply
+fields and payload bytes must match. The parser's negative tests prove that a
+payload mutation is not normalized away, and truncated captures are rejected.
+
+[The P5 client image](tinyx-client-rgb565.png) captures the actual white window,
+black rectangle, text and software cursor. Client pixels are also checked in CI.
+[The client source manifest](xlib-sources.reference) freezes the 256-unit
+client/API/profile cohort independently of the 173-unit server cohort.

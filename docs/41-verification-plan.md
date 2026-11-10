@@ -163,20 +163,20 @@ V‑P4‑3 doubles as the bisection gate for P5 failures — [`40-`](40-implemen
 | ID | Gate | Method |
 |---|---|---|
 | V‑P5‑0 | **Transport shape proven out of tree** — post → `fiber_notify()` → predicate wait, one server fiber owning the device, `lists.c` as the queue | `linux_hosted/sdl_fiber_example_v2`, 10 s: 3 client fibers post 40 requests, 40 served, 40 completions, **0 timeouts**, every draw on the render fiber — **DONE** ([`21-`](21-inprocess-transport.md) §11) |
-| V‑P5‑1 | Zero sockets | `lsof -p $(pidof wmb_host) \| grep -c sock` = 0 |
-| V‑P5‑2 | Zero network/wait syscalls | `strace -f -e trace=network,select,poll` → empty |
+| V‑P5‑1 | No subject X sockets | Source/symbol isolation plus syscall-stack attribution; SDL's own IPC is below HAL |
+| V‑P5‑2 | No subject network/fd wait path | `strace -f -k -e trace=network,select,poll,ppoll,pselect6` attributes every observed call to SDL; no native subject XCB/transport imports |
 | V‑P5‑3 | **`pollEvents` at ≥ 30 Hz** | Instrumented counter; **this is the `BlockHandler` preservation check** |
 | V‑P5‑4 | Injected key event reaches a client's event queue | Backend injection → client receives `KeyPress` |
 | V‑P5‑5 | `wmb_test_client` prints 6 PASS lines | Exit status + stdout match |
-| V‑P5‑6 | The test window is visible with correct content | Screenshot diff against reference |
+| V‑P5‑6 | The test window is visible with correct content | Actual desktop capture plus exact client framebuffer-pixel checks |
 | V‑P5‑7 | Reply path: `XGetWindowAttributes` returns correct data | Compare against the values used at creation |
 | V‑P5‑8 | Variable‑length reply: `XGetWindowProperty` on a 4 KB property round‑trips exactly | Byte compare |
 | V‑P5‑9 | Error path: deliberate `BadWindow` reaches `XSetErrorHandler` | Handler sets a flag |
 | V‑P5‑10 | Async error (fire‑and‑forget request) surfaces at the next `XNextEvent` | Handler flag with no intervening round trip |
 | V‑P5‑11 | **Differential byte test** — §5 | See §5 |
-| V‑P5‑12 | `InsertFakeRequest` / `ResetCurrentRequest` work | XKB auto‑repeat produces repeated `KeyPress`; `Xext/sleepuntil` `AwaitSync` completes |
+| V‑P5‑12 | `InsertFakeRequest` / `ResetCurrentRequest` work | Actual native setup, contended impervious grab/replay and delayed XTEST input/sleep/attend/reset; XKB remains disabled |
 | V‑P5‑13 | XID allocation past the initial range (XC‑MISC top‑up) | Allocate `resource_mask + 100` resources |
-| V‑P5‑14 | Valgrind clean over a 60 s session | |
+| V‑P5‑14 | Valgrind clean over a 60 s session | Real `--client-soak`: zero errors, zero definitely/indirectly/possibly lost bytes |
 | N1, N2, N6 | | |
 
 V‑P5‑3 deserves emphasis. It is a one‑line instrumented counter and it catches the single highest‑likelihood/highest‑impact bug in the project
@@ -185,6 +185,32 @@ input, because `BlockHandler`/`WakeupHandler` were dropped.
 
 V‑P5‑0 is green already and is **not** a substitute for any gate below it. It proves the dispatch protocol and the queue in isolation, before TinyX is in
 the picture, so a failure in V‑P5‑5..14 can be attributed to the X11 half rather than to the handshake.
+
+**Final hosted P5 evidence:**
+
+| Configuration | Result |
+|---|---|
+| Debug, RGB565 800x480 | 27/27 |
+| Release, XRGB8888 319x177 | 27/27 |
+| ASan + strict UBSan, RGB565 800x480 | 27/27 |
+| ASan + strict UBSan, padded RGB565 319x177 | 27/27 |
+| ASan + strict UBSan, XRGB8888 319x177 | 27/27 |
+| Sixty-second client under Valgrind | 0 errors; 0 lost bytes |
+| Multi-client flow under Valgrind | 0 errors; 0 lost bytes with the documented stack-frame threshold |
+
+The final normal Debug client measured 1.98% process CPU and 49.7 Hz polling.
+Valgrind retains about 42 KiB of reachable server/font caches at shutdown; this
+is not a zero-allocation report. Its default 2 MiB stack-switch heuristic
+misclassifies nearby 128 KiB worker stacks in the flow test. Repeating with
+`--max-stackframe=65536` resolves those stack-addressability reports without
+memory-error suppressions. Native guard-page and ASan stack tests are unchanged.
+
+The final traced headless run still had three platform sockets: SDL initialized
+D-Bus and udev even with the dummy video driver. All 43 observed network/fd-wait
+calls had SDL below the HAL on their call stacks; none came from the in-process
+X transport. A blanket whole-process zero-socket assertion is therefore invalid
+even in this headless environment. Do not disable platform services just to
+manufacture a passing transport gate.
 
 ### 4.6 P6 — Dependency severing
 
@@ -242,16 +268,18 @@ Gate V‑P5‑11 / T5. The single highest‑value test in the project, because i
 ```
                 reference                                 subject
    ┌────────────────────────────────┐      ┌──────────────────────────────────┐
-   │ golden capture (offline, once) │      │ host-pure profile                │
-   │   ref_client ──socket──► any   │      │   ref_client (as a fiber) ──► WMB│
-   │   system X server              │      │   WMB_DEBUG_TRACE_REQUESTS dumps │
-   │   xtrace captures the bytes    │      │   dpy->buffer before dispatch    │
+   │ golden capture (offline, once) │      │ in-process subject               │
+   │ stock Xlib ──socket──► Xvfb    │      │ same script as a fiber ──► WMB  │
+   │ native socket bytes captured   │      │ borrowed requests/framed output │
+   │ optional verification helper   │      │ actual transport trace callback │
    └───────────────┬────────────────┘      └────────────────┬─────────────────┘
                    └───────────── diff ─────────────────────┘
 ```
 
 `ref_client` is a single program exercising a fixed script of API calls, compiled twice — once against stock libX11 with sockets, once as an internal WMB
-fiber. The reference side runs against the development machine's own X server and its output is checked in, so no WMB profile needs a socket.
+fiber. The reference side uses separate depth-16/depth-24 Xvfb servers and genuine
+system Xlib; its output is checked in, so no subject transport needs a socket.
+[The reference procedure](reference/README.md) records exact build/run commands.
 
 ### 5.2 The script
 
@@ -262,7 +290,7 @@ Ten calls chosen to cover every request shape:
 | 1 | `XCreateSimpleWindow` | Fixed‑size request, XID allocation |
 | 2 | `XMapWindow` | Minimal request |
 | 3 | `XStoreName` | Variable payload via `Data()` — **the `Data()` path** |
-| 4 | `XChangeProperty` with a 4 KB value | **`Data()` overflow → buffer growth** — the R2 case |
+| 4 | `XChangeProperty` with a 4 KB value | Variable `Data()` payload; separate 32 KiB/280 KiB requests and buffer tests exercise actual growth |
 | 5 | `XGetWindowAttributes` | Fixed reply |
 | 6 | `XGetWindowProperty` on that 4 KB property | **Multi‑part variable reply** — the R1 case |
 | 7 | `XQueryTree` | Variable reply with a list |
@@ -274,10 +302,13 @@ Calls 4 and 6 are the reason the test exists.
 
 ### 5.3 Pass criterion
 
-For each of the ten calls, the request bytes are **byte‑identical** between reference and subject, and the reply bytes returned to the client are
-byte‑identical.
+For each call, every defined request/reply byte must match after documented
+normalization.
 
-Permitted differences: the sequence number field (both sides must be internally consistent, not identical to each other) and the XID base.
+Permitted differences are sequence numbers, client/server resource identities and
+**protocol-defined padding**, which X11 leaves unspecified. Defined data is not
+ignored. Parser tests deliberately mutate payload/padding and truncate captures
+to prove that normalization cannot turn corrupted payload into a pass.
 
 ## 6. Continuous Checks
 

@@ -5,6 +5,7 @@
 #include "opaque.h"
 #include "hal_display.h"
 #include "hal_task.h"
+#include "wmb_bridge.h"
 
 extern int WmbTinyXRun(int argc, char **argv);
 _Static_assert(sizeof(KeySym) == 4, "Server protocol types require consistent configuration");
@@ -24,6 +25,7 @@ void TinyX_ServerFiber(void *argument)
     server->result = WmbTinyXRun(server->argc, server->argv);
     if (KdHalDisplayStatus() == HAL_DISPLAY_ERROR) server->result = 1;
     server->finished = true;
+    wmb_bridge_server_ready(false);
     server_task = NULL;
 }
 
@@ -54,6 +56,7 @@ void WmbTinyXServerReady(void)
             screen->visuals[i].redMask, screen->visuals[i].greenMask,
             screen->visuals[i].blueMask);
     server->ready = true;
+    wmb_bridge_server_ready(true);
 }
 
 void WmbTinyXExtensionAdded(const char *name, int opcode)

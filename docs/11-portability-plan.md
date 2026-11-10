@@ -27,7 +27,7 @@ Four mechanisms, in strict order of preference. **Always use the earliest one th
 | M3 | **Guard a necessary region of an upstream file.** | One line item in the patch manifest. Must be replayable; preserve the reference alternative. | The file is mostly needed but has a project-specific dependency or engine limitation |
 | M4 | **Rewrite upstream logic unconditionally.** | Forbidden. | — |
 
-M1 handles ~15,000 LOC. M2 handles the transport. M3 plans 17 files, including the
+M1 handles ~15,000 LOC. M2 handles the transport. M3 plans 19 files, including the
 three current KDrive core files. M4 never happens. Device policy uses existing
 DDX/HAL seams before M3; see [the TinyX methodology](47-tinyx-project-methodology.md).
 
@@ -60,7 +60,7 @@ Six phases with hard exit gates. Phases are sequential; each consumes the previo
 | **Q2** | Contract authoring | `hal_display.h`, `hal_input.h`, `hal_task.h`, `hal_time.h`, `wmb_os.h` exist and compile standalone against a freestanding C compiler with no includes beyond `<stdint.h>` / `<stddef.h>` / `<stdbool.h>` |
 | **Q3** | Backend re‑pointing | `tinyx/kdrive/hal/*.c` includes only `hal_*.h`; a mock backend links the DDX with no SDL present |
 | **Q4** | Transport stubs | `waitfor_wmb.c`, `connection_wmb.c`, `io_wmb.c` compile and the whole‑stack build links in the `host-pure` profile |
-| **Q5** | Guard application | The 17 planned upstream files carry their guards; the patch manifest is complete; the series replays on fresh checkouts |
+| **Q5** | Guard application | The 19 planned upstream files carry their guards; the patch manifest is complete; the series replays on fresh checkouts |
 | **Q6** | Freestanding proof | The `target` profile compiles every translation unit with `-ffreestanding -nostdinc` plus only the documented floor |
 
 Q1 and Q2 can run in parallel. Q3 depends on Q2. Q4 depends on Q1 and on [`21-`](21-inprocess-transport.md). Q5 depends on Q4. Q6 depends on everything.
@@ -85,7 +85,7 @@ Delete nothing; simply never list the file. The work is in **proving** that each
 | `tinyx/Xext/shm.c` | ~1,000 | M1 | `ShmExtensionInit`, `ShmRegisterFuncs` → guarded out of `miinitext.c` |
 | `tinyx/Xext/xf86bigfont.c` | ~700 | M1 | `XFree86BigfontExtensionInit` → guarded out |
 | `libX11/src/xcb_io.c` | ~800 | M1 | 13 symbols → **all** reimplemented in `wmb_transport.c` (see [`20-`](20-transport-inventory.md) §3) |
-| `libX11/src/{x11_xcb,locking,CrGlCur,os2Stubs}.c` | — | M1 | `XInitThreads`, `_XCreateMutex_fn` etc. → no‑op stubs in `wmb_open.c` |
+| `libX11/src/{x11_xcb,locking,CrGlCur,os2Stubs}.c` | — | M1 | `XInitThreads` explicitly refuses native threading; profile hooks in `wmb_xlib_profile.c` |
 | `libX11/src/xlibi18n/`, `SetLocale.c`, `Xrm.c`, `lc*` | ~8,000 | M1 | `_XlcCurrentLC`, `XSetLocaleModifiers`, `XSupportsLocale`, `XrmInitialize`… → minimal stubs |
 | `X11/xtrans/` | header lib | M1 | — |
 
@@ -225,10 +225,11 @@ exists specifically to catch this.
 
 ## 8. Phase Q5 — Guard Application
 
-The 17 planned upstream files that carry edits. The three KDrive files are
-already implemented and standalone-tested; the other rows remain phase work.
+The 19 planned upstream files that carry edits. P1-P5 implement the current
+KDrive, server and client sites; P6 still owns the replayable patch series and
+remaining dependency removal. JWM edits are not implemented yet.
 
-### 8.1 `tinyx/` — 12 guarded files
+### 8.1 `tinyx/` — 13 guarded files
 
 | # | File | Guard | Edit |
 |--:|---|---|---|
@@ -244,18 +245,20 @@ already implemented and standalone-tested; the other rows remain phase work.
 | 15 | `kdrive/src/kdrive.c` | `WMB_DEVEL` | Project native-option/VT/shell exclusions and lifecycle/OS-initialization handling |
 | 16 | `dix/extension.c` | `WMB_DEVEL` | Observe actual successful extension registration for the P4 startup gate |
 | 17 | `mi/micmap.c` | `WMB_DEVEL` | Use an unsigned blue-mask shift; strict UBSan found signed overflow during real initialization |
+| 18 | `fb/fbbits.h` | `WMB_DEVEL` | Multiply negative Bresenham error by two instead of signed left shift; exposed by P5 line/wire test |
 
 `os/strlcat.c` also includes `<sys/types.h>`; prefer an M2 replacement if needed.
 If edited instead, its change also requires `WMB_DEVEL` and an additional manifest
 entry/budget decision. Existing manifest IDs 1-13 are retained; 14/15 record the
 two added KDrive core files.
 
-### 8.2 `libX11/` — 2 guarded files
+### 8.2 `libX11/` — 3 guarded files
 
 | # | File | Guard | Edit |
 |--:|---|---|---|
-| 9 | `X11/Xlibint.h` | `WMB_INPROC` | The `Data()` macro: on overflow call `_XBufferOverflow(dpy, n)` to grow `dpy->buffer`, instead of `_XSend(dpy, data, len)`. **The highest‑leverage single edit in the project** — it is what lets 245 API files work unchanged |
+| 9 | `libX11/include/X11/Xlibint.h` | `WMB_INPROC` | Matching client ABI/header, threadless profile, `Data`/`BufAlloc` complete-batch growth through `_XBufferGrow` |
 | 10 | `libX11/src/XlibInt.c` | `WMB_INPROC` | Guard the `<sys/socket.h>` / `<sys/ioctl.h>` / `<sys/utsname.h>` block and the fd‑based `_XWaitForReadable` / `_XWaitForWritable` helpers; keep error handling and `_XEatData` |
+| 19 | `libX11/src/OpenDis.c` | `WMB_INPROC` | Internal connection/setup sourcing, preserving native parsing and destructor |
 
 ### 8.3 `jwm/` — 3 guarded files (+3 mechanical)
 
@@ -272,16 +275,18 @@ Three further JWM files (`main.c`, `misc.c`, `timing.c`) are handled by **M2 via
 
 | Tree | Cap | Planned | Slack |
 |---|---:|---:|---:|
-| `tinyx/` | 12 | 12 | 0 |
-| `libX11/` (incl. `X11/Xlibint.h`) | 3 | 2 | 1 |
+| `tinyx/` | 13 | 13 | 0 |
+| `libX11/` | 3 | 3 | 0 |
 | `jwm/` | 4 | 3 | 1 |
-| **Total** | **19** | **17** | **2** |
+| **Total** | **20** | **19** | **1** |
 
 Exceeding a cap requires an entry in [`90-decisions.md`](90-decisions.md) with the alternative that was rejected and why. The caps exist because every
 guarded file is a merge conflict every time upstream moves. D-51 raises the
 TinyX cap by two for necessary header-layout and lifecycle changes; copying
 engine logic into the HAL port was rejected. D-52 adds two necessary P4 engine
 sites for truthful registration observation and defined visual-mask arithmetic.
+D-53 adds the necessary framebuffer arithmetic site rather than suppressing
+UBSan. Reusing the real Xlib setup parser consumes the existing third client slot.
 
 ### 8.5 Patch manifest
 
@@ -300,10 +305,14 @@ patches/
 │   ├── 0007-strlcpy-stddef.patch
 │   ├── 0008-kinput-project-input.patch
 │   ├── 0009-kdrive-project-buttons.patch
-│   └── 0010-kdrive-project-lifecycle.patch
+│   ├── 0010-kdrive-project-lifecycle.patch
+│   ├── 0011-extension-registration-observation.patch
+│   ├── 0012-unsigned-visual-mask.patch
+│   └── 0013-defined-bresenham-doubling.patch
 ├── libX11/
 │   ├── 0001-Xlibint-data-macro-buffer-growth.patch
-│   └── 0002-XlibInt-guard-socket-helpers.patch
+│   ├── 0002-XlibInt-guard-socket-helpers.patch
+│   └── 0003-OpenDis-internal-setup-source.patch
 └── jwm/
     ├── 0001-jwm-h-guard-posix-includes.patch
     ├── 0002-event-cooperative-loop.patch
@@ -319,7 +328,7 @@ for tree in tinyx libX11 jwm; do
 done
 
 # inventory project/profile guards, including presence-based TinyX guards
-grep -rhE '^#(if|ifdef|ifndef).*WMB_[A-Z_]+' tinyx libX11 jwm X11/Xlibint.h \
+grep -rhE '^#(if|ifdef|ifndef).*WMB_[A-Z_]+' tinyx libX11 jwm \
     | grep -oE 'WMB_[A-Z_]+' | sort -u
 # TinyX project edits use WMB_DEVEL; existing non-TinyX profile/client guards
 # and capability refinements are reviewed separately.
@@ -409,7 +418,7 @@ The complete mapping from [`10-`](10-os-dependency-census.md) to a mechanism. Ev
 | `<sys/socket.h>` etc. | `libX11/src/XlibInt.c` | TRANSPORT | M3 guard | Q5 |
 | `<dlfcn.h>` | `libX11/src/{locking,CrGlCur}.c`, `xlibi18n/` | PROCESS | M1 | Q1 |
 | Locale / XIM / Xrm | `libX11/src/xlibi18n/`, `SetLocale.c`, `Xrm.c` | FILESYSTEM/ENV | M1 + stubs | Q1 |
-| `Data()` macro flush | `X11/Xlibint.h` | TRANSPORT | M3 guard | Q5 |
+| `Data()` macro flush | `libX11/include/X11/Xlibint.h` | TRANSPORT | M3 guard | Q5 |
 | `select()` on `ConnectionNumber` | `jwm/src/event.c` | BLOCKING | M3 guard | Q5 |
 | `fork`/`execl`/`waitpid` | `jwm/src/command.c` | PROCESS | M3 guard | Q5 |
 | `sigaction` | `jwm/src/main.c` | PROCESS | M2 via namespace header | Q5 |

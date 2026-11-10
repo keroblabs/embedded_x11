@@ -718,7 +718,11 @@ POLYLINE(DrawablePtr pDrawable,
                 }
                 e = -len;
                 e1 <<= 1;
+#if defined(WMB_DEVEL)
+                e3 = e * 2;
+#else
                 e3 = e << 1;
+#endif
                 FIXUP_ERROR(e, octant, bias);
                 if (and == 0) {
                     while (len--) {
@@ -897,7 +901,11 @@ POLYSEGMENT(DrawablePtr pDrawable, GCPtr pGC, int nseg, xSegment * pseg)
                 }
                 e = -len;
                 e1 <<= 1;
+#if defined(WMB_DEVEL)
+                e3 = e * 2;
+#else
                 e3 = e << 1;
+#endif
                 FIXUP_ERROR(e, octant, bias);
                 if (!capNotLast)
                     len++;

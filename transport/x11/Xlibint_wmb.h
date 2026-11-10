@@ -1,17 +1,18 @@
 /*
- * Xlibint_wmb.h - private hooks for the future in-process Xlib transport.
+ * Xlibint_wmb.h - request-builder hook for the in-process Xlib transport.
  *
  * This is an internal declaration header, NOT an alternative Xlibint.h.
- * The WMB_INPROC-gated Data() change belongs in X11/Xlibint.h when P5
- * integrates libX11 (docs/21-inprocess-transport.md section 3.5).
+ * The WMB_INPROC Data()/BufAlloc changes are in the matching canonical
+ * libX11/include/X11/Xlibint.h, not the older workspace header copy.
  *
  * The former header replaced Xmalloc/Xrealloc/Xcalloc using a global
  * wmb_heap_data and replaced Data() with an unchecked buffer write.
  * Those overrides were unsafe and have been removed.  Allocation
  * ownership must be settled as part of the P5 libX11 integration.
  *
- * No implementation of _XBufferGrow exists yet.  Do not enable the
- * WMB_INPROC Data() path until wmb_transport.c implements and tests it.
+ * wmb_transport.c implements _XBufferGrow; the buffer/lease tests verify
+ * allocation-failure preservation and reject changes while the server
+ * owns the request lease.
  */
 #ifndef WMB_X11_XLIBINT_WMB_H
 #define WMB_X11_XLIBINT_WMB_H

@@ -91,13 +91,15 @@ and unconfigured X protocol headers is an ABI error, not a supported variant.
 
 ## Boundaries
 
-This is **P4 no-client server assembly**. Native socket transport is not compiled.
-Client authorization/attachment and request/output operations refuse use until
-the P5 in-process transport supplies them. The inert connection cleanup/grab
-hooks are meaningful only with no external clients.
+The plain host and `--self-test` preserve the **P4 root-only gate**. Native socket
+transport is not compiled. P5 now supplies real client registration, dispatch,
+output framing and flow-control hooks; see [the client guide](../../transport/x11/README.md).
+`--client-test`, `--flow-test`, `--raw-test` and the wire/timeout gates are
+separate from the P4 root-only assertion.
 
-It does not prove client request/reply/event delivery, JWM, the shipping multi-font
-registry, preemptive scheduling, or a freestanding/embedded server image.
+P5 verifies same-address-space client request/reply/event delivery. Neither phase
+proves JWM, the shipping multi-font registry, preemptive scheduling, external ABI
+callers, or a freestanding/embedded server image.
 Remaining OS/libc portability work stays in the later phases.
 
 Follow [the project methodology](../../docs/47-tinyx-project-methodology.md).

@@ -44,7 +44,7 @@ budget.
 | TinyX | [`42-tinyx-module-plan.md`](42-tinyx-module-plan.md) | `tinyx/` above the DDX — `dix`, `mi`, `fb`, `miext`, extensions, all of `os/` | **P4, P5 (server half)**, P6 |
 | KDrive + backends | [`43-kdrive-module-plan.md`](43-kdrive-module-plan.md) | The platform contract, `tinyx/kdrive/`, `linux_hosted/` and `<target>_native/` device ports | **P1, P9 (port)** |
 | Framework | [`44-framework-module-plan.md`](44-framework-module-plan.md) | `framework/`, `hal/` (contract headers it implements), the fiber ports, the hosted memory + time impls | **P2, P3, P9 (fiber port)**, P8 measurement |
-| Transport | [`46-transport-module-plan.md`](46-transport-module-plan.md) | `transport/`, the two `libX11/` guards, the external ABI, `wmb_boot.c` | **P5 (client half), P6, P8 (ABI)** |
+| Transport | [`46-transport-module-plan.md`](46-transport-module-plan.md) | `transport/`, the three `libX11/` guards, the external ABI, `wmb_boot.c` | **P5 (client half), P6, P8 (ABI)** |
 | JWM | [`45-jwm-module-plan.md`](45-jwm-module-plan.md) | `jwm/` and its glue | **P7** |
 
 **The numbering is not a work order.** Bring‑up runs bottom‑up — [`43-`](43-kdrive-module-plan.md) and [`44-`](44-framework-module-plan.md) first
@@ -212,8 +212,10 @@ from **staging** instead:
 | P4 | The stack links, initialises every screen and extension, reaches `Dispatch()`, and paints a root window | none |
 | P5 | The transport carries a request, a reply, an event and an error | `wmb_test_client` |
 
-The consequence to plan for: a P5 failure has two candidate causes. The debugging order is therefore fixed — **re‑run P4's root‑window gate first**. If the
-root window still paints, `dix`/`mi`/`fb`/DDX are intact and the fault is in the transport.
+For a P5 failure, re-run the P4 root-window gate first. A passing root narrows the
+fault but does not certify every DIX/MI/FB path: real P5 polyline rendering
+exposed a framebuffer UB bug that initialization did not exercise. Native and
+transport code remain candidates; use the actual failing evidence.
 
 ### 5.4 Expected difficulty
 
@@ -228,7 +230,11 @@ This is the longest phase and the one most likely to overrun. Anticipated proble
 
 ## 6. Phase P5 — In‑Process Transport
 
-**Goal:** Replace the socket transport and prove the target code path with zero sockets.
+**Goal:** Replace the X socket transport and prove actual clients on `xsrv`.
+
+**Status: hosted P5 complete.** The 27-check suite passes in Debug, Release,
+ASan/strict UBSan, both pixel formats and padded odd geometry. JWM and
+freestanding/external ABI proof remain separate later gates.
 
 ### 6.1 Scope
 
@@ -239,11 +245,11 @@ This is the longest phase and the one most likely to overrun. Anticipated proble
 | `connection_wmb.c` | [`21-`](21-inprocess-transport.md) §5.2, §5.7 |
 | `waitfor_wmb.c` | [`21-`](21-inprocess-transport.md) §5.6 |
 | `io_wmb.c` | [`21-`](21-inprocess-transport.md) §5.4, §5.5 |
-| `wmb_open.c`, `wmb_close.c`, `wmb_setup.c` | [`21-`](21-inprocess-transport.md) §3.2, §3.3 |
+| Guarded `OpenDis.c` hooks in `wmb_transport.c`, plus `wmb_close.c` | [`21-`](21-inprocess-transport.md) §3.2, §3.3 |
 | `wmb_transport.c` — the 13 symbols | [`21-`](21-inprocess-transport.md) §3.4 |
-| `Xlibint.h` `Data()` macro edit | [`21-`](21-inprocess-transport.md) §3.5 |
-| `apps/wmb_test_client/` | [`01-`](01-component-inventory.md) §11.2 |
-| Debug aids: request trace, reply timeout, buffer poison | [`30-`](30-host-build.md) §8 |
+| Matching `libX11/include/X11/Xlibint.h` builder/profile guards | [`21-`](21-inprocess-transport.md) §3.5 |
+| `transport/x11/wmb_client_test.c` and flow/wire/failure tests | [Run guide](../transport/x11/README.md) |
+| Actual wire trace callback, reply timeout, ASan/UBSan | [`21-`](21-inprocess-transport.md) §9; broader planned debugger aids are not claimed |
 
 ### 6.2 Implementation order within P5
 
@@ -260,33 +266,38 @@ two fibers.
 
 ### 6.3 Definition of Done
 
-Profile: **`host-pure`** (no listener, no `WMB_HAS_OS_TRANSPORT`).
+Build: `WMB_TINYX_BUILD_SERVER=ON`; no native subject transport/listener.
 
-- [ ] `wmb_host` links; `strace -f -e trace=network,select,poll` produces **no output**.
-- [ ] `lsof -p $(pidof wmb_host)` shows **no socket**.
-- [ ] The server idles at < 5 % CPU.
-- [ ] `KdOsFuncs.pollEvents` is called at **≥ 30 Hz** (instrumented counter) — this is the `BlockHandler` preservation check.
-- [ ] A synthetic key event injected at the backend reaches a client's event queue.
-- [ ] `wmb_test_client` prints **six PASS lines**: open display, create window, map, receive Expose, fill rectangle + draw string, close.
-- [ ] The resulting window — white, with a black rectangle and the text "WMB TEST OK" — is **visible in the SDL window**.
-- [ ] `XGetWindowAttributes` returns correct data (the reply path).
-- [ ] A deliberate `BadWindow` reaches an installed `XSetErrorHandler`.
-- [ ] **Differential test**: for ten representative API calls, the bytes in `dpy->buffer` before dispatch are byte‑identical to a checked‑in golden capture
-  of the same calls made by stock Xlib.
-- [ ] Valgrind clean.
+- [x] Actual server/client link and raw NoOperation/error completion.
+- [x] Private client archive has no native XCB transport imports or dynamic API exports.
+- [x] Idle CPU <5% and real KDrive polling >=30 Hz.
+- [x] Backend keyboard/pointer input reaches the client.
+- [x] Six PASS stages, actual white/black/text window, framebuffer verification.
+- [x] Attributes, images, variable properties, synchronous and async errors.
+- [x] Independent stock-Xlib wire bytes compare after permitted normalization.
+- [x] Native grabs/replay, delayed input, BIG-REQUESTS, serial wrap, XC-MISC.
+- [x] Growth/OOM/lease/framing/queue failures and bounded missing reply.
+- [x] Sixty-second Valgrind client run: zero errors and zero lost bytes.
+
+SDL may legitimately own native X/Wayland IPC below HAL, and initializes
+D-Bus/udev even in this machine's dummy-video mode. Socket gates must attribute
+calls to their owning stack; they must not mistake SDL's native services for a
+WMB client connection.
 
 ### 6.4 The differential test
 
 Gate T5 from [`20-`](20-transport-inventory.md) §8, and the highest‑value single test in the project. Method:
 
 ```
-offline, once:  xtrace -d :0 -- ./ref_client          → golden byte stream, checked in
-host-pure:      WMB_DEBUG_TRACE_REQUESTS=1 ./wmb_host  → dpy->buffer hexdump per request
-diff against the golden file
+offline: stock Xlib + isolated Xvfb -> actual native request/reply capture
+subject: wmb_host --wire-test FILE -> actual borrowed requests/framed output
+compare_wire.py -> identities/serials/protocol-padding normalization -> comparison
 ```
 
-The reference is captured against **any** system X server on the development machine, so it needs no WMB profile with a socket ([`90-`](90-decisions.md)
-D‑49). Checking it in also makes the comparison reproducible on a machine with no X server at all.
+The same script is compiled against genuine system Xlib and the retained client
+cohort. Reference collectors are optional host tools, not another WMB transport.
+Checked depth-16/depth-24 fixtures run headlessly without system Xlib/Xvfb.
+See [the reproducible procedure](reference/README.md).
 
 It catches the two failure modes [`21-`](21-inprocess-transport.md) predicts (R1 multi‑part reply misclassification, R2 buffer reallocation invalidating a
 live `xReq*`) at the point where they are cheap to fix.

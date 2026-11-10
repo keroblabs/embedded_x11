@@ -70,8 +70,8 @@ The last three require one guarded line each in `mi/miinitext.c`. The rest requi
 | P2 | None | — |
 | P3 | None — but P3's `hal_yield_timeout` semantics are what `waitfor_wmb.c` is written against | — |
 | **P4** | **Primary owner. Hosted no-client server/root-window gate implemented and verified** | **Heavy** |
-| **P5** | **Server half of the transport** — `waitfor_wmb.c`, `connection_wmb.c`, `io_wmb.c` | **Heavy** |
-| P6 | Nine planned server guards; the three KDrive core guards belong to [43-](43-kdrive-module-plan.md) | Medium |
+| **P5** | **Implemented and verified server transport/client gate** — real setup, dispatch, replies/events, replay and grabs | **Heavy** |
+| P6 | Ten server guard sites and portability closure; the three KDrive core sites belong to [43-](43-kdrive-module-plan.md) | Medium |
 | P7 | Support only: `XGrabServer` flow control lands in `io_wmb.c` / `connection_wmb.c` | Light |
 | P8 | None directly; `dix` re‑entrancy is asserted by the E4 test, not changed | — |
 | P9 | The freestanding compile of ~96 kLOC — the largest surface for libc‑floor surprises | Medium |
@@ -150,8 +150,9 @@ Profile `host-pure`. Items marked **(shared)** also need [`43-`](43-kdrive-modul
   starts.
 - [x] Reference headers and [curation differences](reference/README.md) are recorded.
 
-The no-client OS replacements deliberately refuse client attachment and I/O.
-They are not completion of P5's request/reply/event/suspension/grab semantics.
+At the P4 milestone the OS replacements deliberately refused client attachment
+and I/O. P5 now implements those seams; the root-only P4 tests are still not a
+substitute for the separate client/reply/event/suspension/grab gates.
 
 Gates: V‑P4‑1, V‑P4‑2, V‑P4‑5, V‑P4‑6, S4, S5 ([`41-`](41-verification-plan.md) §4.4).
 
@@ -166,6 +167,12 @@ Gates: V‑P4‑1, V‑P4‑2, V‑P4‑5, V‑P4‑6, S4, S5 ([`41-`](41-verifi
 
 ## 5. Phase P5 — The Server Half of the Transport
 
+**Status: hosted P5 transport/client gate implemented.** The server now admits
+internal clients, runs their real setup and requests through unmodified
+`Dispatch()`, frames replies/events/errors, and preserves ignored-client replay
+and native grabs. See [the implementation/run guide](../transport/x11/README.md).
+The P4 root-only test remains an independent regression gate.
+
 **Goal:** `dix/` receives requests and emits replies, events and errors with no socket underneath it. [`40-`](40-implementation-plan.md) §6,
 [`21-`](21-inprocess-transport.md) §5.
 
@@ -179,12 +186,13 @@ Gates: V‑P4‑1, V‑P4‑2, V‑P4‑5, V‑P4‑6, S4, S5 ([`41-`](41-verifi
 | T5‑2 | `tinyx/os/waitfor_wmb.c` — `WaitForSomething()` **plus the timer machinery** (`TimerSet`/`TimerForce`/`TimerFree`/`SetScreenSaverTimer` and the DPMS helpers) | `WaitFor.c` (670) | ~290 | [`21-`](21-inprocess-transport.md) §5.6, [`91-`](91-open-questions.md) Q22 |
 | T5‑3 | `tinyx/os/io_wmb.c` ingress — `ReadRequestFromClient` reads `dpy->buffer` in place | `io.c` (1,026) | ~160 | [`21-`](21-inprocess-transport.md) §5.4 |
 | T5‑4 | `io_wmb.c` egress — `WriteToClient` append semantics, `FlushClient` no‑op | ″ | ″ | [`21-`](21-inprocess-transport.md) §5.5 |
-| T5‑5 | `OsCommRec` extension — the internal‑client fields, behind the `osdep.h` guard | — | — | [`21-`](21-inprocess-transport.md) §5.3 |
+| T5‑5 | Owned `WmbOsConnection` plus standard-C per-connection slots; no shared `ClientRec`/`OsCommRec` layout change | — | — | [`21-`](21-inprocess-transport.md) §5.3 |
 | T5‑6 | `InsertFakeRequest` / `ResetCurrentRequest` | — | — | [`21-`](21-inprocess-transport.md) §5.4 |
 | T5‑7 | Grab flow control — a grabbed server does not service other clients | — | — | [`21-`](21-inprocess-transport.md) §5.7 |
 
-The `osdep.h` edit (guard #6) is needed **here**, not at P6: `io_wmb.c` and `connection_wmb.c` do not compile without the internal‑client fields. P6
-formalises it into the patch series; P5 writes it.
+The earlier `osdep.h` native fd-set guard remains. P5 keeps its transport state
+in owned structures, avoiding a shared core layout edit. Client/server X types
+are deliberately not included in the standard-C bridge header.
 
 ### 5.2 Order within the phase
 
@@ -192,7 +200,7 @@ Follow [`21-`](21-inprocess-transport.md) §10, whose first four steps are this 
 
 | Step | Deliverable | Proven by |
 |--:|---|---|
-| 1 | `wmb_queue.c` — consumed here, built by [`44-`](44-framework-module-plan.md) | Register 4 clients, post, collect |
+| 1 | `wmb_queue.c` — supplied by [46-](46-transport-module-plan.md), not the framework | Register clients, post, collect |
 | 2 | T5‑1 + `excluded_stubs_wmb.c` | Whole‑stack link succeeds in `host-pure` |
 | 3 | T5‑2 | Server idles; `pollEvents` observed at ≥ 30 Hz |
 | **4** | **T5‑3** | **A hand‑built `X_NoOperation` reaches `ProcNoOperation`** |
@@ -229,42 +237,56 @@ exists solely to catch it.
 
 ### 5.4 Definition of Done — TinyX slice
 
-- [ ] `pollEvents` is called at **≥ 30 Hz** (instrumented counter) — the `BlockHandler` preservation check (V‑P5‑3).
-- [ ] A hand‑built `X_NoOperation` reaches `ProcNoOperation` (step 4).
-- [ ] A synthetic key event injected at the backend reaches a client's event queue (V‑P5‑4).
-- [ ] `XGetWindowAttributes` returns correct data — the fixed reply path (V‑P5‑7).
-- [ ] `XGetWindowProperty` on a 4 KB property round‑trips exactly — the **multi‑part** reply path (V‑P5‑8).
-- [ ] A deliberate `BadWindow` reaches an installed `XSetErrorHandler` (V‑P5‑9); an async error surfaces at the next `XNextEvent` (V‑P5‑10).
-- [ ] `InsertFakeRequest` / `ResetCurrentRequest` work: `sleepuntil`'s `AwaitSync` completes (V‑P5‑12).
-- [ ] XID allocation past the initial range succeeds — XC‑MISC top‑up (V‑P5‑13).
-- [ ] `strace -f -e trace=network,select,poll` produces no output; `lsof` shows no socket (V‑P5‑1, V‑P5‑2).
-- [ ] The server idles at < 5 % CPU; Valgrind clean over 60 s.
+- [x] Actual OS polling exceeds **30 Hz** while a client waits.
+- [x] Raw NoOperation and BadRequest complete on `xsrv`.
+- [x] Injected backend key and pointer-button events reach the client's event queue.
+- [x] Window attributes and image readback return correct data.
+- [x] 4 KiB, 32-bit and 280,000-byte property payloads round-trip exactly.
+- [x] Fixed and asynchronous errors reach the native client error path.
+- [x] Native contended grab and delayed XTEST input exercise ignore/attend/reset/replay.
+- [x] More than 65,536 requests retain full serials; XC-MISC refills after the initial ID range.
+- [x] No native X transport or XCB is selected; private Xlib does not interpose on SDL.
+- [x] Idle CPU remains below **5%**; the sixty-second Valgrind client run has no errors or lost bytes.
 
-**Debugging order for any P5 failure is fixed:** re‑run P4's root‑window gate (V‑P4‑3) first. If the root window still paints, `dix`/`mi`/`fb` are
-intact and the fault is in the transport ([`40-`](40-implementation-plan.md) §5.3).
+Socket/syscall gates apply **above the platform backend**. SDL may use system Xlib
+on a desktop and D-Bus/udev sockets even with dummy video. The subject's client transport
+must neither call that library nor export symbols that replace it.
+
+Re-run P4's root-window gate first when debugging a client failure. A passing
+root narrows the regression; it does not certify every DIX/MI/FB path. The real
+P5 polyline test exposed a framebuffer arithmetic bug that root initialization
+could not exercise. Follow the failing evidence rather than assuming transport
+is the only possible cause.
 
 ## 6. Phase P6 — Guard Application
 
-**Goal:** the seven `tinyx/` guards this module owns, exported as a replayable patch series.
+**Goal:** formalize the implemented server sites plus remaining dependency
+removal as a replayable patch series. The authoritative guard ledger and
+13-file TinyX cap are in [11-](11-portability-plan.md) section 8.
 
 | # | File | Guard | Edit |
 |--:|---|---|---|
-| 1 | `dix/main.c` | `WMB_INPROC` | Written at P4 (§4.1 T4‑7) |
-| 2 | `mi/miinitext.c` | `WMB_EXT_MINIMAL` | Written at P4 (T4‑8) |
-| 3 | `os/utils.c` | `WMB_HAS_OS_TRANSPORT` | `<signal.h>`, `sigaction` installs, `<sys/wait.h>` child reaping, `setrlimit`, `Fopen()`, `<netdb.h>` hostname resolution — **the largest guard surface in the tree** |
-| 4 | `os/osinit.c` | `WMB_HAS_OS_TRANSPORT` | `setrlimit(RLIMIT_NOFILE)`, the `fopen` stderr redirect |
-| 5 | `os/log.c` | `WMB_FREESTANDING` | `<sys/stat.h>` and log rotation; `ErrorF`/`LogVWrite` kept |
-| 6 | `os/osdep.h` | `WMB_INPROC` | Written at P5 (§5.1 T5‑5) |
-| 7 | `os/strlcpy.c` | — | `<sys/types.h>` → `<stddef.h>`, one line (`strlcat.c` is #8b and does not count separately) |
+| 1 | `dix/main.c` | `WMB_DEVEL` | Server entry/lifecycle |
+| 2 | `mi/miinitext.c` | `WMB_DEVEL` | Selected project extensions |
+| 3 | `os/utils.c` | `WMB_DEVEL` | Signals/process/files/hostname dependencies |
+| 4 | `os/osinit.c` | `WMB_DEVEL` | Limits/log initialization |
+| 5 | `os/log.c` | `WMB_DEVEL` | Native files/log rotation; retain diagnostics |
+| 6 | `os/osdep.h` | `WMB_DEVEL` | Native fd-set exclusion; no shared client-state extension |
+| 7 | `os/strlcpy.c` | `WMB_DEVEL` | Standard-C include with original reference alternative |
+| 16 | `dix/extension.c` | `WMB_DEVEL` | Actual extension registration observation |
+| 17 | `mi/micmap.c` | `WMB_DEVEL` | Defined unsigned visual-mask arithmetic |
+| 18 | `fb/fbbits.h` | `WMB_DEVEL` | Defined negative Bresenham-error doubling |
 
-Guard #8, `kdrive/src/kinput.c`, belongs to [`43-`](43-kdrive-module-plan.md) and draws on the same `tinyx/` cap.
+KDrive's `kinput.c`, `kdrive.h` and `kdrive.c` belong to
+[43-](43-kdrive-module-plan.md) and draw on the same cap. A future `strlcat.c`
+edit would be another file, not a free uncounted exception.
 
 ### 6.1 Definition of Done — TinyX slice
 
-- [ ] Patches `0001`–`0007` exist under `patches/tinyx/` with a `MANIFEST.md` row each (file, guard, rationale, LOC delta).
+- [ ] All ledger sites have replayable patches and manifest rows.
 - [ ] Every patch applies cleanly to a pristine upstream checkout (`git apply --check`) — gate S7.
-- [ ] Only the five sanctioned guard macros appear in any `tinyx/` file — gate S3.
-- [ ] `tinyx/` patch count ≤ 8 including `kinput.c` — gate S6.
+- [ ] Every upstream TinyX project deviation uses presence-based `WMB_DEVEL`, preserving the reference alternative.
+- [ ] `tinyx/` guarded-file count <=13 including the three KDrive core files.
 - [ ] Every P5 gate still passes after the guards are applied — V‑P6‑1.
 - [ ] `grep -rl 'include *<sys/\|include *<linux/\|include *<netinet/\|include *<pthread\.h>\|include *<dlfcn\.h>'` over the compiled `tinyx/` set is
   empty — gate S2.
