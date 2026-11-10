@@ -150,4 +150,6 @@ exactly. Deliberate payload corruption is rejected by its tests.
 
 P6 portability closure is now verified; see [its guide](../../docs/48-p6-portability.md)
 for the whole-archive probe, 27 replayable guarded files and remaining libc floor.
-P7 JWM, P8 external ABI/stability and P9 hardware/freestanding bring-up remain.
+P7 now supplies [real JWM and the standard-C lifecycle](../../jwm/wmb/README.md),
+including readiness, application lookup/owned argv and ordered cooperative stop.
+P8 external ABI/stability and P9 hardware/freestanding bring-up remain.

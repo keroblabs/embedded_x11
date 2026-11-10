@@ -10,6 +10,9 @@
 #include "jwm.h"
 #include "misc.h"
 #include "debug.h"
+#if defined(WMB_INPROC)
+#include "error.h"
+#endif
 
 static char ToLower(char ch);
 static char IsSymbolic(char ch);
@@ -161,7 +164,12 @@ void ExpandPath(char **path)
 
       if((*path)[x] == '$') {
          name = GetSymbolName(*path + x + 1);
+#if defined(WMB_INPROC)
+         Warning("environment expansion is unsupported: %s", name);
+         value = NULL;
+#else
          value = getenv(name);
+#endif
          ReplaceSymbol(path, x, name, value);
          Release(name);
          if(value) {

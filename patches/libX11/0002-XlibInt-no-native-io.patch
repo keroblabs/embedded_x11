@@ -1,7 +1,12 @@
 --- a/libX11/src/XlibInt.c
 +++ b/libX11/src/XlibInt.c
-@@ -40,7 +40,9 @@
+@@ -38,9 +38,14 @@
+ #include <config.h>
+ #endif
  #include "Xlibint.h"
++#if defined(WMB_INPROC)
++#include "wmb_xlib.h"
++#endif
  #include "Xprivate.h"
  #include "reallocarray.h"
 +#if !defined(WMB_INPROC)
@@ -10,7 +15,7 @@
  #include <assert.h>
  #include <stdio.h>
  #ifdef WIN32
-@@ -48,6 +50,7 @@
+@@ -48,6 +53,7 @@
  #endif
  
  /* Needed for FIONREAD on Solaris */
@@ -18,7 +23,7 @@
  #ifdef HAVE_SYS_FILIO_H
  #include <sys/filio.h>
  #endif
-@@ -56,10 +59,13 @@
+@@ -56,10 +62,13 @@
  #ifdef HAVE_SYS_SOCKET_H
  #include <sys/socket.h>
  #endif
@@ -32,7 +37,7 @@
  #endif
  
  #ifdef XTHREADS
-@@ -1257,6 +1263,10 @@
+@@ -1257,6 +1266,10 @@
  static int
  SocketBytesReadable(Display *dpy)
  {
@@ -43,7 +48,7 @@
      int bytes = 0, last_error;
  #ifdef WIN32
      last_error = WSAGetLastError();
-@@ -1268,6 +1278,7 @@
+@@ -1268,6 +1281,7 @@
      errno = last_error;
  #endif
      return bytes;
@@ -51,7 +56,18 @@
  }
  
  _X_NORETURN void _XDefaultIOErrorExit(
-@@ -1677,6 +1688,9 @@
+@@ -1488,6 +1502,10 @@
+     if (dpy->error_vec &&
+ 	!(*dpy->error_vec[rep->errorCode])(dpy, &event.xerror, rep))
+ 	return 0;
++#if defined(WMB_INPROC)
++    if (wmb_xlib_error_handler(dpy))
++        return wmb_xlib_error_handler(dpy)(dpy, &event.xerror);
++#endif
+     if (_XErrorFunction != NULL) {
+ 	int rtn_val;
+ #ifdef XTHREADS
+@@ -1677,6 +1695,9 @@
      register int *buf;
      register long i;
  
@@ -61,7 +77,7 @@
      while (len) {
  	buf = (int *)dpy->bufptr;
  	i = dpy->bufmax - (char *)buf;
-@@ -1706,6 +1720,7 @@
+@@ -1706,6 +1727,7 @@
   *       and so, you may be better off using gethostname (if it exists).
   */
  
@@ -69,7 +85,7 @@
  #if (defined(_POSIX_SOURCE) && !defined(AIXV3) && !defined(__QNX__)) || defined(hpux) || defined(SVR4)
  #define NEED_UTSNAME
  #include <sys/utsname.h>
-@@ -1714,6 +1729,7 @@
+@@ -1714,6 +1736,7 @@
  #include <unistd.h>
  #endif
  #endif
@@ -77,7 +93,7 @@
  
  /*
   * _XGetHostname - similar to gethostname but allows special processing.
-@@ -1724,6 +1740,13 @@
+@@ -1724,6 +1747,13 @@
  {
      int len;
  
@@ -91,7 +107,7 @@
  #ifdef NEED_UTSNAME
      struct utsname name;
  
-@@ -1744,6 +1767,7 @@
+@@ -1744,6 +1774,7 @@
      buf [maxlen - 1] = '\0';
      len = (int) strlen(buf);
  #endif /* NEED_UTSNAME */
@@ -99,7 +115,7 @@
      return len;
  }
  
-@@ -1783,6 +1807,13 @@
+@@ -1783,6 +1814,13 @@
  {
      xReq *req;
  

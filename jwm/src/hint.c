@@ -8,6 +8,9 @@
  */
 
 #include "jwm.h"
+#if defined(WMB_INPROC)
+#include "error.h"
+#endif
 #include "hint.h"
 #include "client.h"
 #include "desktop.h"
@@ -256,11 +259,13 @@ void StartupHints(void)
                     atoms[ATOM_UTF8_STRING], 8, PropModeReplace,
                     (unsigned char*)"JWM", 3);
 
+#if !defined(WMB_INPROC)
    /* _NET_WM_PID */
    array[0] = getpid();
    JXChangeProperty(display, win, atoms[ATOM_NET_WM_PID],
                     XA_CARDINAL, 32, PropModeReplace,
                     (unsigned char*)array, 1);
+#endif
 
    /* _NET_SUPPORTING_WM_CHECK */
    SetWindowAtom(rootWindow, ATOM_NET_SUPPORTING_WM_CHECK, win);
@@ -793,6 +798,22 @@ void ReadWMName(ClientNode *np)
 /** Read the machine name of a client. */
 void ReadWMMachine(ClientNode *np)
 {
+#if defined(WMB_INPROC)
+   XTextProperty property = {0};
+   if(np->clientName) Release(np->clientName);
+   np->clientName = NULL;
+   if(XGetWMClientMachine(display, np->window, &property) && property.value) {
+      if(property.encoding == XA_STRING && property.format == 8) {
+         np->clientName = Allocate(property.nitems + 1);
+         if(!np->clientName) FatalError("client machine allocation failed");
+         memcpy(np->clientName, property.value, property.nitems);
+         np->clientName[property.nitems] = 0;
+      } else {
+         Warning("unsupported WM_CLIENT_MACHINE encoding");
+      }
+      JXFree(property.value);
+   }
+#else
    XTextProperty tprop;
    char **tlist;
    int tcount;
@@ -811,6 +832,7 @@ void ReadWMMachine(ClientNode *np)
    } else {
       np->clientName = NULL;
    }
+#endif
 }
 
 /** Read the window class for a client. */

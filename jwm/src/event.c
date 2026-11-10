@@ -33,7 +33,11 @@
 #include "grab.h"
 #include "screen.h"
 
+#if defined(WMB_INPROC)
+#define MIN_TIME_DELTA 1
+#else
 #define MIN_TIME_DELTA 50
+#endif
 
 Time eventTime = CurrentTime;
 
@@ -93,17 +97,25 @@ static void HandleShapeEvent(const XShapeEvent *event);
 /** Wait for an event and process it. */
 char WaitForEvent(XEvent *event)
 {
+#if !defined(WMB_INPROC)
    struct timeval timeout;
+#endif
    CallbackNode *cp;
+#if !defined(WMB_INPROC)
    fd_set fds;
+#endif
    long sleepTime;
+#if !defined(WMB_INPROC)
    int fd;
+#endif
    char handled;
 
+#if !defined(WMB_INPROC)
 #ifdef ConnectionNumber
    fd = ConnectionNumber(display);
 #else
    fd = JXConnectionNumber(display);
+#endif
 #endif
 
    /* Compute how long we should sleep. */
@@ -115,8 +127,27 @@ char WaitForEvent(XEvent *event)
    }
 
    do {
+#if defined(WMB_INPROC)
+      WmbJwm_Pulse();
+#endif
 
       while(JXPending(display) == 0) {
+#if defined(WMB_INPROC)
+         TimeType now;
+         GetCurrentTime(&now);
+         sleepTime = 10;
+         for(cp = callbacks; cp; cp = cp->next) {
+            if(cp->freq > 0) {
+               unsigned long elapsed = GetTimeDifference(&now, &cp->last);
+               unsigned long remaining = elapsed < (unsigned)cp->freq ?
+                  (unsigned)cp->freq - elapsed : 0;
+               if(remaining < (unsigned long)sleepTime) sleepTime = (long)remaining;
+            }
+         }
+         WmbJwm_Pulse();
+         WmbJwm_Wait((uint32_t)sleepTime);
+         Signal();
+#else
          FD_ZERO(&fds);
          FD_SET(fd, &fds);
          timeout.tv_sec = sleepTime / 1000;
@@ -124,6 +155,7 @@ char WaitForEvent(XEvent *event)
          if(select(fd + 1, &fds, NULL, NULL, &timeout) <= 0) {
             Signal();
          }
+#endif
          if(JUNLIKELY(shouldExit)) {
             return 0;
          }
@@ -325,6 +357,13 @@ void DiscardMotionEvents(XEvent *event, Window w)
    JXSync(display, False);
    while(JXCheckTypedEvent(display, MotionNotify, &temp)) {
       UpdateTime(&temp);
+#if defined(WMB_INPROC)
+      if(w == rootWindow && temp.xmotion.root == rootWindow) {
+         temp.xmotion.window = rootWindow;
+         temp.xmotion.x = temp.xmotion.x_root;
+         temp.xmotion.y = temp.xmotion.y_root;
+      }
+#endif
       SetMousePosition(temp.xmotion.x_root, temp.xmotion.y_root,
                        temp.xmotion.window);
       if(temp.xmotion.window == w) {

@@ -1,0 +1,19 @@
+--- a/jwm/src/menu.c
++++ b/jwm/src/menu.c
+@@ -383,7 +383,11 @@
+ 
+    for(;;) {
+ 
++#if defined(WMB_INPROC)
++      if(!WaitForEvent(&event)) return 0;
++#else
+       WaitForEvent(&event);
++#endif
+ 
+       switch(event.type) {
+       case Expose:
+@@ -1051,4 +1055,3 @@
+    }
+    return 0;
+ }
+-

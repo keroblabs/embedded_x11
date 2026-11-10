@@ -53,12 +53,13 @@ replace the transport, not the API.**
 | `transport/x11/wmb_io.c` | **RETIRED** — the uncompiled, single-global-client, direct-`ProcVector` experiment was deleted from the working tree. Git history retains it; do **not** carry its dispatch model into P5 |
 | `transport/x11/wmb_io.h` | **RETIRED** — zero-byte header removed; create `wmb_x11_internal.h` with per-`Display` state at P5 (§3.1 of Document 21) |
 | `transport/x11/Xlibint_wmb.h` | **ADAPTED** — declaration-only contract for `_XBufferGrow`; the actual complete-builder macros are now in matching `libX11/include/X11/Xlibint.h`, with tested growth/failure handling |
-| `transport/x11/wmb_main.c` | **RESERVED** — obsolete `void main(void)` removed. Portable `wmb_main()` and `wmb_shutdown()` will be implemented here per D-43; hosted `main()` belongs separately in `linux_hosted/wmb_boot/` |
+| `transport/x11/wmb_main.c` | **IMPLEMENTED at P7** - once-only standard-C startup/poll/shutdown; hosted entry remains outside the windowing set |
 | `linux_hosted/sdl_fiber_example_v2/` | **DONE** — proves the dispatch handshake (V-P5-0), not X11 transport correctness |
 
 That table records the pre-P4 cleanup. **Current status:** P4 and P5 are built.
 The real `_XBufferGrow`, complete-batch request transport and tests now exist;
-the reserved portable `wmb_main()`/external ABI lifecycle is still later work.
+P7 now implements the portable startup/stop and application registry lifecycle;
+the external ABI remains P8.
 ## 3. Phase Participation
 
 | Phase | This module's involvement | Weight |
@@ -69,7 +70,7 @@ the reserved portable `wmb_main()`/external ABI lifecycle is still later work.
 | P4 | `wmb_boot.c` creates the server fiber and calls `TinyX_ServerFiber` | Light |
 | **P5** | **Implemented hosted client gate** — retained Xlib, real wire transport, queues and visible client | **Heavy** |
 | **P6** | **Implemented and verified:** ten library guards, supported-profile exclusions and replay/native dependency gates | Medium |
-| P7 | The server-readiness gate inside `wmb_main()`; `wmb_app_table` plumbing | Light |
+| **P7** | **Implemented:** server/WM readiness, application lookup/owned argv/blocked tasks/reaping, scoped errors and cooperative event waits | Medium |
 | **P8** | **Primary owner** — the external ABI, the wrapper, `wmb_hello` | **Heavy** |
 | P9 | `wmb_boot.c`'s freestanding half, `.wmb_api` placement, the link floor | Medium |
 
@@ -221,8 +222,10 @@ regenerated in CI so that an upstream header change appears as a diff rather tha
 |---|---|---|
 | `wmb_queue.c` | Connection controls, leased batches, terminal/completion predicates and packet queues | `io_wmb.c`, `waitfor_wmb.c` -> [42-](42-tinyx-module-plan.md) |
 | `wmb_connection_open()` | *Consumed* by the guarded Xlib setup hooks | Native client creation is serviced by `connection_wmb.c` |
-| `wmb_main()` | Reserved portable launcher; not implemented by the hosted P5 test entry | Future [45-](45-jwm-module-plan.md), D-33 / D-43 |
+| `wmb_main()` / `wmb_poll()` / `wmb_shutdown()` | Once-only library lifecycle, readiness and ordered cooperative cleanup | [P7](45-jwm-module-plan.md), D-33 / D-43 / D-55 |
 | `wmb_app_table` | The in-process launch table | `jwm/src/command.c` → [`45-`](45-jwm-module-plan.md) |
+| `wmb_apps.c` | Copied argv, initially blocked launch, borrowed handles and owner-side reaping | JWM and the host-populated registry |
+| `wmb_xlib.h` | Finite/indefinite client event wait and per-Display internal error hook | JWM and cooperative application clients |
 | `wmb_api_t` | The fixed-address vtable | `wrapper/libX11-app/`, external binaries |
 | Fiber/task contract | *Consumed* - predicate waits and notifications | Defined by [44-](44-framework-module-plan.md) |
 | Framework library primitives | *Consumed* - `lists.c` backs owned packets/events; Xlib owns its request builder | Defined by [44-](44-framework-module-plan.md) |

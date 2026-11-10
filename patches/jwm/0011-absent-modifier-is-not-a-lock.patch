@@ -1,0 +1,20 @@
+--- a/jwm/src/binding.c
++++ b/jwm/src/binding.c
+@@ -325,6 +325,12 @@
+    int x;
+ 
+    temp = JXKeysymToKeycode(display, key);
++#if defined(WMB_INPROC)
++   if(temp == 0) {
++      Debug("optional modifier KeySym 0x%lx is not mapped", (unsigned long)key);
++      return 0;
++   }
++#endif
+    if(JUNLIKELY(temp == 0)) {
+       Warning(_("Specified KeySym is not defined for any KeyCode"));
+    }
+@@ -530,4 +536,3 @@
+       }
+    }
+ }
+-

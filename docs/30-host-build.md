@@ -34,13 +34,20 @@ P5 adds the retained `wmb_xlib` and `wmb_transport_core` targets. Run
 [the P5 guide](../transport/x11/README.md) for leases, limits, client ownership
 and native SDL/Xlib symbol isolation. Python 3.10+ runs the checked wire
 comparator; system Xlib/Xvfb is only needed to regenerate reference fixtures.
-JWM is still P7.
+P7 now adds the actual JWM desktop and reusable lifecycle; see
+[its guide](../jwm/wmb/README.md). `--desktop` and `--wm-test` are separate from
+the original root-only and unmanaged client modes.
 
 P6 adds [three automated portability gates](48-p6-portability.md), bringing the
 full suite to 30. The font cohort is built-in-only and no longer needs libfontenc.
 The whole-archive link probe has no SDL/host runtime backend in its link line.
 The root build exports the compilation database required for active-header
 verification; run from a clone containing the pinned import baseline.
+
+The current suite is 36 standard tests, with one optional stock-Xlib/Xvfb JWM
+oracle. Native system Xlib/Xvfb is only required for that optional harness,
+not the in-process desktop. The extended whole-archive/header/reference gates
+cover JWM and lifecycle as well as the P6 cohorts.
 
 The directory/layout/profile expansion examples below are historical planning
 material, not the current source inventory or implemented `WMB_PROFILE` options.

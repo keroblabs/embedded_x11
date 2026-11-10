@@ -38,6 +38,9 @@ from The Open Group.
 #include <config.h>
 #endif
 #include "Xlibint.h"
+#if defined(WMB_INPROC)
+#include "wmb_xlib.h"
+#endif
 #include "Xprivate.h"
 #include "reallocarray.h"
 #if !defined(WMB_INPROC)
@@ -1499,6 +1502,10 @@ int _XError (
     if (dpy->error_vec &&
 	!(*dpy->error_vec[rep->errorCode])(dpy, &event.xerror, rep))
 	return 0;
+#if defined(WMB_INPROC)
+    if (wmb_xlib_error_handler(dpy))
+        return wmb_xlib_error_handler(dpy)(dpy, &event.xerror);
+#endif
     if (_XErrorFunction != NULL) {
 	int rtn_val;
 #ifdef XTHREADS

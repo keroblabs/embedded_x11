@@ -101,6 +101,11 @@ static const unsigned IMAGE_LOADER_COUNT = ARRAY_LENGTH(IMAGE_LOADERS);
 ImageNode *LoadImage(const char *fileName, int rwidth, int rheight,
                      char preserveAspect)
 {
+#if defined(WMB_INPROC)
+   (void)rwidth; (void)rheight; (void)preserveAspect;
+   if(fileName && *fileName) Warning("image files are unsupported: %s", fileName);
+   return NULL;
+#else
    unsigned i;
    unsigned name_length;
    ImageNode *result = NULL;
@@ -152,6 +157,7 @@ ImageNode *LoadImage(const char *fileName, int rwidth, int rheight,
 
    /* No image could be loaded. */
    return result;
+#endif
 }
 
 /** Load an image from a pixmap. */

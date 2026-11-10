@@ -1,4 +1,5 @@
 #include "wmb_xlib_internal.h"
+#include "wmb_xlib.h"
 #include <errno.h>
 #include <limits.h>
 #include <stdint.h>
@@ -12,6 +13,23 @@ _Static_assert(sizeof(XID) == sizeof(unsigned long), "Client Xlib must not use t
 static xReq empty_request;
 
 static WmbDisplay *state(Display *dpy) { return (WmbDisplay *)(void *)dpy->xcb; }
+
+XErrorHandler wmb_xlib_set_error_handler(Display *dpy, XErrorHandler handler)
+{
+    XErrorHandler previous;
+    if (!dpy || !dpy->xcb) {
+        fputs("WMB Xlib: invalid display for private error handler\n", stderr);
+        abort();
+    }
+    previous = state(dpy)->error_handler;
+    state(dpy)->error_handler = handler;
+    return previous;
+}
+
+XErrorHandler wmb_xlib_error_handler(Display *dpy)
+{
+    return dpy && dpy->xcb ? state(dpy)->error_handler : NULL;
+}
 
 static void io_failure(Display *dpy, const char *reason)
 {
@@ -281,6 +299,22 @@ static bool_t event_available(void *argument)
 {
     WmbConnection *c = argument;
     return c->events.count || c->responses.count || c->failed || c->closed;
+}
+
+int wmb_xlib_wait(Display *dpy, uint32_t milliseconds)
+{
+    if (!dpy || !dpy->xcb) {
+        fputs("WMB Xlib: invalid display for event wait\n", stderr);
+        abort();
+    }
+    if (wmb_bridge_is_server()) io_failure(dpy, "server cannot wait on client events");
+    WmbConnection *c = state(dpy)->connection;
+    if (XPending(dpy)) return 1;
+    (void)fiber_wait_for(event_available, c, milliseconds);
+    if (c->failed || c->closed) io_failure(dpy, "event connection closed");
+    pending_errors(dpy);
+    events(dpy);
+    return dpy->qlen != 0;
 }
 
 void _XReadEvents(Display *dpy)

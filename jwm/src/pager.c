@@ -384,7 +384,15 @@ ClientFound:
 
    for(;;) {
 
+#if defined(WMB_INPROC)
+      if(!WaitForEvent(&event)) {
+         StopPagerMove(np, oldx, oldy, oldDesk, maxFlags);
+         np->controller = NULL;
+         return;
+      }
+#else
       WaitForEvent(&event);
+#endif
 
       if(shouldStopMove) {
          np->controller = NULL;
@@ -700,4 +708,3 @@ void DrawPagerClient(const PagerType *pp, const ClientNode *np)
    }
 
 }
-

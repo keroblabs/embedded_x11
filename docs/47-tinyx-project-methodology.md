@@ -162,5 +162,13 @@ It also audits actual active includes and complete archives; a raw grep of
 reference branches or a dead-stripped executable is not a portability proof.
 See [the P6 guide](48-p6-portability.md) and D-54 before adding guard sites.
 
+P7 extends this exact discipline to JWM and lifecycle (D-55). The only new
+existing-TinyX engine site is [empty property storage](../tinyx/dix/property.c):
+explicit free/clear replaces implementation-defined `realloc(ptr, 0)` in the
+project branch, with the original reference alternative preserved. Display-stop
+deferral stays in the generic HAL port, not core dispatch or public HAL contracts.
+The current ledger has 44 sites; native compilation/preprocessing and
+one/zero/empty proof now cover 35 affected units. `Dispatch()` remains unchanged.
+
 This methodology is recorded in [D-51](90-decisions.md) and in the
 [TinyX-scoped workspace instruction](../.github/instructions/tinyx-wmb.instructions.md).

@@ -111,6 +111,16 @@ void wmb_xlib_test_client(void *argument)
           remaining == 0 && value && !memcmp(value, property, sizeof(property)));
     XFree(value);
     value = NULL;
+    for (i = 0; i < 2; i++) {
+        Atom empty = i == 0 ? atom : XInternAtom(dpy, "WMB_P7_EMPTY", False);
+        XChangeProperty(dpy, window, empty, XA_STRING, 8, PropModeReplace, NULL, 0);
+        CHECK(XGetWindowProperty(dpy, window, empty, 0, 1, False, XA_STRING,
+              &type, &format, &count, &remaining, &value) == Success);
+        CHECK(type == XA_STRING && format == 8 && count == 0 &&
+              remaining == 0 && value && value[0] == 0);
+        XFree(value);
+        value = NULL;
+    }
     {
         unsigned long *words = malloc(8192 * sizeof(*words));
         CHECK(words != NULL);

@@ -334,15 +334,17 @@ between "initialised" and "started" that a caller could act on.
 | # | Step |
 |---|---|
 | 1 | Validate `cfg`; fail before touching anything if the runtime is not up |
-| 2 | `hal_display_init`, `hal_input_init` |
-| 3 | Create **every** WMB fiber — `hal`, `xsrv`, `jwm`, the app slots — all in the blocked state |
+| 2 | Let the existing server/DDX initialize display/input exactly once |
+| 3 | Create owned `xsrv` and `jwm` tasks blocked; application launches also start blocked |
 | 4 | Release `hal` and `xsrv` only, and pump the scheduler until the server reports `InitOutput` and `InitInput` complete |
-| 5 | Release `jwm` and the app fibers |
+| 5 | Release JWM, wait for WM readiness, then admit application fibers |
 | 6 | Return 0 |
 
-**Step 4 is the "block until ready" behaviour**, and it is why the function is synchronous. While `wmb_main()` is executing, no client fiber — and no
-other component's fiber — is scheduled. WMB reaches a known state before anything can observe it, so `XOpenDisplay` cannot race `InitOutput`: nothing that
-could call it is runnable yet (D‑33).
+**Step 4 is synchronous readiness.** Owned clients are not admitted before the
+server and WM are ready, preventing `XOpenDisplay`/initialization races (D-33).
+P7 keeps HAL polling on the existing server/KDrive seam, not a duplicate device
+fiber. Other already-runnable components remain subject to the caller's shared
+cooperative scheduler; WMB does not seize or freeze the entire runtime.
 
 **It returns rather than parking.** Hosted, `wmb_boot.c`'s `main()` calls it and then parks. On target, the system's own `main()` calls it and carries on
 with whatever else it owns. A `wmb_main()` that never returned would force WMB to be the whole system — exactly what D‑42 forbids.
@@ -1125,6 +1127,86 @@ contracts and one-server-fiber dispatch architecture are unchanged.
 [42-](42-tinyx-module-plan.md), [46-](46-transport-module-plan.md),
 and [47-](47-tinyx-project-methodology.md).
 
+### D-55 - P7 is real cooperative JWM, not decorative client code - SETTLED
+
+The user approved completing the portable integration and expanding the old
+four-file estimate where actual native dependencies and cancellation required
+it. The selected JWM cohort is 49 retained files plus three owned adapters.
+Core fonts, drawn buttons and in-memory icons remain; optional graphics/font/
+image libraries, native files, shell/process output and host environment are
+not enabled. XML comes from compiled memory; the clock is explicitly uptime.
+
+Sixteen `WMB_INPROC`-guarded JWM files cover real config/header/identity seams,
+the cooperative loop and its modal consumers. Native `timing.c` is excluded
+unchanged in favor of a monotonic HAL adapter. Masking POSIX calls with macros,
+copying entire core files, ignoring event-wait termination or returning a
+success-shaped unsupported result were rejected.
+
+Actual integration found three logic requirements beyond replacing `select`:
+an unmapped optional NumLock is not a zero slot in the modifier map; a grabbed
+root motion must not be discarded while coalescing client drags; and menu/
+move/resize/pager/choose-window loops must unwind on stop through their native
+controller/grab/status cleanup. One-second clock callbacks need actual remaining
+deadlines and draw-time state, not the old coarse polling interval.
+Mouse and keyboard operations pass the actual grabbed-root context; queued
+pre-grab events are normalized using their initialized root coordinates.
+The coalescer never inspects an uninitialized incoming keyboard event.
+
+JWM's 400 external native symbols are isolated with compiler external-name
+pragmas and a generated/checkable header. A global `#define display` would also
+rename XEvent fields and was rejected. Four definitions lacking native prior
+prototypes receive generated declarations. Private archive visibility/link order
+keeps JWM and in-process Xlib from interposing on SDL's native libraries.
+`jxlib.h` remains direct retained-Xlib calls; the external ABI is still P8.
+
+The new standard-C lifecycle creates owned server/WM tasks blocked, admits
+clients only after readiness, returns to its caller, and requires continued
+yield/poll progress. Applications use a registered table, copied argv and blocked
+launch; the component owns reaping of borrowed task handles. Completed tasks
+park until reaped so an already-reclaimed FCB cannot become a stale task handle.
+No framework scheduler or public HAL API changes are needed.
+
+Shutdown order is **WM -> applications -> server/HAL**. Unmanaging live windows
+first avoids the stale-window races observed when apps closed before JWM.
+A generic KDrive-port stop callback defers display stop/error during cleanup;
+standalone/root-only termination keeps its original path. Noncooperative apps
+produce a diagnosed timeout, not a false clean stop.
+
+Per-Display internal error handling prevents another client's global
+`XSetErrorHandler` from replacing JWM's access/error handling. A predicate-based
+client wait preserves callbacks and cancellation without a native descriptor.
+All DIX execution remains on `xsrv` through unchanged `Dispatch()`.
+
+The first WM Valgrind run also reported implementation-defined
+`realloc(ptr, 0)` when native WM properties became empty. Explicit free/clear and
+zero-length creation in `tinyx/dix/property.c` are guarded by `WMB_DEVEL`;
+the original reference remains. This raises TinyX from 15 to 16, not by moving
+the behavior into a driver. The JWM cap becomes 16; libX11 10 and shared X11 2
+remain unchanged. The resulting exact ledger has **44 sites**.
+
+Tests use actual window trees/extents/pixels, native XTEST input, exact drag/
+resize geometry, root-menu selection, focus/stacking and a peer blocked by
+JWM's own native grab. Cancellation tests leave real modal interactions active.
+The same portable archive independently decorates stock-Xlib clients under an
+isolated Xvfb; it does not link TinyX or the subject Xlib.
+
+The extended P6 proof covers 506 active units, 35 native-reference compilation
+probes, original notices, one/zero/empty variants, and nine whole archives linked
+without a backend or dead-section elimination. Normal timing gates retain
+200 ms readiness, <5% idle CPU, <=50 ms scheduling gaps and 990-1010 ms clock
+periods; instrumentation and arbitrary host contention are not silently treated
+as normal performance certificates. Final WM Memcheck has zero errors/lost bytes.
+
+Once-only cooperative lifecycle is not a recoverable external ABI. Foreign
+threads, transparent multi-instance/reinitialization, abandoned displays, one-hour
+endurance, 10,000 lifecycle cycles and freestanding console/allocator/libc/
+math/zlib/hardware closure remain P8/P9.
+
+**Consequences:** [45-](45-jwm-module-plan.md),
+[the JWM run/reuse guide](../jwm/wmb/README.md), [41-](41-verification-plan.md),
+[42-](42-tinyx-module-plan.md), [46-](46-transport-module-plan.md),
+[11-](11-portability-plan.md), and [the patch ledger](../patches/MANIFEST.md).
+
 ## 8. Superseded Decisions
 
 Recorded so that reading `docs_old/` does not resurrect them.
@@ -1201,6 +1283,7 @@ Recorded so that reading `docs_old/` does not resurrect them.
 | D-52 | Real no-client P4 server, configuration-prefix ABI, checked dependencies and actual integration gates | SETTLED | [42-](42-tinyx-module-plan.md) |
 | D-53 | Real P5 client/transport, ABI/library isolation, framing/serial contracts and necessary guarded framebuffer repair | SETTLED | [21-](21-inprocess-transport.md) |
 | D-54 | Active/whole-archive P6 proof, approved guard budgets, built-in profile and exact imported-source patch provenance | SETTLED | [48-](48-p6-portability.md) |
+| D-55 | Real P7 JWM, lifecycle/launch ownership, symbol/error isolation, modal cancellation and measured integration | SETTLED | [45-](45-jwm-module-plan.md) |
 
 D‑46 is load‑bearing and easy to under‑read. Every request, from every kind of client, is executed by the `xsrv` fiber running upstream's `Dispatch()`; no
 client ever calls `ProcVector` on its own stack. The safety property is **structural** — only one fiber can enter `dix` — rather than a rule imposed on

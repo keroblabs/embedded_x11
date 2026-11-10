@@ -10,7 +10,11 @@
 #ifndef DEBUG_H
 #define DEBUG_H
 
+#if defined(WMB_INPROC)
+#include <jwm_config.h>
+#else
 #include "../config.h"
+#endif
 
 #ifndef MAKE_DEPEND
 #   include <stdlib.h>
@@ -94,4 +98,3 @@ void Debug(const char *str, ...);
 #endif /* DEBUG */
 
 #endif /* DEBUG_H */
-

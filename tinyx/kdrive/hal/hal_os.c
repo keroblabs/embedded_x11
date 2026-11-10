@@ -4,6 +4,14 @@
 static Bool os_initialized, os_enabled;
 static hal_display_status_t display_status = HAL_DISPLAY_ACTIVE;
 static unsigned long poll_count;
+static void (*stop_handler)(hal_display_status_t, void *);
+static void *stop_argument;
+
+void KdHalSetStopHandler(void (*handler)(hal_display_status_t, void *), void *argument)
+{
+    stop_handler = handler;
+    stop_argument = argument;
+}
 
 hal_display_status_t KdHalDisplayStatus(void) { return display_status; }
 unsigned long KdHalPollCount(void) { return poll_count; }
@@ -40,6 +48,10 @@ static void halOsPollEvents(void)
     if (status != HAL_DISPLAY_ACTIVE)
     {
         if (status == HAL_DISPLAY_ERROR) ErrorF("KDrive HAL: display pump failed\n");
+        if (stop_handler) {
+            stop_handler(status, stop_argument);
+            return;
+        }
         dispatchException |= DE_TERMINATE;
         isItTimeToYield = TRUE;
     }

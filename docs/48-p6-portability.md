@@ -4,6 +4,12 @@ P6 removes the remaining native OS dependencies from the **selected windowing
 source cohorts**, without changing the working P5 transport or `Dispatch()`.
 This is not yet a freestanding image or a JWM integration.
 
+This guide records the **P6 milestone**. [P7](../jwm/wmb/README.md) now adds JWM
+and lifecycle, extending the same gates to 506 units, 44 guarded files and nine
+whole archives. Its normal suite has 36 tests (37 with the optional native
+reference). The P6 evidence/counts below are retained as milestone history,
+not the current full-stack inventory.
+
 ## Reproduce the gates
 
 From a repository clone containing the original import commit, with CMake

@@ -349,9 +349,17 @@ static int test_pointer(void)
     return 0;
 }
 
+static void deferred_stop(hal_display_status_t status, void *argument)
+{
+    int *calls = argument;
+    (*calls)++;
+    mock_hal.status = status;
+}
+
 static int test_lifecycle(void)
 {
     unsigned int input_pumps;
+    int stop_calls = 0;
     CHECK(setup(HAL_PIXFMT_RGB565) == 0);
     CHECK(KdHalInputInit() && mock_hal.input_inits == 1);
     CHECK(KdHalPollCount() == 0);
@@ -374,6 +382,13 @@ static int test_lifecycle(void)
     CHECK((dispatchException & DE_TERMINATE) != 0 && isItTimeToYield);
     CHECK(KdHalDisplayStatus() == HAL_DISPLAY_STOP_REQUESTED);
     dispatchException = isItTimeToYield = 0;
+    KdHalSetStopHandler(deferred_stop, &stop_calls);
+    KdBlockHandler(0, NULL, NULL, NULL);
+    CHECK(stop_calls == 1 && dispatchException == 0 && !isItTimeToYield);
+    mock_hal.status = HAL_DISPLAY_ERROR;
+    KdBlockHandler(0, NULL, NULL, NULL);
+    CHECK(stop_calls == 2 && dispatchException == 0);
+    KdHalSetStopHandler(NULL, NULL);
     mock_hal.status = HAL_DISPLAY_ERROR;
     KdBlockHandler(0, NULL, NULL, NULL);
     CHECK((dispatchException & DE_TERMINATE) != 0);

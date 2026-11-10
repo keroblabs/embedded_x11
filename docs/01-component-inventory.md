@@ -390,22 +390,32 @@ For applications that are *separate binaries* rather than in‑tree fibers. Full
 
 ### 11.1 JWM — `jwm/src/` — 50 `.c`, 26,325 LOC (+ 4,517 LOC headers)
 
+**P7 implementation:** 49 retained files plus three owned adapters, frozen at
+[52 units](reference/jwm-sources.reference). The table below replaces the old
+six-file POSIX-footprint estimate. See [the guide](../jwm/wmb/README.md).
+
 | Concern | Files | Disposition | Action |
 |---|---|---|---|
-| Core WM logic | `client.c`, `border.c`, `place.c`, `resize.c`, `move.c`, `desktop.c`, `group.c`, `taskbar.c`, `tray.c`, `menu.c`, `root.c`, `winmenu.c`, … | CARRY | No changes |
-| Entry point | `main.c` | GUARD | `main` → `Jwm_Main`; drop `sigaction`; hoist globals into a state struct |
-| Event loop | `event.c` | GUARD | `select()` → `hal_yield_timeout()` |
+| Core WM logic | `client.c`, `border.c`, `place.c`, `desktop.c`, `group.c`, `taskbar.c`, `tray.c`, `root.c`, … | CARRY | Actual unchanged WM algorithms |
+| Entry point | `main.c` | GUARD | Library readiness/return and native signal exclusion; one owned state per component |
+| Event loop | `event.c` | GUARD | Predicate/deadline progress and correct grabbed-motion coalescing |
 | Command execution | `command.c` | GUARD | `fork`/`execl` → in‑tree application table lookup |
-| Timing | `timing.c` | GUARD | Drop `TZ` push/pop |
+| Timing | `timing.c` | EXCLUDE / M2 | Unchanged native file; owned monotonic timing adapter |
 | Misc | `misc.c` | GUARD | Last `getenv` |
-| Fonts | `font.c` | GUARD | Core fonts only; no Xft path |
-| Xlib call macros | `jxlib.h` | GUARD | Add the profile block that routes `JX*` through the vtable |
-| Build glue | `jwm_namespace.h`, `jwm_entry.c`, `jwm_entry.h`, `jwm/CMakeLists.txt` | NEW | Symbol renaming (injected with `-include`) and the fiber entry adapter |
+| Fonts | `font.c` | CARRY | Select core fonts by configuration, no source patch |
+| Xlib call macros | `jxlib.h` | CARRY | Call retained Xlib directly; external vtable remains P8 |
+| Configuration/images/identity | `parse.c`, `image.c`, `hint.c`, `jwm.h`, `debug.h` | GUARD | Build-tree config, in-memory XML/icons, no native files/PID/locale conversion |
+| Modifier/clock behavior | `binding.c`, `clock.c` | GUARD | Absent NumLock is not a modifier; accurate uptime cadence |
+| Modal cancellation | `move.c`, `resize.c`, `menu.c`, `pager.c`, `winmenu.c` | GUARD | Honor event termination through native cleanup paths |
+| Build glue | `jwm/wmb/`, `jwm/CMakeLists.txt` | NEW | Generated 400-symbol namespace, entry/config/timing adapters |
 
 **Optional dependencies to disable** (all present in `jwm/configure.ac` as `--enable-*`): PNG, JPEG, Xpm, cairo, librsvg, Xft, Xrender, pango, Xmu,
-Xinerama. Retained: XBM icons (via `XReadBitmapFileData`), SHAPE (optional).
+Xinerama. P7 also disables XBM file loading and SHAPE, retaining in-memory
+client icons and native drawn title buttons.
 
-Six files hold JWM's entire POSIX footprint: `command.c`, `event.c`, `font.c`, `main.c`, `misc.c`, `timing.c`. Everything else is pure Xlib.
+The original six-file estimate missed native config/image/PID/header paths and
+cooperative cancellation. Sixteen guarded files preserve the original reference;
+the actual [patch ledger](../patches/MANIFEST.md) and D-55 are authoritative.
 
 ### 11.2 Test applications — **NEW**
 

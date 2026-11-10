@@ -254,7 +254,11 @@ ChangeWindowProperty(WindowPtr pWin, Atom property, Atom type, int format,
         pProp = malloc(sizeof(PropertyRec));
         if (!pProp)
             return (BadAlloc);
+#if defined(WMB_DEVEL)
+        data = totalSize ? malloc(totalSize) : NULL;
+#else
         data = malloc(totalSize);
+#endif
         if (!data && len) {
             free(pProp);
             return (BadAlloc);
@@ -281,7 +285,16 @@ ChangeWindowProperty(WindowPtr pWin, Atom property, Atom type, int format,
             return (BadMatch);
         if (mode == PropModeReplace) {
             if (totalSize != pProp->size * (pProp->format >> 3)) {
+#if defined(WMB_DEVEL)
+                if (totalSize == 0) {
+                    free(pProp->data);
+                    data = NULL;
+                } else {
+                    data = (pointer) realloc(pProp->data, totalSize);
+                }
+#else
                 data = (pointer) realloc(pProp->data, totalSize);
+#endif
                 if (!data && len)
                     return (BadAlloc);
                 pProp->data = data;

@@ -1,0 +1,33 @@
+--- a/jwm/src/clock.c
++++ b/jwm/src/clock.c
+@@ -149,7 +149,11 @@
+    cp->ProcessButtonRelease = ProcessClockButtonRelease;
+    cp->ProcessMotionEvent = ProcessClockMotionEvent;
+ 
++#if defined(WMB_INPROC)
++   RegisterCallback(1000, SignalClock, clk);
++#else
+    RegisterCallback(Min(900, settings.popupDelay / 2), SignalClock, clk);
++#endif
+ 
+    return cp;
+ }
+@@ -261,6 +265,9 @@
+    if(now->seconds == clk->lastTime.seconds) {
+       return;
+    }
++#if defined(WMB_INPROC)
++   clk->lastTime = *now;
++#endif
+ 
+    /* Clear the area. */
+    cp = clk->cp;
+@@ -296,4 +303,7 @@
+ 
+    }
+ 
+-}
++#if defined(WMB_INPROC)
++   WmbJwm_ClockDrawn();
++#endif
++}

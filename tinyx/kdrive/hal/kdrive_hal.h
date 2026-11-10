@@ -20,5 +20,6 @@ void KdHalKeyboardPoll(void);
 void KdHalMousePoll(void);
 hal_display_status_t KdHalDisplayStatus(void);
 unsigned long KdHalPollCount(void);
+void KdHalSetStopHandler(void (*handler)(hal_display_status_t, void *), void *argument);
 
 #endif

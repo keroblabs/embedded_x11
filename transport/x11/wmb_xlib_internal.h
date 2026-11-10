@@ -13,6 +13,7 @@ typedef struct {
     bool awaiting;
     bool refilling_ids;
     unsigned long awaiting_sequence;
+    XErrorHandler error_handler;
 } WmbDisplay;
 
 int wmb_xlib_connect(Display *display);

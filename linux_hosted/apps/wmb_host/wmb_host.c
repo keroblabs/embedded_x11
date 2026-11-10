@@ -6,6 +6,7 @@
 #include "hal_time.h"
 #include "hal_display.h"
 #include "wmb_test_client.h"
+#include "desktop.h"
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
@@ -81,6 +82,20 @@ static bool client_pixels_valid(void)
 
 int main(int argc, char **argv)
 {
+    if (argc == 2 && strcmp(argv[1], "--desktop") == 0)
+        return wmb_host_desktop(false, false, 0, 0);
+    if (argc == 2 && strcmp(argv[1], "--wm-test") == 0)
+        return wmb_host_desktop(true, false, 10000, 0);
+    if (argc == 2 && strcmp(argv[1], "--wm-soak") == 0)
+        return wmb_host_desktop(true, true, 60000, 0);
+    if (argc == 2 && strcmp(argv[1], "--wm-cadence") == 0)
+        return wmb_host_desktop(true, false, 60000, 0);
+    if (argc == 2 && strcmp(argv[1], "--wm-cancel-menu") == 0)
+        return wmb_host_desktop(true, false, 0, 1);
+    if (argc == 2 && strcmp(argv[1], "--wm-cancel-move") == 0)
+        return wmb_host_desktop(true, false, 0, 2);
+    if (argc == 2 && strcmp(argv[1], "--wm-cancel-resize") == 0)
+        return wmb_host_desktop(true, false, 0, 3);
     bool self_test = argc == 2 && strcmp(argv[1], "--self-test") == 0;
     bool raw_test = argc == 2 && strcmp(argv[1], "--raw-test") == 0;
     bool client_soak = argc == 2 && strcmp(argv[1], "--client-soak") == 0;
@@ -105,7 +120,7 @@ int main(int argc, char **argv)
     double ready_cpu = 0;
     bool validated = false, ready_observed = false, failed = false;
     if (argc != 1 && !self_test && !raw_test && !client_test && !flow_test && !timeout_test && !wire_test) {
-        fprintf(stderr, "usage: %s [--self-test | --raw-test | --client-test | --client-soak | --flow-test | --timeout-test | --wire-test FILE]\n", argv[0]);
+        fprintf(stderr, "usage: %s [--desktop | --wm-test | --wm-cadence | --wm-soak | --wm-cancel-menu | --wm-cancel-move | --wm-cancel-resize | --self-test | --raw-test | --client-test | --client-soak | --flow-test | --timeout-test | --wire-test FILE]\n", argv[0]);
         return 2;
     }
     if (hal_task_runtime_init(0) != 0) {

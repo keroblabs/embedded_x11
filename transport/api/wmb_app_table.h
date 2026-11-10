@@ -38,7 +38,9 @@ const wmb_app_t *wmb_app_lookup(const char *name);
 /* Spawn app as a blocked fiber.  Packs argv into a heap slab, creates
  * the fiber via hal_task_create with a trampoline that unpacks and
  * calls app->entry.  Returns the created task, or NULL on failure.
- * Caller retains ownership of argv until wmb_app_launch returns. */
+ * Caller retains ownership of argv until wmb_app_launch returns.
+ * The returned task is borrowed: wake it to start; the component owns
+ * completion/reaping. Do not destroy or retain it after completion. */
 hal_task_t *wmb_app_launch(const wmb_app_t *app, int argc, char **argv);
 
 #ifdef __cplusplus

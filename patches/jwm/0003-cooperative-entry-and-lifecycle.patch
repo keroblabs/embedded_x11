@@ -1,0 +1,111 @@
+--- a/jwm/src/main.c
++++ b/jwm/src/main.c
+@@ -190,6 +190,9 @@
+ 
+       /* Start up the JWM components. */
+       Startup();
++#if defined(WMB_INPROC)
++      WmbJwm_Ready();
++#endif
+ 
+       /* The main event loop. */
+       EventLoop();
+@@ -203,6 +206,15 @@
+    } while(shouldRestart);
+    ShutdownConnection();
+ 
++#if defined(WMB_INPROC)
++   if(exitCommand) {
++      Warning("external exit commands are unsupported");
++      Release(exitCommand);
++      exitCommand = NULL;
++   }
++   StopDebug();
++   return 0;
++#else
+    /* If we have a command to execute on shutdown, run it now. */
+    if(exitCommand) {
+       execl(SHELL_NAME, SHELL_NAME, "-c", exitCommand, NULL);
+@@ -214,6 +226,7 @@
+ 
+    /* Control shoud never get here. */
+    return -1;
++#endif
+ 
+ }
+ #endif
+@@ -322,7 +335,9 @@
+    int renderEvent;
+    int renderError;
+ #endif
++#if !defined(WMB_INPROC)
+    struct sigaction sa;
++#endif
+    char name[32];
+    Window win;
+    XEvent event;
+@@ -346,6 +361,9 @@
+    /* Get the current window manager and take the selection. */
+    GrabServer();
+    win = JXGetSelectionOwner(display, managerSelection);
++#if defined(WMB_INPROC)
++   if(win != None) FatalError("display is already managed");
++#endif
+    if(win != None) {
+       JXSelectInput(display, win, StructureNotifyMask);
+    }
+@@ -374,7 +392,11 @@
+    JXSendEvent(display, rootWindow, False, StructureNotifyMask, &event);
+    JXSync(display, False);
+ 
++#if defined(WMB_INPROC)
++   WmbJwm_InstallErrorHandler();
++#else
+    JXSetErrorHandler(ErrorHandler);
++#endif
+ 
+    clientContext = XUniqueContext();
+    frameContext = XUniqueContext();
+@@ -394,6 +416,7 @@
+       | PointerMotionMask | PointerMotionHintMask;
+    JXChangeWindowAttributes(display, rootWindow, CWEventMask, &attr);
+ 
++#if !defined(WMB_INPROC)
+    memset(&sa, 0, sizeof(sa));
+    sa.sa_flags = 0;
+    sa.sa_handler = HandleExit;
+@@ -403,6 +426,7 @@
+ 
+    sa.sa_handler = HandleChild;
+    sigaction(SIGCHLD, &sa, NULL);
++#endif
+ 
+ #ifdef USE_SHAPE
+    haveShape = JXShapeQueryExtension(display, &shapeEvent, &shapeError);
+@@ -438,6 +462,9 @@
+ {
+    JXFlush(display);
+    JXCloseDisplay(display);
++#if defined(WMB_INPROC)
++   display = NULL;
++#endif
+ }
+ 
+ /** Close the X server connection. */
+@@ -455,9 +482,11 @@
+ /** Signal handler for SIGCHLD. */
+ void HandleChild(int sig)
+ {
++#if !defined(WMB_INPROC)
+    const int savedErrno = errno;
+    while(waitpid((pid_t)-1, NULL, WNOHANG) > 0);
+    errno = savedErrno;
++#endif
+ }
+ 
+ /** Initialize data structures.
+@@ -669,4 +698,3 @@
+    JXSendEvent(display, rootWindow, False, SubstructureRedirectMask, &event);
+    CloseConnection();
+ }
+-

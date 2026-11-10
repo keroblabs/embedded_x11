@@ -131,3 +131,31 @@ black rectangle, text and software cursor. Client pixels are also checked in CI.
 P6 client/API/profile cohort independently of the unchanged 173-unit server
 cohort. [The font manifest](xfont-sources.reference) freezes 30 units including
 its owned refusal adapter. The wire fixtures are unchanged and still pass.
+
+## P7 JWM references
+
+[The JWM source manifest](jwm-sources.reference) freezes 52 units: 49 retained
+native sources plus owned entry/configuration/timing adapters.
+[The native configuration](jwm-config.reference.h) is actual Autoconf output
+from the pristine imported JWM tree (`73ab9f28...:jwm`), with optional libraries
+and native language support disabled. It is probe evidence, not the project's
+production configuration. Only trailing whitespace on the empty `ICONV_CONST`
+definition is normalized.
+
+Reference generation used Autoconf 2.71, gettext tooling 0.21, GCC 13.3 and
+system Xlib. The import identifies itself as JWM 2.4.4 but has no separately
+verified official release identity. The repository's exact import/hash is the
+patch baseline. The original source includes Makefile.in rather than Makefile.am;
+generate configure/config.h.in without replacing its make templates.
+
+[The actual RGB565 desktop](tinyx-jwm-rgb565.png) shows native decorations, task
+list, three registered clients and uptime clock after the move/resize/menu
+workload. It was captured from the real SDL presentation framebuffer, not
+reconstructed from application data. Reproduce the PPM capture with
+`SDL_RENDER_DRIVER=software WMB_WM_CAPTURE=build-p7/jwm.ppm build-p7/bin/wmb_host --wm-test`.
+
+The optional independent harness links the exact same portable JWM archive to
+genuine system Xlib and a temporary Xvfb. It verifies two decorated native
+clients, registry launch and cleanup; native interaction/precision/cancellation
+are tested separately on the subject in-process stack.
+See [the JWM guide](../../jwm/wmb/README.md).

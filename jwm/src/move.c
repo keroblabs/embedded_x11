@@ -135,7 +135,14 @@ char MoveClient(ClientNode *np, int startx, int starty)
    doMove = 0;
    for(;;) {
 
+#if defined(WMB_INPROC)
+      if(!WaitForEvent(&event)) {
+         StopMove(np, doMove, oldx, oldy);
+         return doMove;
+      }
+#else
       WaitForEvent(&event);
+#endif
 
       if(shouldStopMove) {
          np->controller = NULL;
@@ -154,7 +161,11 @@ char MoveClient(ClientNode *np, int startx, int starty)
          break;
       case MotionNotify:
 
+#if defined(WMB_INPROC)
+         DiscardMotionEvents(&event, rootWindow);
+#else
          DiscardMotionEvents(&event, np->window);
+#endif
 
          np->x = event.xmotion.x_root - startx;
          np->y = event.xmotion.y_root - starty;
@@ -331,7 +342,11 @@ char MoveClientKeyboard(ClientNode *np)
    UpdateMoveWindow(np);
 
    MoveMouse(rootWindow, np->x, np->y);
+#if defined(WMB_INPROC)
+   DiscardMotionEvents(&event, rootWindow);
+#else
    DiscardMotionEvents(&event, np->window);
+#endif
 
    if(np->state.status & STAT_SHADED) {
       height = 0;
@@ -342,7 +357,14 @@ char MoveClientKeyboard(ClientNode *np)
 
    for(;;) {
 
+#if defined(WMB_INPROC)
+      if(!WaitForEvent(&event)) {
+         StopMove(np, 1, oldx, oldy);
+         return 1;
+      }
+#else
       WaitForEvent(&event);
+#endif
 
       if(shouldStopMove) {
          np->controller = NULL;
@@ -385,16 +407,29 @@ char MoveClientKeyboard(ClientNode *np)
          }
 
          MoveMouse(rootWindow, np->x, np->y);
+#if defined(WMB_INPROC)
+         DiscardMotionEvents(&event, rootWindow);
+#else
          DiscardMotionEvents(&event, np->window);
+#endif
 
          moved = 1;
 
       } else if(event.type == MotionNotify) {
 
+#if defined(WMB_INPROC)
+         DiscardMotionEvents(&event, rootWindow);
+#else
          DiscardMotionEvents(&event, np->window);
+#endif
 
+#if defined(WMB_INPROC)
+         np->x = event.xmotion.x_root;
+         np->y = event.xmotion.y_root;
+#else
          np->x = event.xmotion.x;
          np->y = event.xmotion.y;
+#endif
 
          moved = 1;
 

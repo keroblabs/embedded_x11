@@ -1,0 +1,87 @@
+--- a/jwm/src/command.c
++++ b/jwm/src/command.c
+@@ -14,7 +14,12 @@
+ #include "error.h"
+ #include "timing.h"
+ 
++#if !defined(WMB_INPROC)
+ #include <fcntl.h>
++#else
++#include "wmb_app_table.h"
++#include "hal_task.h"
++#endif
+ #include <errno.h>
+ 
+ /** Structure to represent a list of commands. */
+@@ -121,6 +126,46 @@
+ /** Execute an external program. */
+ void RunCommand(const char *command)
+ {
++#if defined(WMB_INPROC)
++   char *copy, *cursor, *arguments[32];
++   int count = 0;
++   const wmb_app_t *app;
++   hal_task_t *task;
++   if(!command || !*command) {
++      Warning("empty application command");
++      return;
++   }
++   if(strpbrk(command, "'\"\\|&;<>`$")) {
++      Warning("shell syntax is unsupported: %s", command);
++      return;
++   }
++   copy = CopyString(command);
++   if(!copy) {
++      Warning("application command allocation failed");
++      return;
++   }
++   cursor = copy;
++   while(*cursor) {
++      while(isspace((unsigned char)*cursor)) cursor++;
++      if(!*cursor) break;
++      if(count == (int)ARRAY_LENGTH(arguments)) {
++         Warning("too many application arguments");
++         Release(copy);
++         return;
++      }
++      arguments[count++] = cursor;
++      while(*cursor && !isspace((unsigned char)*cursor)) cursor++;
++      if(*cursor) *cursor++ = 0;
++   }
++   app = count ? wmb_app_lookup(arguments[0]) : NULL;
++   if(!app) Warning("application is not registered: %s", command);
++   else {
++      task = wmb_app_launch(app, count, arguments);
++      if(task) hal_task_wake(task);
++      else Warning("could not launch application: %s", command);
++   }
++   Release(copy);
++#else
+ 
+    const char *displayString;
+ 
+@@ -143,11 +188,17 @@
+       exit(EXIT_SUCCESS);
+    }
+ 
++#endif
+ }
+ 
+ /** Reads the output of an exernal program. */
+ char *ReadFromProcess(const char *command, unsigned timeout_ms)
+ {
++#if defined(WMB_INPROC)
++   (void)command; (void)timeout_ms;
++   Warning("external command output is unsupported");
++   return NULL;
++#else
+    const unsigned BLOCK_SIZE = 256;
+    pid_t pid;
+    int fds[2];
+@@ -239,4 +290,5 @@
+    }
+ 
+    return NULL;
+-}
++#endif
++}

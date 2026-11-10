@@ -172,7 +172,14 @@ void ResizeClient(ClientNode *np, MouseContextType context,
 
    for(;;) {
 
+#if defined(WMB_INPROC)
+      if(!WaitForEvent(&event)) {
+         StopResize(np);
+         return;
+      }
+#else
       WaitForEvent(&event);
+#endif
 
       if(shouldStopResize) {
          np->controller = NULL;
@@ -191,9 +198,17 @@ void ResizeClient(ClientNode *np, MouseContextType context,
 
          SetMousePosition(event.xmotion.x_root, event.xmotion.y_root,
                           event.xmotion.window);
+#if defined(WMB_INPROC)
+         DiscardMotionEvents(&event, rootWindow);
+#else
          DiscardMotionEvents(&event, np->window);
+#endif
 
+#if defined(WMB_INPROC)
+         UpdateSize(np, context, event.xmotion.x_root, event.xmotion.y_root,
+#else
          UpdateSize(np, context, event.xmotion.x, event.xmotion.y,
+#endif
                     startx, starty, oldx, oldy, oldw, oldh);
 
          lastgwidth = gwidth;
@@ -303,11 +318,22 @@ void ResizeClientKeyboard(ClientNode *np, MouseContextType context)
       startx = np->x + np->width / 2;
    }
    MoveMouse(rootWindow, startx, starty);
+#if defined(WMB_INPROC)
+   DiscardMotionEvents(&event, rootWindow);
+#else
    DiscardMotionEvents(&event, np->window);
+#endif
 
    for(;;) {
 
+#if defined(WMB_INPROC)
+      if(!WaitForEvent(&event)) {
+         StopResize(np);
+         return;
+      }
+#else
       WaitForEvent(&event);
+#endif
 
       if(shouldStopResize) {
          np->controller = NULL;
@@ -368,9 +394,17 @@ void ResizeClientKeyboard(ClientNode *np, MouseContextType context)
 
          SetMousePosition(event.xmotion.x_root, event.xmotion.y_root,
                           event.xmotion.window);
+#if defined(WMB_INPROC)
+         DiscardMotionEvents(&event, rootWindow);
+#else
          DiscardMotionEvents(&event, np->window);
+#endif
 
+#if defined(WMB_INPROC)
+         UpdateSize(np, context, event.xmotion.x_root, event.xmotion.y_root,
+#else
          UpdateSize(np, context, event.xmotion.x, event.xmotion.y,
+#endif
                     startx, starty, oldx, oldy, oldw, oldh);
 
       } else if(event.type == ButtonRelease) {
@@ -477,4 +511,3 @@ void FixHeight(ClientNode *np)
    }
 
 }
-

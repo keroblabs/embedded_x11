@@ -215,7 +215,11 @@ void ChooseWindow(MenuAction *action)
 
    for(;;) {
 
+#if defined(WMB_INPROC)
+      if(!WaitForEvent(&event)) break;
+#else
       WaitForEvent(&event);
+#endif
 
       if(event.type == ButtonPress) {
          if(event.xbutton.button == Button1) {

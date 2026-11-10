@@ -72,7 +72,7 @@ The last three require one guarded line each in `mi/miinitext.c`. The rest requi
 | **P4** | **Primary owner. Hosted no-client server/root-window gate implemented and verified** | **Heavy** |
 | **P5** | **Implemented and verified server transport/client gate** — real setup, dispatch, replies/events, replay and grabs | **Heavy** |
 | **P6** | **Verified portability/patch closure:** twelve server sites plus three KDrive sites; full native-reference and no-backend gates | Medium |
-| P7 | Support only: `XGrabServer` flow control lands in `io_wmb.c` / `connection_wmb.c` | Light |
+| **P7** | **Verified with real JWM:** native grabs/input/rendering, deferred HAL stop and defined empty property storage; `Dispatch()` remains unchanged | Light |
 | P8 | None directly; `dix` re‑entrancy is asserted by the E4 test, not changed | — |
 | P9 | The freestanding compile of ~96 kLOC — the largest surface for libc‑floor surprises | Medium |
 
@@ -262,8 +262,9 @@ is the only possible cause.
 
 **Status: implemented and verified for the selected hosted cohorts.** The
 [P6 guide](48-p6-portability.md) records commands, evidence and target boundaries.
-The authoritative [generated patch ledger](../patches/MANIFEST.md) and 15-file
-TinyX cap are explained in [11-](11-portability-plan.md) section 8 and D-54.
+The authoritative [generated patch ledger](../patches/MANIFEST.md) is explained
+in [11-](11-portability-plan.md) section 8. P6 closed 15 TinyX files (D-54);
+P7's empty-property correction raises the current cap/count to 16 (D-55).
 
 | # | File | Guard | Edit |
 |--:|---|---|---|
@@ -296,6 +297,18 @@ KDrive's `kinput.c`, `kdrive.h` and `kdrive.c` belong to
 
 The full suite is 30/30 in the documented Debug/Release and both-format
 ASan/UBSan matrix. This closes hosted P6, not the freestanding/P9 gates below.
+
+**P7 extension:** JWM now exercises the actual full desktop.
+[The P7 guide](../jwm/wmb/README.md) documents decorations, moves/resizes, menus,
+focus, native JWM grabs and modal shutdown. A generic HAL-port callback defers
+display close/error until the WM and applications finish. Root-only/standalone
+termination behavior is unchanged.
+
+The P7 memory run also exposed implementation-defined `realloc(ptr, 0)` when WM
+properties become empty. [property.c](../tinyx/dix/property.c) now explicitly
+frees/clears empty storage under `WMB_DEVEL`, with unchanged reference behavior.
+New empty/replaced-property protocol tests cover it. D-55 raises the TinyX cap
+from the P6 value of 15 to 16 for this real engine seam, not a driver policy.
 
 **P6 is deliberately after P5.** A guard applied to code that has never been compiled is a guess; once `host-pure` runs, each guard is applied and
 immediately re‑verified against a working system.
@@ -346,8 +359,8 @@ The seams, stated as contracts so that a change on either side is a conversation
 |---|---|
 | New files | `excluded_stubs_wmb.c`, `waitfor_wmb.c`, `connection_wmb.c`, `io_wmb.c` + two config templates |
 | New LOC | ~750 |
-| Upstream files guarded | **12 server files plus 3 KDrive files, cap 15**; shared protocol headers are budgeted separately |
-| Slack | **0.** Additional sites require a decision with the rejected alternative; D-54 records the approved P6 expansion |
+| Upstream files guarded | **13 server files plus 3 KDrive files, current cap 16**; shared protocol headers are budgeted separately |
+| Slack | **0.** Additional sites require a decision with the rejected alternative; D-54/P6 and D-55/P7 record the approved expansions |
 
 ## 11. What to Do First
 

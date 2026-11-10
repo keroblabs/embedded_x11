@@ -56,11 +56,11 @@ These run on every build and take seconds. They are the backbone of the verifica
 | S3 | Only sanctioned guards in upstream files | TinyX project branches use presence-based `WMB_DEVEL`; sibling client/profile guards follow the portability ledger | [`11-`](11-portability-plan.md) §8.6 |
 | S4 | No excluded file in any source list | script diffs CMake lists against the ledger | [`01-`](01-component-inventory.md) §13 |
 | S5 | CMake module groups match the inventory | script diffs `WmbModules.cmake` against [`01-`](01-component-inventory.md) §12 | [`01-`](01-component-inventory.md) V5 |
-| S6 | Patch budget respected | Checked manifest caps: TinyX 15, libX11 10, shared X11 2; JWM future cap 4 | [11-](11-portability-plan.md) section 8.4, D-54 |
+| S6 | Patch budget respected | Checked P7 caps: TinyX 16, libX11 10, shared X11 2, JWM 16 | [11-](11-portability-plan.md) section 8.4, D-54/D-55 |
 | S7 | Patches replay on pristine imported files | Reconstruct exact import, check/apply every patch, compare SHA-256/current bytes and original notices; compile/preprocess native reference variants | [48-](48-p6-portability.md) |
 | S8 | Contract headers are freestanding | compile each alone with `-ffreestanding -nostdinc` | [`12-`](12-platform-contract.md) PC‑V1 |
 | S9 | Vtable artefacts are generated, not hand‑edited | regenerate from `api.def`, `git diff` → empty | [`22-`](22-entry-point-abi.md) E‑V1 |
-| S10 | **The built windowing set is detachable** | P6 `wmb_portability_link` links all six real archives using `--whole-archive --no-gc-sections`, contract stubs and libc/math/zlib; no backend/host launcher. Extend with JWM/API archives at P7/P8 | [48-](48-p6-portability.md), D-42 |
+| S10 | **The built windowing set is detachable** | `wmb_portability_link` now links nine real archives including JWM/apps/lifecycle using `--whole-archive --no-gc-sections`, contract stubs and libc/math/zlib; no backend/host launcher. Extend with the external ABI at P8 | [P7 guide](../jwm/wmb/README.md), D-42 |
 | S11 | **The framework is shareable** | `grep -rn '#include' framework/ \| grep -E 'tinyx\|libX11\|jwm\|transport\|Xlib\|dix'` → empty | [`03-`](03-target-architecture.md) L8 |
 | S12 | **`framework/` is platform‑free** | `grep -rl 'SDL\|<linux/\|clock_gettime\|ucontext\|termios' framework/ --include=*.c --include=*.h` → empty | [`03-`](03-target-architecture.md) L9 |
 
@@ -238,15 +238,48 @@ N3/N8 remain P9, not a claim made by the hosted test.
 | ID | Gate | Method |
 |---|---|---|
 | V‑P7‑1 | `libjwm.a` has no duplicate `T` symbols and no undefined `fork`/`execv`/`waitpid`/`sigaction`/`select` | `nm` |
-| V‑P7‑2 | Root window within 200 ms of boot | Instrumented timestamp |
-| V‑P7‑3 | Client window appears **with decorations** | Screenshot |
-| V‑P7‑4 | Title‑bar drag moves the window | Scripted pointer input + screenshot |
-| V‑P7‑5 | Corner drag resizes the window | Same |
-| V‑P7‑6 | Root menu opens and items are selectable | Same |
-| V‑P7‑7 | Two clients coexist; focus follows click; stacking is correct | Same |
-| V‑P7‑8 | **`XGrabServer` blocks the other client** | Client A grabs; client B's request does not complete until the ungrab |
-| V‑P7‑9 | JWM periodic callbacks fire without busy‑spin | CPU < 5 % with a clock widget running |
-| V‑P7‑10 | No fiber starves: each of three fibers scheduled within 50 ms | Instrumented per‑fiber last‑run timestamp |
+| V‑P7‑2 | Server + JWM ready within 200 ms of component startup | Measured normal run, not arbitrary-load hard real-time guarantee |
+| V‑P7‑3 | Clients have native decorations | Reparent/frame-extents/title-band image checks and [actual desktop capture](reference/tinyx-jwm-rgb565.png) |
+| V‑P7‑4 | Mouse/keyboard moves change exact frame geometry | Native XTEST held-button drag and EWMH/arrow/Enter keyboard move |
+| V‑P7‑5 | Mouse/keyboard resizing changes exact dimensions | Corner input and native EWMH/arrow/Enter resize; synchronize status/grab cleanup |
+| V‑P7‑6 | Root menu launches an application | Actual mapped menu type, selection and third client in `_NET_CLIENT_LIST` |
+| V‑P7‑7 | Focus/stacking follow both clients' clicks | Query native input focus and root child order |
+| V‑P7‑8 | **JWM's own native server grab blocks a peer** | Real WM grab; peer remains blocked for 60 ms then completes after ungrab |
+| V‑P7‑9 | Accurate periodic progress without spin | CPU <5%, clock periods 990-1010 ms; callback gaps <=160 ms; repeat 60 seconds |
+| V‑P7‑10 | No observed server/JWM/demo fiber starves | Wrap actual scheduler dispatch, require gaps <=50 ms |
+| V-P7-11 | Stop with active menu/move/resize | Real held interaction, native unwind and error-free orderly component stop |
+| V-P7-12 | Application launch ownership | Copied argv, initially blocked, OOM, 100 reuses, cancel before start |
+| V-P7-13 | Independent stock-Xlib reference | Same JWM archive, isolated Xvfb, two decorated native clients, launch and cleanup |
+
+Current gates cover **506 translation units**, **44 patch sites** and 400
+namespaced JWM exports. Thirty-five affected native reference units compile and
+preserve undefined-selector output; project one/zero/empty outputs agree.
+The 36 standard tests retain all P4/P5/P6 gates; the optional oracle adds one.
+
+| Final configuration | Result |
+|---|---|
+| Debug RGB565 800x480, including stock-Xlib/Xvfb oracle | 37/37 |
+| Release XRGB8888 319x177 | 36/36 |
+| ASan + strict UBSan, padded RGB565 319x177 | 36/36 |
+| ASan + strict UBSan, XRGB8888 319x177 | 36/36 |
+
+The final measured 60-second normal run: 17.93 ms readiness, **1.60% CPU**,
+600 periodic callbacks, 60 clock steps, completed framebuffer-draw periods
+**999.16-1001.97 ms**, maximum observed server/JWM/demo gap **22.04 ms**.
+The clock measurement occurs after native tray drawing, not merely string
+formatting; physical monitor/panel refresh deadlines are a different surface.
+The actual desktop SDL
+capture run used the software renderer, reported 132.87 ms readiness, and passed
+the same mouse/keyboard interaction gates.
+Measurements ran without concurrent builds; a deliberately contended desktop
+startup exceeded 200 ms and was rejected rather than redefining the gate.
+
+The final 60-second Valgrind desktop run reports **zero errors and zero lost
+bytes**, with 47,303 bytes still reachable in server/font/library caches. Its
+7.14% instrumented CPU is not a normal performance certificate. The initial
+run flagged `realloc(ptr, 0)` on empty WM properties; the guarded storage fix
+and explicit empty-property regressions precede the final clean run. No
+memory-error suppressions were introduced.
 
 ### 4.8 P8 — External ABI and stability
 

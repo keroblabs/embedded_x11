@@ -22,16 +22,17 @@ dependency.
 
 ### 1.1 What the tree does today
 
-The hosted foundations, real TinyX server, and P5 in-process Xlib clients are
-runnable. JWM and the external ABI are not yet assembled:
+The hosted foundations, real TinyX server, retained Xlib clients and P7 JWM
+desktop are runnable. The external ABI is not yet assembled:
 
 - The top-level `CMakeLists.txt` builds the framework, hosted fiber/system ports, optional SDL backends, the KDrive/HAL library, and smoke/demo executables.
-  `transport/x11/wmb_main.c` now reserves the portable lifecycle entry point without exporting a competing `main()`.
+  `transport/x11/wmb_main.c` implements the reusable lifecycle without exporting a competing `main()`.
 - With `WMB_TINYX_BUILD_SERVER=ON`, actual DIX/OS/MI/FB/extensions and KDrive/HAL
   initialize, paint an X root window, reach `Dispatch()`, wait cooperatively and
   shut down. See the [P4 server guide](../tinyx/wmb/README.md).
   The same option now adds the retained client library and
-  [P5 transport/client gates](../transport/x11/README.md). `jwm/` remains P7 work.
+  [P5 transport/client gates](../transport/x11/README.md), plus the
+  [P7 managed desktop](../jwm/wmb/README.md).
 - `framework/fiber/` contains a complete, portable cooperative fiber core (`fiber.c`, `fiber_sync.c`, `hal_task.c` and its headers) **and a working hosted
   port** in `linux_hosted/fiber_linux/`. Both are exercised by the smoke programs under `linux_hosted/`, one of which — `sdl_fiber_example_v2/` — is a
   running proof of concept of the in‑process transport's client–server handshake ([`21-`](21-inprocess-transport.md) §11). The preemption tick is
@@ -48,7 +49,8 @@ runnable. JWM and the external ABI are not yet assembled:
 So: the **components are present**, a **design has been argued at length** (see `docs_old/`, ~33.6 kLOC of prior planning across four generations of
 documents), and **the server and a real Xlib application are running**.
 [P6 portability/patch closure](48-p6-portability.md) is also verified for the
-selected hosted cohorts. Next is P7 JWM, not a native socket server.
+selected hosted cohorts, and P7 extends those checks across JWM and lifecycle.
+Next is P8 ABI/stability, not a native socket server.
 
 ### 1.2 Why this is not a normal X11 port
 

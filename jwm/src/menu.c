@@ -383,7 +383,11 @@ char MenuLoop(Menu *menu, RunMenuCommandType runner)
 
    for(;;) {
 
+#if defined(WMB_INPROC)
+      if(!WaitForEvent(&event)) return 0;
+#else
       WaitForEvent(&event);
+#endif
 
       switch(event.type) {
       case Expose:
@@ -1051,4 +1055,3 @@ char IsMenuValid(const Menu *menu)
    }
    return 0;
 }
-

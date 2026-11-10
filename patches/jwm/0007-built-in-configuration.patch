@@ -1,0 +1,52 @@
+--- a/jwm/src/parse.c
++++ b/jwm/src/parse.c
+@@ -34,9 +34,11 @@
+ #include "border.h"
+ #include "default.h"
+ 
++#if !defined(WMB_INPROC)
+ #include <sys/types.h>
+ #include <sys/stat.h>
+ #include <fcntl.h>
++#endif
+ #include <errno.h>
+ 
+ /** Mapping of action names to values.
+@@ -280,6 +282,10 @@
+ void ParseConfig(const char *fileName)
+ {
+    ParseInternal(BASE_CONFIG);
++#if defined(WMB_INPROC)
++   if(fileName) ParseError(NULL, "configuration files are unsupported");
++   ParseInternal(WmbJwm_Configuration());
++#else
+    if(fileName) {
+       if(!ParseFile(fileName, 0)) {
+          ParseError(NULL, _("could not open %s"), fileName);
+@@ -297,6 +303,7 @@
+       ParseInternal(DEFAULT_CONFIG);
+    }
+ ConfigFileFound:
++#endif
+    ValidateTrayButtons();
+    ValidateKeys();
+ }
+@@ -2094,6 +2101,10 @@
+ /** Tokenize a file by memory mapping it. */
+ TokenNode *TokenizeFile(const char *fileName)
+ {
++#if defined(WMB_INPROC)
++   Warning("configuration files are unsupported: %s", fileName);
++   return NULL;
++#else
+    struct stat sbuf;
+    TokenNode *tokens;
+    char *path;
+@@ -2127,6 +2138,7 @@
+    Release(buffer);
+    close(fd);
+    return tokens;
++#endif
+ }
+ 
+ /** Tokenize the output of a command. */

@@ -10,7 +10,12 @@
 #ifndef JWM_H
 #define JWM_H
 
+#if defined(WMB_INPROC)
+#include <jwm_config.h>
+#include "jwm_port.h"
+#else
 #include "../config.h"
+#endif
 
 #ifndef MAKE_DEPEND
 
@@ -41,6 +46,7 @@
 #  ifdef HAVE_STDARG_H
 #     include <stdarg.h>
 #  endif
+#if !defined(WMB_INPROC)
 #  ifdef HAVE_SIGNAL_H
 #     include <signal.h>
 #  endif
@@ -59,6 +65,7 @@
 #  ifdef HAVE_SYS_SELECT_H
 #     include <sys/select.h>
 #  endif
+#endif
 
 #  include <X11/Xlib.h>
 #  ifdef HAVE_X11_XUTIL_H
@@ -148,4 +155,3 @@
 #include "jxlib.h"
 
 #endif /* JWM_H */
-

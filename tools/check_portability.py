@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify the compiled P6 boundary and reproduce its guarded source patches."""
+"""Verify the compiled windowing boundary and reproduce its guarded source patches."""
 
 from __future__ import annotations
 
@@ -20,7 +20,8 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "patches/manifest.json"
-TARGETS = ("wmb_tinyx", "wmb_kdrive", "wmb_xlib", "wmb_xfont", "wmb_transport_core")
+TARGETS = ("wmb_tinyx", "wmb_kdrive", "wmb_xlib", "wmb_xfont",
+           "wmb_transport_core", "wmb_jwm", "wmb_applications", "wmb_desktop")
 NATIVE_HEADER = re.compile(
     r"^(?:sys/|linux/|netinet/|xcb/|SDL|"
     r"(?:netdb|pwd|grp|unistd|signal|fcntl|dirent|termios|poll|pthread|dlfcn)\.h$|"
@@ -140,7 +141,8 @@ def regenerate() -> None:
         "copied into this upstream patch series.\n\n"
         "Pinned libXfont repairs/profile patches remain in "
         "[cmake/patches/](../cmake/patches/) and are applied with a checked hash "
-        "by [WmbXfont.cmake](../cmake/WmbXfont.cmake). JWM is not patched until P7.\n"
+        "by [WmbXfont.cmake](../cmake/WmbXfont.cmake). "
+        "JWM's P7 sites preserve the same imported native reference discipline.\n"
     )
     print(f"Generated {len(rows)} guarded source patches and manifest")
 
@@ -168,7 +170,7 @@ def verify_patches(patches: list[Patch], baseline: str, directory: Path) -> None
     changed = {
         file for file in run([
             "git", "diff", "--name-only", "--diff-filter=M", baseline,
-            "--", "tinyx", "libX11", "X11",
+            "--", "tinyx", "libX11", "X11", "jwm",
         ]).decode().splitlines() if Path(file).suffix in (".c", ".h")
     }
     if changed != expected:
@@ -240,7 +242,7 @@ def audit_sources(entries: list[Compile], build: Path) -> None:
     roots = (ROOT, build, *sorted({entry.file.parent for entry in font_entries}))
 
     def scan(entry: Compile) -> set[str]:
-        if entry.target == "wmb_xlib" and any(
+        if entry.target in ("wmb_xlib", "wmb_jwm") and any(
             token in " ".join(entry.arguments) for token in ("-DWMB_DEVEL", "_XSERVER64", "/generated/tinyx")
         ):
             raise RuntimeError(f"Server ABI leaked into client: {entry.file}")
@@ -276,6 +278,24 @@ def preprocess(entry: Compile, selector: str, value: str | None, overlay: Path |
         prefix += f"#define {selector} {value}\n"
     prefix += f'#include "{file}"\n'
     flags = compiler_flags(entry, overlay)
+    if entry.target == "wmb_jwm":
+        if value is None:
+            prefix = (
+                "#define _X_COLD __attribute__((cold))\n"
+                "#define _X_UNUSED __attribute__((unused))\n"
+            ) + prefix
+            flags.append("-UWMB_INPROC")
+            native = ROOT / "docs/reference/jwm-config.reference.h"
+            if overlay is None:
+                # The actual sources resolve ../config.h through this probe-only include path.
+                directory = entry.directory / "jwm-native-probe"
+                (directory / "src").mkdir(parents=True, exist_ok=True)
+                (directory / "config.h").write_bytes(native.read_bytes())
+            else:
+                directory = overlay / "jwm"
+                (directory / "src").mkdir(parents=True, exist_ok=True)
+                (directory / "config.h").write_bytes(native.read_bytes())
+            flags += ["-I" + str(directory / "src")]
     flags += ["-Wno-builtin-macro-redefined", "-D__LINE__=0", f"-ffile-prefix-map={ROOT}=SOURCE"]
     if overlay is not None:
         flags.append(f"-ffile-prefix-map={overlay}=SOURCE")
@@ -349,6 +369,9 @@ def verify(build: Path) -> None:
         audit_reference(entries, patches, overlay)
     audit_sources(entries, build)
     audit_symbols(build)
+    run([sys.executable, str(ROOT / "tools/jwm_namespace.py"),
+         "--archive", str(build / "jwm/libwmb_jwm.a")])
+    print("PASS complete JWM symbol isolation")
 
 
 def main() -> int:

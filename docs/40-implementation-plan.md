@@ -340,26 +340,32 @@ applied and immediately re‑verified against a working system.
 | Item | Deliverable |
 |---|---|
 | `jwm/CMakeLists.txt` with all optional libraries off | [`01-`](01-component-inventory.md) §11.1 |
-| `jwm_namespace.h` (injected with `-include`) | Renames `main`→`Jwm_Main`, `getenv`, TZ helpers |
+| Generated `jwm_namespace.h` | Compiler-level isolation of 400 native external symbols; no field renaming |
 | `jwm_entry.c` — `Jwm_FiberEntry` | New |
 | `jwm.h` POSIX include guard | [`11-`](11-portability-plan.md) §8.3 |
-| `event.c` cooperative loop | [`11-`](11-portability-plan.md) §8.3 |
+| `event.c` cooperative loop and modal consumers | Predicate/deadline progress, coalescing and complete cancellation |
 | `command.c` → `wmb_app_table` | [`11-`](11-portability-plan.md) §8.3 |
 | Hard‑coded JWM configuration | New |
 | Server‑readiness gate inside `wmb_main()`: all fibers created blocked, clients released on ready | [`90-`](90-decisions.md) D‑33, D‑43 |
+| Owned timing/profile/reference adapters | [P7 guide](../jwm/wmb/README.md); native timing unchanged |
 
 ### 8.2 Definition of Done
 
-- [ ] `libjwm.a` links with no duplicate `T` symbols and no undefined `fork`/`execv`/`waitpid`/`sigaction`/`select`.
-- [ ] JWM's root window appears within 200 ms of boot.
-- [ ] `wmb_test_client`'s window appears **with JWM decorations**.
-- [ ] The window can be **moved** by dragging its title bar.
-- [ ] The window can be **resized** by dragging a corner.
-- [ ] The root menu opens on a right‑click and its items are selectable.
-- [ ] Two client windows coexist; focus follows the click; stacking order is correct.
-- [ ] **`XGrabServer` works**: while JWM holds a grab, the other client is not serviced (gate T4).
-- [ ] JWM's periodic callbacks (`Jwm_Signal`) fire at the expected cadence without busy‑spinning.
-- [ ] No fiber starves: with three fibers running, each gets scheduled within 50 ms.
+- [x] Actual private JWM archive has isolated exports, no native imports, and whole-archive no-backend linkage.
+- [x] Measured normal server/JWM readiness below 200 ms.
+- [x] Real clients have native title bars/frame extents/pixels; actual SDL capture is checked in.
+- [x] Native title-bar and corner drags produce exact geometry changes.
+- [x] A real root-menu selection launches a third registered client.
+- [x] Focus and stacking follow clicks on each of two clients.
+- [x] A grab on JWM's own connection blocks a real peer until ungrab.
+- [x] Callback/one-second clock cadence and idle CPU/scheduling gates pass.
+- [x] Server/JWM/demo scheduling gaps remain <=50 ms in the measured workload.
+- [x] Shutdown with an active menu, move or resize releases native resources.
+- [x] The same portable archive independently decorates stock-Xlib clients under Xvfb.
+
+See [45-](45-jwm-module-plan.md) and [the run/reuse guide](../jwm/wmb/README.md)
+for the completed scope and exact test modes. P8/P9 retain the ABI/stress/hardware
+obligations; hosted timing measurements are not arbitrary-load real-time guarantees.
 
 ### 8.3 Note on the grab test
 

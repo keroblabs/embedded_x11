@@ -19,7 +19,7 @@ and completing only on the next read were not correct implementations.
 - The runtime/scheduling API: [12-](12-platform-contract.md).
 - Freestanding certification or the hardware port: P9; [P6](48-p6-portability.md)
   now verifies the selected hosted source/patch boundary.
-- A JWM integration claim: JWM is P7.
+- A JWM integration guide: [P7](45-jwm-module-plan.md) now supplies that evidence.
 
 ### 1.2 The core flow
 
@@ -74,6 +74,11 @@ lists and byte buffers after the server has released borrowed storage.
 connection. It holds the bridge connection, current reply/cursor, awaiting
 serial and XC-MISC recursion guard. The public `Display` layout is unchanged.
 `ConnectionNumber(dpy)` is `-1`, not a pollable descriptor.
+
+P7 adds an internal per-Display error hook for JWM without changing the public
+layout. Other clients' `XSetErrorHandler` remains the native fallback and cannot
+replace JWM's handler. A finite cooperative event-wait helper lets JWM preserve
+callback deadlines without a descriptor; ordinary Xlib reply timeouts are unchanged.
 
 Use the matching [client header](../libX11/include/X11/Xlibint.h). The older
 workspace `X11/Xlibint.h` does not match these API sources. The client header

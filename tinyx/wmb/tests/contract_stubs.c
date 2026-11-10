@@ -4,6 +4,7 @@
 #include "hal_time.h"
 #include "fiber_port.h"
 #include "intr_handler.h"
+#include "wmb_app_table.h"
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -12,6 +13,9 @@ static _Noreturn void unexpected_backend(void)
     fputs("P6 link probe unexpectedly invoked a platform backend\n", stderr);
     abort();
 }
+
+const wmb_app_t wmb_app_table[] = {{NULL, NULL, 0}};
+const size_t wmb_app_table_size = 0;
 
 int hal_display_init(void) { unexpected_backend(); }
 void hal_display_shutdown(void) { unexpected_backend(); }

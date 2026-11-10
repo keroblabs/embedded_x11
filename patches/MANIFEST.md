@@ -23,8 +23,9 @@ Each patch applies from the repository root to the exact original file identifie
 | [tinyx/0013-defined-bresenham-doubling.patch](tinyx/0013-defined-bresenham-doubling.patch) | `tinyx/fb/fbbits.h` | `WMB_DEVEL` | +8/-0 | Defined negative Bresenham-error doubling |
 | [tinyx/0014-sync-portable-deadline.patch](tinyx/0014-sync-portable-deadline.patch) | `tinyx/Xext/sync.c` | `WMB_DEVEL` | +15/-0 | Portable block-handler deadline type and initializer signature |
 | [tinyx/0015-strlcat-standard-types.patch](tinyx/0015-strlcat-standard-types.patch) | `tinyx/os/strlcat.c` | `WMB_DEVEL` | +4/-0 | Use standard size_t header |
+| [tinyx/0016-defined-empty-property-storage.patch](tinyx/0016-defined-empty-property-storage.patch) | `tinyx/dix/property.c` | `WMB_DEVEL` | +13/-0 | Empty WM properties free storage explicitly instead of implementation-defined realloc(ptr, 0) |
 | [libX11/0001-Xlibint-complete-builders.patch](libX11/0001-Xlibint-complete-builders.patch) | `libX11/include/X11/Xlibint.h` | `WMB_INPROC` | +44/-0 | Matching threadless client ABI and complete request-builder growth |
-| [libX11/0002-XlibInt-no-native-io.patch](libX11/0002-XlibInt-no-native-io.patch) | `libX11/src/XlibInt.c` | `WMB_INPROC` | +31/-0 | Preserve error handling and builders without fd transport or host identity |
+| [libX11/0002-XlibInt-no-native-io.patch](libX11/0002-XlibInt-no-native-io.patch) | `libX11/src/XlibInt.c` | `WMB_INPROC` | +38/-0 | Preserve error handling and builders without fd transport or host identity |
 | [libX11/0003-OpenDis-native-setup-parser.patch](libX11/0003-OpenDis-native-setup-parser.patch) | `libX11/src/OpenDis.c` | `WMB_INPROC` | +46/-1 | Reuse setup parser/destructor with in-process hooks and fixed configuration |
 | [libX11/0004-Xlib-standard-types.patch](libX11/0004-Xlib-standard-types.patch) | `libX11/include/X11/Xlib.h` | `WMB_INPROC` | +4/-0 | Public client header without POSIX typedef dependency |
 | [libX11/0005-reallocarray-header-standard-types.patch](libX11/0005-reallocarray-header-standard-types.patch) | `libX11/src/reallocarray.h` | `WMB_INPROC` | +4/-0 | Checked allocation header uses standard size_t |
@@ -35,7 +36,23 @@ Each patch applies from the repository root to the exact original file identifie
 | [libX11/0010-WMProps-portable-identity.patch](libX11/0010-WMProps-portable-identity.patch) | `libX11/src/WMProps.c` | `WMB_INPROC` | +8/-1 | Caller-provided WM hints and fixed C locale without environment reads |
 | [X11/0001-Xos-standard-C-profile.patch](X11/0001-Xos-standard-C-profile.patch) | `X11/Xos.h` | `WMB_DEVEL` | +9/-0 | Shared standard-C header branch for server, client and built-in font cohorts |
 | [X11/0002-Xdefs-project-deadline-type.patch](X11/0002-Xdefs-project-deadline-type.patch) | `X11/Xdefs.h` | `WMB_DEVEL` | +5/-0 | Typed millisecond deadlines instead of native timeval pointers |
+| [jwm/0001-portable-config-and-includes.patch](jwm/0001-portable-config-and-includes.patch) | `jwm/src/jwm.h` | `WMB_INPROC` | +7/-1 | Build-tree configuration and native signal/descriptor include exclusion |
+| [jwm/0002-debug-build-tree-config.patch](jwm/0002-debug-build-tree-config.patch) | `jwm/src/debug.h` | `WMB_INPROC` | +4/-1 | Consistent generated project configuration without source-tree output |
+| [jwm/0003-cooperative-entry-and-lifecycle.patch](jwm/0003-cooperative-entry-and-lifecycle.patch) | `jwm/src/main.c` | `WMB_INPROC` | +29/-1 | Library startup/readiness and orderly return without native signal handlers |
+| [jwm/0004-predicate-event-waits.patch](jwm/0004-predicate-event-waits.patch) | `jwm/src/event.c` | `WMB_INPROC` | +39/-0 | Bounded cooperative event/deadline waits and accurate callback progress |
+| [jwm/0005-registered-application-commands.patch](jwm/0005-registered-application-commands.patch) | `jwm/src/command.c` | `WMB_INPROC` | +53/-1 | Explicit tokenized application-table launches without shells or processes |
+| [jwm/0006-refuse-environment-expansion.patch](jwm/0006-refuse-environment-expansion.patch) | `jwm/src/misc.c` | `WMB_INPROC` | +8/-0 | Explicit refusal of host environment interpolation |
+| [jwm/0007-built-in-configuration.patch](jwm/0007-built-in-configuration.patch) | `jwm/src/parse.c` | `WMB_INPROC` | +12/-0 | Reuse XML parser with compiled configuration and refusal of file includes |
+| [jwm/0008-in-memory-images-only.patch](jwm/0008-in-memory-images-only.patch) | `jwm/src/image.c` | `WMB_INPROC` | +6/-0 | Keep in-memory client icons without native image-file access |
+| [jwm/0009-portable-client-identity.patch](jwm/0009-portable-client-identity.patch) | `jwm/src/hint.c` | `WMB_INPROC` | +22/-0 | No process ID and correctly owned core-string machine properties |
+| [jwm/0010-cooperative-clock-cadence.patch](jwm/0010-cooperative-clock-cadence.patch) | `jwm/src/clock.c` | `WMB_INPROC` | +11/-1 | Accurate one-second uptime clock and completed draw timestamp |
+| [jwm/0011-absent-modifier-is-not-a-lock.patch](jwm/0011-absent-modifier-is-not-a-lock.patch) | `jwm/src/binding.c` | `WMB_INPROC` | +6/-1 | An unmapped optional NumLock is not modifier-map slot zero |
+| [jwm/0012-menu-cooperative-cancellation.patch](jwm/0012-menu-cooperative-cancellation.patch) | `jwm/src/menu.c` | `WMB_INPROC` | +4/-1 | Honor event-wait termination and release menu grabs |
+| [jwm/0013-move-cooperative-cancellation.patch](jwm/0013-move-cooperative-cancellation.patch) | `jwm/src/move.c` | `WMB_INPROC` | +36/-1 | Unwind mouse/keyboard moves through native controller cleanup |
+| [jwm/0014-resize-cooperative-cancellation.patch](jwm/0014-resize-cooperative-cancellation.patch) | `jwm/src/resize.c` | `WMB_INPROC` | +36/-3 | Unwind mouse/keyboard resizing through native grab/status cleanup |
+| [jwm/0015-pager-cooperative-cancellation.patch](jwm/0015-pager-cooperative-cancellation.patch) | `jwm/src/pager.c` | `WMB_INPROC` | +8/-1 | Cancel a pager drag without retaining a client controller |
+| [jwm/0016-window-selection-cooperative-cancellation.patch](jwm/0016-window-selection-cooperative-cancellation.patch) | `jwm/src/winmenu.c` | `WMB_INPROC` | +4/-0 | Release a choose-window pointer grab when the component stops |
 
 Shared `Xos.h` also selects the standard-C branch for `WMB_INPROC` and `WMB_FONT_BUILTINS_ONLY`. Every selector is presence-based. New owned adapters and source exclusions are selected by CMake, not copied into this upstream patch series.
 
-Pinned libXfont repairs/profile patches remain in [cmake/patches/](../cmake/patches/) and are applied with a checked hash by [WmbXfont.cmake](../cmake/WmbXfont.cmake). JWM is not patched until P7.
+Pinned libXfont repairs/profile patches remain in [cmake/patches/](../cmake/patches/) and are applied with a checked hash by [WmbXfont.cmake](../cmake/WmbXfont.cmake). JWM's P7 sites preserve the same imported native reference discipline.

@@ -28,7 +28,7 @@ Four mechanisms, in strict order of preference. **Always use the earliest one th
 | M4 | **Rewrite upstream logic unconditionally.** | Forbidden. | — |
 
 M1 excludes unsupported backends; M2 handles owned adapters. M3 now implements
-27 guarded files, with three future JWM sites planned at P7. M4 never happens. Device policy uses existing
+44 guarded files across the P7 stack. M4 never happens. Device policy uses existing
 DDX/HAL seams before M3; see [the TinyX methodology](47-tinyx-project-methodology.md).
 
 ### 2.1 Naming conventions
@@ -60,7 +60,7 @@ Six phases with hard exit gates. Phases are sequential; each consumes the previo
 | **Q2** | Contract authoring | `hal_display.h`, `hal_input.h`, `hal_task.h`, `hal_time.h`, `wmb_os.h` exist and compile standalone against a freestanding C compiler with no includes beyond `<stdint.h>` / `<stddef.h>` / `<stdbool.h>` |
 | **Q3** | Backend re‑pointing | `tinyx/kdrive/hal/*.c` includes only `hal_*.h`; a mock backend links the DDX with no SDL present |
 | **Q4** | Transport stubs | `waitfor_wmb.c`, `connection_wmb.c`, `io_wmb.c` compile and the whole‑stack build links in the `host-pure` profile |
-| **Q5** | Guard application | P6: 27 implemented sites replay on the pristine imported baseline; active headers/symbols and reference variants pass. JWM sites remain P7 |
+| **Q5** | Guard application | P6 established 27 sites; P7 extends this to 44. Exact replay, active headers/symbols and native reference variants remain checked |
 | **Q6** | Freestanding proof | The `target` profile compiles every translation unit with `-ffreestanding -nostdinc` plus only the documented floor |
 
 Q1 and Q2 can run in parallel. Q3 depends on Q2. Q4 depends on Q1 and on [`21-`](21-inprocess-transport.md). Q5 depends on Q4. Q6 depends on everything.
@@ -225,13 +225,13 @@ exists specifically to catch this.
 
 ## 8. Phase Q5 — Guard Application
 
-**P6 is implemented and verified for the selected hosted windowing cohorts.**
+**P6/P7 are implemented and verified for the selected hosted windowing cohorts.**
 The [actual guide](48-p6-portability.md) and
 [generated manifest](../patches/MANIFEST.md) supersede earlier estimated budgets.
-There are 27 implemented sites and three future JWM sites, not a claim that JWM
-has been built. See D-54 for the user-approved budget expansion.
+There are now 44 implemented sites including real JWM. D-54 records the P6
+budget expansion; D-55 records the approved P7 scope and actual additional seams.
 
-### 8.1 `tinyx/` — 15 guarded files
+### 8.1 `tinyx/` — 16 guarded files
 
 | # | File | Guard | Edit |
 |--:|---|---|---|
@@ -250,6 +250,7 @@ has been built. See D-54 for the user-approved budget expansion.
 | 18 | `fb/fbbits.h` | `WMB_DEVEL` | Multiply negative Bresenham error by two instead of signed left shift; exposed by P5 line/wire test |
 | 20 | `Xext/sync.c` | `WMB_DEVEL` | Typed millisecond block-handler deadline and correct project initializer prototype |
 | 21 | `os/strlcat.c` | `WMB_DEVEL` | Standard size_t header with original reference alternative |
+| P7 | `dix/property.c` | `WMB_DEVEL` | Empty property storage is explicitly freed/cleared, not `realloc(ptr, 0)` |
 
 The strlcat include is guarded rather than copying the same function into an M2
 file. Deadline adaptation also updates the actual SYNC callback/shared type;
@@ -282,26 +283,35 @@ managed by [WmbXfont.cmake](../cmake/WmbXfont.cmake). Its two prior P4 bitmap
 repairs remain separate. Disk/fontenc/catalogue backends are excluded, not
 silently left in unreachable archive sections.
 
-### 8.3 `jwm/` — 3 guarded files (+3 mechanical)
+### 8.3 `jwm/` — 16 guarded files
 
 | # | File | Guard | Edit |
 |--:|---|---|---|
-| 11 | `jwm/src/jwm.h` | `WMB_INPROC` | Gate the `<sys/select.h>` / `<unistd.h>` / `<signal.h>` / `<sys/wait.h>` include block |
-| 12 | `jwm/src/event.c` | `WMB_INPROC` | `select()` on `ConnectionNumber` → `hal_yield_timeout()` loop, preserving `Signal()` callback cadence |
-| 13 | `jwm/src/command.c` | `WMB_INPROC` | `fork`/`execl`/`waitpid` → `wmb_app_table` lookup + `hal_task_create()` |
+| 1/2 | `jwm.h`, `debug.h` | `WMB_INPROC` | Build-tree config and native include exclusion |
+| 3 | `main.c` | `WMB_INPROC` | Client fiber readiness, library return and native signal/process exclusion |
+| 4 | `event.c` | `WMB_INPROC` | Predicate/deadline progress and newest grabbed-motion coalescing |
+| 5 | `command.c` | `WMB_INPROC` | Registered app launch, owned argv and explicit rejection of shell/process output |
+| 6 | `misc.c` | `WMB_INPROC` | Explicit unsupported environment expansion |
+| 7/8 | `parse.c`, `image.c` | `WMB_INPROC` | Compiled XML and in-memory icons; refuse host files |
+| 9 | `hint.c` | `WMB_INPROC` | No process ID; owned core-string client identity |
+| 10 | `clock.c` | `WMB_INPROC` | One-second uptime cadence and draw timestamp |
+| 11 | `binding.c` | `WMB_INPROC` | Unmapped optional NumLock has no modifier mask |
+| 12-16 | `menu.c`, `move.c`, `resize.c`, `pager.c`, `winmenu.c` | `WMB_INPROC` | Every modal waiter honors stop through native cleanup |
 
-Three further JWM files (`main.c`, `misc.c`, `timing.c`) are handled by **M2 via `-include jwm_namespace.h`** rather than by editing: the namespace header
-`#define`s `main` → `Jwm_Main`, `getenv` → `Jwm_GetEnvStub`, and neutralises the `TZ` helpers. This keeps the JWM diff to three files.
+Native `timing.c` is an unchanged M1 exclusion with an owned M2 adapter.
+The namespace header isolates actual external symbols using compiler pragmas;
+it does not rewrite C fields or fake native APIs. See
+[the generated ledger](../patches/MANIFEST.md) and [P7 guide](../jwm/wmb/README.md).
 
 ### 8.4 Patch budget — hard caps
 
 | Tree | Cap | Planned | Slack |
 |---|---:|---:|---:|
-| `tinyx/` | 15 | 15 | 0 |
+| `tinyx/` | 16 | 16 | 0 |
 | `libX11/` | 10 | 10 | 0 |
 | shared `X11/` | 2 | 2 | 0 |
-| `jwm/` | 4 | 3 | 1 |
-| **Total** | **31** | **30** | **1** |
+| `jwm/` | 16 | 16 | 0 |
+| **Total** | **44** | **44** | **0** |
 
 Exceeding a cap requires an entry in [`90-decisions.md`](90-decisions.md) with the alternative that was rejected and why. The caps exist because every
 guarded file is a merge conflict every time upstream moves. D-51 raises the
@@ -313,20 +323,23 @@ UBSan. Reusing the real Xlib setup parser consumes the existing third client slo
 D-54 expands TinyX to 15, libX11 to 10 and explicitly budgets the two shared
 headers. The audit found real transitive dependencies missed by the old
 estimates. Fake POSIX headers, copied core files and linker garbage collection
-as a portability proof were rejected. Of the 30 planned sites, 27 are implemented;
-three JWM sites are still future P7 work.
+as a portability proof were rejected. P6 closed 27 sites.
+D-55 expands JWM to 16 for real configuration/identity/header/cadence/cancellation
+seams, and TinyX to 16 for defined empty-property storage exposed by the WM
+memory run. The verified P7 ledger has 44 implemented sites and no slack.
 
 ### 8.5 Patch manifest
 
-P6 produces [patches/](../patches/MANIFEST.md) at the repository root:
+P6/P7 produce [patches/](../patches/MANIFEST.md) at the repository root:
 
 ```
 patches/
 ├── MANIFEST.md              # generated human-readable reasons and LOC deltas
 ├── manifest.json            # exact baseline/result hashes, selectors and caps
-├── tinyx/                  # 15 replayable patches
+├── tinyx/                  # 16 replayable patches
 ├── libX11/                 # 10 replayable patches
-└── X11/                    # 2 shared-header patches
+├── X11/                    # 2 shared-header patches
+└── jwm/                    # 16 replayable patches
 ```
 
 ### 8.6 Q5 exit gate
@@ -339,8 +352,8 @@ ctest --test-dir build-p6 --output-on-failure -R '^tinyx_p6_'
 The exact baseline is the unmodified repository import, with immutable
 per-file SHA-256 values, not an asserted official upstream release identity.
 The gate reconstructs that baseline, checks/applies all patches, preserves notice
-bytes, compiles/compares 20 reference units and checks one/zero/empty variants.
-It audits all 452 active selected units and complete archives; it does not
+bytes, compiles/compares 35 reference units and checks one/zero/empty variants.
+It audits all 506 active selected units and nine complete archives; it does not
 mistake preserved reference includes or libc implementation headers for active
 project OS dependencies. Target-floor/freestanding proof remains Q6/P9.
 
