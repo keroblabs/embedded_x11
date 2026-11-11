@@ -368,6 +368,10 @@ only the server's own socket, never a pre-existing endpoint.
 
 ### 4.9 P9 — Freestanding target
 
+**P9a passed; P9b remains pending.** The actual Cortex-M3/Thumb reference uses
+matching full newlib/libm/libgcc and pinned TRE/zlib providers. It shares the
+hosted source inventories, not a reduced server or dummy regex API.
+
 | ID | Gate |
 |---|---|
 | V‑P9‑1 | Every TU compiles `-ffreestanding -fno-builtin -fno-pic` |
@@ -377,6 +381,32 @@ only the server's own socket, never a pre-existing endpoint.
 | V‑P9‑5 | On hardware: keyboard and mouse work |
 | V‑P9‑6 | On hardware: 1‑hour run, flat heap, no canary trip |
 | N3, N7, N8, N9, N10 | |
+
+The automatic build gate checks 544 actual ARM object/dependency records, a
+14-whole-archive no-GC/no-LTO image, the 82-entry reviewed Release/Debug floor
+union, no unresolved/forbidden symbols or dynamic relocations, a readonly
+508-byte table at the reference load base and a separate SDK application's
+matching binding in disjoint ROM/RAM. All file-backed raw load data is compared
+against the ELF; the target SDK archive is 15,600 bytes, not just 5 KiB of text.
+
+Release and Debug each pass the cross CTest gate and 13 negative verification
+tests. Those include actual linker ROM/RAM overflow and omitted-regex failures,
+not only string/predicate tests. The ordinary hosted suite remains 52/52.
+The exact bundled floor passes 54/54 normal and 54/54 strict ASan/UBSan tests,
+including the real JWM matcher/210 stock-POSIX comparisons, tracked OOM and
+local console/arena/fatal cases. The final sanitizer run uses the unchanged
+normal traffic thresholds; an earlier contended native traffic check was
+retested separately and in the full passing suite, not weakened.
+
+[The P9a guide](../freestanding/README.md) records commands and boundaries;
+[the target plan](31-target-build.md) records actual load/RAM/file spans.
+The user approved full newlib after inspecting nano's missing `%zu`/`%llu`
+features and incompatible reentrancy layout. The HAL allocator reference is
+explicitly not a production board heap/locking certificate. Hardware/time/
+context/CRT stubs fail fast; their successful linkage is not hardware behavior.
+
+P9b still needs actual target startup/loader/ports, memory and concurrency
+policy, a visible running desktop/client/input test and the real on-device hour.
 
 ## 5. The Differential Byte Test
 

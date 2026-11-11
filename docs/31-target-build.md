@@ -9,6 +9,12 @@ and how the claim is proven. It is the second deliverable of workstream 4 ([`00-
 target build is a *port of a working system*, not a bring‑up of an unknown one. Attempting it earlier converts every ordinary bug into a cross‑compilation
 mystery.
 
+**Status: P9a is verified independently of P9b.** The approved reference uses
+Arm GNU 14.2, Cortex-M3/Thumb ILP32, full newlib and a deliberately synthetic
+memory map. Both Release and Debug compile/link checks pass. No board,
+hardware execution or production allocator/locking policy is certified.
+[The P9a guide](../freestanding/README.md) is the implemented command reference.
+
 ### 1.1 What this document is not
 
 - **Not a hardware specification.** The target platform is characterised by its contract, not its identity ([`00-`](00-introduction.md) §4.3). No chip is
@@ -21,8 +27,13 @@ mystery.
 Precisely three things:
 
 1. **The C library is freestanding plus a documented floor.** Compiled with `-ffreestanding`. Only the functions in §3.1 may be referenced.
-2. **Exactly four platform primitives are required.** §3.2. Everything else WMB needs, WMB brings.
-3. **No syscall, no kernel interface, no driver model, no filesystem, no process, no thread, no signal.**
+2. **Local console/arena/termination glue plus the device/fiber contracts are required.** Section 3.2 describes the primitive seams.
+3. **No dependency on a kernel, OS filesystem/process/thread/signal service, native transport or driver model.**
+
+Newlib's local `_write`/`_fstat`/`_isatty` hooks implement console semantics;
+read/seek/close hooks diagnose unsupported use. They are not OS syscalls and
+are not supplied by `libnosys`. P9a's actual hardware/context/CRT stubs fail
+fast instead of returning fake successful values.
 
 The target has no RTOS that WMB uses. WMB is a **library with an entry point**, not an application on an operating system: its own concurrency is
 `framework/fiber/` and nothing else (§5.3). It does not assume it is the only component in the image — see [`90-`](90-decisions.md) D‑42 for the
@@ -32,7 +43,9 @@ boundaries that keep that true and D‑44 for how it coexists with whatever else
 
 ### 3.1 libc floor
 
-Referenced by upstream code and therefore mandatory. Satisfiable by newlib‑nano, picolibc, or ~600 lines of hand‑written code.
+The table below is the original floor hypothesis, not an exhaustive dependency
+census. The implemented ARM reference uses full newlib/libm/libgcc and the
+reviewed [actual floor](floor-symbols.txt).
 
 | Header | Functions |
 |---|---|
@@ -49,15 +62,31 @@ statistics, and `<errno.h>` for allocator failure reporting. P9 must census the
 actual target compiler's atomic/runtime lowering; hosted lock-free instructions
 are not proof that a different MCU requires no compiler support library.
 
-The exact list is a **Q6 deliverable** ([`11-`](11-portability-plan.md) §9.3), generated from the actual link and checked in as `docs/floor-symbols.txt`.
+The exact reference list is now checked in as `docs/floor-symbols.txt`, derived
+from complete-archive requirements before target-library resolution, not an
+already-resolved ELF's empty undefined list.
 §3.1 is the starting hypothesis; the freestanding compile refines it. Expecting it to be exactly right on the first attempt is the mistake this phase is
 structured to avoid — [`91-`](91-open-questions.md) Q18 lists the five categories it is most likely to be missing, of which the compiler runtime
 (`libgcc` / `compiler-rt`) is the one no source grep can find.
 
-The libc itself is **newlib‑nano** for the first target build, with a hand‑written floor as a later size optimisation ([`90-`](90-decisions.md) D‑36).
+The user approved **full newlib for P9a** after actual toolchain inspection:
+nano disables the `%zu`/`%llu` formats already used by WMB and has a different
+reentrancy layout. Mixing full formatter objects into nano was rejected.
+The matching full library/header configuration preserves C99 diagnostics;
+a specially built small libc remains later optimization (D-57 amends D-36).
 
-`malloc`/`free`/`realloc`/`calloc` are listed as libc but are **implemented by WMB** (`framework/library/heap.c`) on top of `wmb_os_sbrk`. They appear here
-because upstream code calls them by those names.
+The reference keeps the **actual existing `hal_alloc` seam**, backed by newlib's
+allocator over a bounded linker arena. The user explicitly approved this
+reference scope. The historical claim that the hosted implementation used
+legacy `heap.c` was not true of the verified build; P9a does not silently replace
+the hosted allocator or certify a board allocator/locking policy.
+
+Release requires 81 floor entries; Debug requires 79, including assertions.
+The reviewed union has 82. The observed additions include compiler soft-float/
+integer helpers, newlib errno/state, string extensions and actual RENDER math.
+No atomic support library is required for the selected 32-bit reference.
+JWM's POSIX matching is supplied by pinned byte-oriented TRE 0.9.0, not a
+dummy matcher; pinned inflate-only zlib 1.4 supplies font decompression.
 
 ### 3.2 Platform primitives — four functions
 
@@ -68,8 +97,10 @@ because upstream code calls them by those names.
 | `hal_tick_ms(void)` | Monotonic milliseconds | A free‑running hardware counter |
 | `wmb_os_abort(void)` | Terminate; never returns | Halt, or reset |
 
-That is the entire mandatory syscall surface. Everything else in the platform contract ([`12-platform-contract.md`](12-platform-contract.md)) is display,
-input and task scheduling, which are hardware, not OS.
+These are platform seams, not an exhaustive syscall ABI. Actual public
+device/time/allocation/task and fiber-port headers remain authoritative.
+P9a's local newlib glue is single-owner reference code; P9b must establish
+real startup and shared allocator/newlib-state/diagnostic synchronization.
 
 ### 3.3 Explicitly not required
 
@@ -360,24 +391,24 @@ for 200 ms. WMB owes the same obligation in return — it yields as soon as ther
 
 ### 6.1 Toolchain file
 
-```cmake
-# cmake/toolchain-<target>.cmake
-set(CMAKE_SYSTEM_NAME       Generic)
-set(CMAKE_SYSTEM_PROCESSOR  <arch>)
-set(CMAKE_C_COMPILER        <triple>-gcc)
-set(CMAKE_C_COMPILER_WORKS  1)
+[toolchain-arm-p9a.cmake](../cmake/toolchain-arm-p9a.cmake) uses the real
+bare-metal compiler and matching binutils/sysroot. CMake compiler probes build
+static libraries; they do not execute ARM code or force a false
+`CMAKE_C_COMPILER_WORKS=1`. The native keysym generator is built separately.
 
-set(WMB_TARGET_FLAGS "-ffreestanding -fno-builtin -fno-pic -fno-pie \
-                      -fno-common -fno-stack-protector -ffunction-sections -fdata-sections")
-set(CMAKE_C_FLAGS_INIT      "${WMB_TARGET_FLAGS}")
-set(CMAKE_EXE_LINKER_FLAGS_INIT "-nostdlib -no-pie -Wl,--gc-sections")
+```sh
+cmake -S . -B build-p9a-arm -DWMB_PROFILE=p9a \
+    -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-arm-p9a.cmake \
+    -DCMAKE_BUILD_TYPE=Release
+cmake --build build-p9a-arm -j4
+ctest --test-dir build-p9a-arm --output-on-failure
 ```
 
-```
-cmake -B build-target -DWMB_PROFILE=target \
-      -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-<target>.cmake \
-      -DWMB_LOAD_BASE=0x80100000
-```
+The checked profile excludes Linux/SDL/native IPC targets entirely and shares
+the real hosted core source groups. Repeat Debug in a separate build directory.
+The raw SDK disables per-function/data section splitting privately: on ARM
+those archive metadata sections doubled file size without adding API behavior.
+All slots remain typed; the actual ARM archive is 15,600 bytes.
 
 ### 6.2 Compiler flags of consequence
 
@@ -517,6 +548,12 @@ Levers 3–5 are behavioural changes and each needs a decision entry.
 
 ## 9. Boot Sequence
 
+**P9b design sketches, not the P9a implementation.** Real reset/vector/CRT
+initialization and loader/runtime ownership are not implemented by P9a.
+The actual once-only component lifecycle is
+[wmb_main.c](../transport/x11/wmb_main.c); use that implementation rather than
+treating old illustrative configuration fields below as a public API.
+
 ```c
 /* linux_hosted/wmb_boot/wmb_boot.c — this configuration's host; see D-42 */
 int main(void)
@@ -620,6 +657,47 @@ future client reimplementing it.
 T‑V2 and T‑V3 are the gates that make the project's central claim true. They are cheap, mechanical, and should be wired into CI from the first successful
 target link.
 
+### 10.1 Verified P9a reference
+
+`wmb_p9a_verify` is an ALL build target. It checks 544 actual ARM object/
+dependency records, matching hosted source inventories, fourteen complete
+archives without GC/LTO, real floor providers, no unresolved/forbidden symbols
+or dynamic relocations, a readonly 508-byte 123-slot API and the separate ARM
+SDK binding. Raw data is compared with every file-backed ELF load section.
+Thirteen negative tests include actual linker ROM/RAM overflow and missing
+regex-provider failures.
+
+| Arm GNU 14.2 reference | ROM load span | RAM reserved | ELF file bytes |
+|---|---:|---:|---:|
+| Release component | 919,808 | 6,398,488 | 1,187,164 |
+| Release whole-archive proof | 1,074,112 | 6,401,232 | 1,403,128 |
+| Release separate SDK application | 44,608 | 591,960 | 75,012 |
+| Debug component | 1,142,036 | 6,399,792 | 7,685,508 |
+| Debug whole-archive proof | 1,320,968 | 6,402,752 | 10,698,516 |
+| Debug separate SDK application | 45,984 | 591,960 | 120,272 |
+
+These are load-span measurements, not file-size guesses or runtime allocation
+HWM. Component RAM includes fixed 4-MiB heap and `0x210000` stack-area
+reservations; app RAM includes 512-KiB heap and 64-KiB stack. No framebuffer or
+working stack-pool implementation is present. Debug metadata does not occupy
+the ROM load span.
+
+The **synthetic**, disjoint map gives the component 4 MiB ROM at `0x08000000`
+and 8 MiB RAM at `0x20000000`; the app has ROM at `0x08400000` and 1 MiB RAM at
+`0x20800000`. `.wmb_api` starts the component load image, not a processor
+vector table. Do not flash these non-runnable reference artifacts as firmware.
+
+The ordinary hosted suite stays 52/52. The real bundled TRE/zlib floor passes
+54/54 native tests and 54/54 strict ASan/UBSan tests, including the actual JWM
+matcher, 210 stock-POSIX comparisons, tracked OOM and console/arena/fatal cases.
+The only new TinyX native site is the approved private font prototype; all 45
+patch sites, original notices, 36 native-reference probes and one/zero/empty
+variants remain gated.
+
+P9b must replace failing hardware/context/CRT stubs, implement startup/loader
+execution and synchronization, choose the actual board budget, then run input,
+desktop/client and one-hour hardware acceptance. P9a does not close Q6.
+
 ## 11. Deferred Decisions
 
 | # | Item | Tracked as |
@@ -627,7 +705,7 @@ target link.
 | D1 | Which target, and therefore the real values of `WMB_LOAD_BASE`, `WMB_FRAMEBUFFER_BASE`, heap size, screen geometry | [`91-`](91-open-questions.md) Q6 |
 | D2 | Fiber port vs platform scheduler (§5.3) | **Closed** — WMB brings its own scheduling; no RTOS is used ([`90-`](90-decisions.md) D‑31). Coexistence with other components is D‑44 |
 | D3 | Shadow framebuffer vs direct scanout (§4.1) | **Closed** — double buffered ([`90-`](90-decisions.md) D‑35) |
-| D4 | Which libc | **Closed** — newlib‑nano first, hand‑written later ([`90-`](90-decisions.md) D‑36), pending toolchain availability under Q6 |
+| D4 | Which libc | **P9a settled by user approval:** matching full newlib, because installed nano cannot represent current C99 diagnostics; board-specific revalidation remains P9b (D-57) |
 | D5 | Font strategy | **Closed** — several built‑in bitmap fonts, FreeType later ([`90-`](90-decisions.md) D‑38) |
 | D6 | Whether XKB is compiled in | **Closed** — no ([`90-`](90-decisions.md) D‑39) |
 

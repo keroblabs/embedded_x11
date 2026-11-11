@@ -219,7 +219,7 @@ def gateway_source(functions: list[dict]) -> str:
         if entry["returns"] != "void":
             result += f"    return call.result.{name};\n"
         result += "}\n"
-    result += "static const wmb_api_t foreign_api = {\n"
+    result += "static const wmb_api_t foreign_api WMB_API_PLACEMENT = {\n"
     result += "    .magic = WMB_API_MAGIC, .version = WMB_API_VERSION,\n"
     result += "    .count = WMB_API_SLOT_COUNT, .layout = WMB_API_LAYOUT,\n"
     for entry in functions:

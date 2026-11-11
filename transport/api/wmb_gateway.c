@@ -154,6 +154,11 @@ static int wmb_gateway_foreign_yield(uint32_t milliseconds)
     return atomic_load_explicit(&accepting, memory_order_acquire) ? 0 : -1;
 }
 
+#if defined(WMB_FIXED_API)
+#define WMB_API_PLACEMENT __attribute__((section(".wmb_api"), used))
+#else
+#define WMB_API_PLACEMENT
+#endif
 #include "gateway_generated.inc"
 
 const wmb_api_t *wmb_gateway_table(void) { return &foreign_api; }

@@ -24,6 +24,15 @@ class PortabilityChecks(unittest.TestCase):
         output = '# 1 "/usr/include/X11/Xos.h"\n#include <unistd.h>\n'
         self.assertEqual(len(native_includes(output, (Path("/project"),))), 1)
 
+    def test_regex_libc_type_header_is_not_a_service_header_exception(self):
+        header = Path("/project/generated/regex/tre/tre.h")
+        output = f'# 1 "{header}"\n#include <sys/types.h>\n#include <sys/socket.h>\n'
+        output += '# 1 "/project/jwm/src/match.c"\n#include <sys/types.h>\n'
+        self.assertEqual(len(native_includes(output, (Path("/project"),))), 3)
+        self.assertEqual(native_includes(output, (Path("/project"),), header), {
+            f"{header}:2: sys/socket.h", "/project/jwm/src/match.c:1: sys/types.h"
+        })
+
     def test_symbol_versions_and_archive_member_names(self):
         output = (
             "select.c.o:\n                 U malloc\n"

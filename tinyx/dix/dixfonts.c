@@ -63,6 +63,9 @@ Equipment Corporation.
 #include "opaque.h"
 #include "dixfontstr.h"
 #include "closestr.h"
+#if defined(WMB_DEVEL)
+extern void BuiltinRegisterFpeFunctions(void);
+#endif
 
 #ifdef XF86BIGFONT
 #define _XF86BIGFONT_SERVER_
@@ -2052,4 +2055,3 @@ remove_fs_handlers(FontPathElementPtr fpe, BlockHandlerProcPtr block_handler,
     }
     RemoveFontWakeup(fpe);
 }
-

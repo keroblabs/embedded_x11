@@ -196,3 +196,22 @@ SDK/gateway workload independently of this process scaffold.
 binary hash, received traffic, flat heap, stack measurements and full matrix.
 It is a host-build certificate, not a normative binary hash for another
 compiler/path/architecture or a hardware/freestanding result.
+
+## P9a ARM reference
+
+[p9a-arm-verification.json](p9a-arm-verification.json) records the verified
+Cortex-M3/Thumb ILP32 Release/Debug images, exact toolchain, actual ELF hashes,
+ROM/RAM spans, reviewed floor, dependency pins, SDK bytes and test results.
+Its maps are explicitly synthetic and the platform/context/CRT stubs fail fast.
+It is **not** a runnable board image or P9b hardware certification.
+
+[The P9a guide](../../freestanding/README.md) gives reproducible commands.
+The verification checks actual ARM objects and fresh dependency inputs,
+fourteen complete archives without GC/LTO, real target-library providers,
+immutable API/application binding and complete raw load bytes. Negative tests
+also rerun the actual linker with invalid budgets or a missing provider.
+
+The corrected target floor uses matching full newlib because this toolchain's
+nano configuration cannot represent WMB's C99 diagnostics. Historical P8
+measurements above remain facts about that hosted baseline, not estimates of
+the target's runtime allocator or hardware memory use.

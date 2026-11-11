@@ -158,7 +158,11 @@ remain intact.
    earlier timeouts are retained.
 5. **Done at P5:** actual clients receive keyboard/pointer-button events and close
    cleanly. The standalone harness still owns detailed wheel/extended-button cases.
-6. Repeat on a board implementation of the same low-layer HAL.
+6. **Done at P9a:** compile every selected KDrive/HAL unit with the actual ARM
+   bare-metal toolchain and whole-archive/library-floor gates, using deliberately
+   non-runnable reference device/time/context stubs.
+7. **P9b pending:** execute on a real board implementation of the same HAL,
+   with actual clocks, graphics/input and the on-device endurance gate.
 
 The driver does not implement its own blocking scheduler or a proprietary wait
 API. The server/runtime consumes KDrive's deadlines using the cooperative task

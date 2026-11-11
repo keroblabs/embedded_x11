@@ -23,9 +23,12 @@ include(TestBigEndian)
 test_big_endian(WMB_BIG_ENDIAN)
 if(WMB_BIG_ENDIAN)
     set(WMB_X_BYTE_ORDER X_BIG_ENDIAN)
+    set(WMB_BITMAP_BYTE_ORDER MSBFirst)
 else()
     set(WMB_X_BYTE_ORDER X_LITTLE_ENDIAN)
+    set(WMB_BITMAP_BYTE_ORDER LSBFirst)
 endif()
+set(WMB_PORTABLE_SERVERMD "${WMB_FREESTANDING}")
 include(CheckTypeSize)
 check_type_size("unsigned long" WMB_UNSIGNED_LONG_SIZE)
 if(WMB_UNSIGNED_LONG_SIZE EQUAL 8)
@@ -55,6 +58,10 @@ target_link_libraries(wmb_tinyx PUBLIC wmb_tinyx_config wmb_kdrive
     wmb_xfont wmb_hal wmb_transport_core)
 target_compile_options(wmb_tinyx PRIVATE -ffunction-sections -fdata-sections)
 
+if(WMB_FREESTANDING)
+    return()
+endif()
+
 add_executable(wmb_tinyx_timer_test
     "${TINYX_SOURCE_ROOT}/os/timer_wmb.c" wmb/tests/timer_test.c)
 target_include_directories(wmb_tinyx_timer_test PRIVATE
@@ -78,6 +85,11 @@ target_compile_options(wmb_font_portability_test PRIVATE -Wall -Wextra -Werror)
 add_executable(wmb_portability_link wmb/tests/portability_link.c
     wmb/tests/contract_stubs.c $<TARGET_OBJECTS:wmb_xlib_portability_test>
     $<TARGET_OBJECTS:wmb_font_portability_test>)
+set(extra_floor_archives)
+if(TARGET wmb_regex)
+    list(APPEND extra_floor_archives "$<TARGET_FILE:wmb_regex>")
+    add_dependencies(wmb_portability_link wmb_regex)
+endif()
 target_include_directories(wmb_portability_link PRIVATE
     $<TARGET_PROPERTY:wmb_kdrive,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:wmb_xfont,INTERFACE_INCLUDE_DIRECTORIES>
@@ -90,6 +102,7 @@ target_link_libraries(wmb_portability_link PRIVATE wmb_tinyx_config
     "$<TARGET_FILE:wmb_jwm>" "$<TARGET_FILE:wmb_applications>"
     "$<TARGET_FILE:wmb_desktop>"
     "$<TARGET_FILE:wmb_api_runtime>" "$<TARGET_FILE:wmb_metrics>"
+    ${extra_floor_archives}
     -Wl,--no-whole-archive -Wl,--end-group ZLIB::ZLIB m)
 add_dependencies(wmb_portability_link wmb_tinyx wmb_kdrive wmb_xlib
     wmb_transport_core wmb_xfont wmb_framework wmb_jwm wmb_applications wmb_desktop

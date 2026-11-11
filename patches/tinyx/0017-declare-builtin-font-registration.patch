@@ -1,0 +1,17 @@
+--- a/tinyx/dix/dixfonts.c
++++ b/tinyx/dix/dixfonts.c
+@@ -63,6 +63,9 @@
+ #include "opaque.h"
+ #include "dixfontstr.h"
+ #include "closestr.h"
++#if defined(WMB_DEVEL)
++extern void BuiltinRegisterFpeFunctions(void);
++#endif
+ 
+ #ifdef XF86BIGFONT
+ #define _XF86BIGFONT_SERVER_
+@@ -2052,4 +2055,3 @@
+     }
+     RemoveFontWakeup(fpe);
+ }
+-

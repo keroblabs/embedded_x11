@@ -18,7 +18,8 @@ add_library(wmb_app_wrapper STATIC wrappers.c)
 target_link_libraries(wmb_app_wrapper PUBLIC wmb_sdk_headers)
 target_compile_features(wmb_app_wrapper PRIVATE c_std_11)
 target_compile_options(wmb_app_wrapper PRIVATE
-    -Os -g0 -fno-asynchronous-unwind-tables -fno-unwind-tables -Wall -Wextra -Werror)
+    -Os -g0 -fno-function-sections -fno-data-sections
+    -fno-asynchronous-unwind-tables -fno-unwind-tables -Wall -Wextra -Werror)
 set_target_properties(wmb_app_wrapper PROPERTIES OUTPUT_NAME X11-app)
 
 add_library(wmb_sdk_v1_headers INTERFACE)
@@ -33,5 +34,6 @@ add_library(wmb_app_wrapper_v1 STATIC v1/wrappers.c)
 target_link_libraries(wmb_app_wrapper_v1 PUBLIC wmb_sdk_v1_headers)
 target_compile_features(wmb_app_wrapper_v1 PRIVATE c_std_11)
 target_compile_options(wmb_app_wrapper_v1 PRIVATE
-    -Os -g0 -fno-asynchronous-unwind-tables -fno-unwind-tables -Wall -Wextra -Werror)
+    -Os -g0 -fno-function-sections -fno-data-sections
+    -fno-asynchronous-unwind-tables -fno-unwind-tables -Wall -Wextra -Werror)
 set_target_properties(wmb_app_wrapper_v1 PROPERTIES OUTPUT_NAME X11-app-v1)

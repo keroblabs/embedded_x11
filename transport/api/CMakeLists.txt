@@ -1,6 +1,27 @@
 find_package(Python3 3.10 REQUIRED COMPONENTS Interpreter)
 add_subdirectory("${PROJECT_SOURCE_DIR}/wrapper/libX11-app" "${CMAKE_CURRENT_BINARY_DIR}/sdk")
 
+add_library(wmb_metrics STATIC wmb_metrics.c)
+target_include_directories(wmb_metrics PUBLIC "${CMAKE_CURRENT_LIST_DIR}")
+target_link_libraries(wmb_metrics PUBLIC wmb_framework)
+target_compile_options(wmb_metrics PRIVATE -Wall -Wextra -Werror)
+target_link_libraries(wmb_applications PRIVATE wmb_metrics)
+add_library(wmb_api_runtime STATIC wmb_api_table.c api_native.c wmb_gateway.c)
+target_include_directories(wmb_api_runtime PUBLIC "${CMAKE_CURRENT_LIST_DIR}")
+target_link_libraries(wmb_api_runtime PRIVATE wmb_xlib wmb_transport_api wmb_framework wmb_metrics)
+target_compile_options(wmb_api_runtime PRIVATE -Wall -Wextra -Werror)
+target_link_libraries(wmb_desktop PRIVATE wmb_api_runtime)
+foreach(cohort wmb_tinyx wmb_kdrive wmb_xlib wmb_xfont wmb_transport_core
+        wmb_jwm wmb_applications wmb_desktop wmb_api_runtime)
+    target_compile_options(${cohort} PRIVATE
+        "SHELL:-include \"${CMAKE_CURRENT_LIST_DIR}/allocation_redirect.h\"")
+    target_link_libraries(${cohort} PRIVATE wmb_framework)
+endforeach()
+if(WMB_FREESTANDING)
+    target_compile_definitions(wmb_api_runtime PRIVATE WMB_FIXED_API=1)
+    return()
+endif()
+
 add_library(wmb_app_wrapper_v1_test STATIC "${PROJECT_SOURCE_DIR}/wrapper/libX11-app/v1/wrappers.c")
 target_link_libraries(wmb_app_wrapper_v1_test PUBLIC wmb_sdk_v1_headers)
 target_compile_definitions(wmb_app_wrapper_v1_test PRIVATE WMB_WRAPPER_TEST_PREFIX=1)
@@ -39,11 +60,6 @@ add_test(NAME tinyx_p8_generated COMMAND "${Python3_EXECUTABLE}"
 add_test(NAME tinyx_p8_generator_regressions COMMAND "${Python3_EXECUTABLE}"
     "${PROJECT_SOURCE_DIR}/tools/test_generate_api.py")
 
-add_library(wmb_metrics STATIC wmb_metrics.c)
-target_include_directories(wmb_metrics PUBLIC "${CMAKE_CURRENT_LIST_DIR}")
-target_link_libraries(wmb_metrics PUBLIC wmb_framework)
-target_compile_options(wmb_metrics PRIVATE -Wall -Wextra -Werror)
-target_link_libraries(wmb_applications PRIVATE wmb_metrics)
 add_executable(wmb_metrics_test tests/metrics_test.c)
 target_link_libraries(wmb_metrics_test PRIVATE wmb_metrics wmb_hosted)
 target_compile_options(wmb_metrics_test PRIVATE -UNDEBUG -Wall -Wextra -Werror)
@@ -55,19 +71,6 @@ target_compile_options(wmb_font_alloc_test PRIVATE -UNDEBUG -Wall -Wextra -Werro
 target_link_options(wmb_font_alloc_test PRIVATE -Wl,--wrap=wmb_alloc)
 add_test(NAME tinyx_p8_font_allocation COMMAND wmb_font_alloc_test)
 
-add_library(wmb_api_runtime STATIC
-    wmb_api_table.c api_native.c wmb_gateway.c)
-target_include_directories(wmb_api_runtime PUBLIC "${CMAKE_CURRENT_LIST_DIR}")
-target_link_libraries(wmb_api_runtime PRIVATE wmb_xlib wmb_transport_api wmb_framework wmb_metrics)
-target_compile_options(wmb_api_runtime PRIVATE -Wall -Wextra -Werror)
-target_link_libraries(wmb_desktop PRIVATE wmb_api_runtime)
-
-foreach(cohort wmb_tinyx wmb_kdrive wmb_xlib wmb_xfont wmb_transport_core
-        wmb_jwm wmb_applications wmb_desktop wmb_api_runtime)
-    target_compile_options(${cohort} PRIVATE
-        "SHELL:-include \"${CMAKE_CURRENT_LIST_DIR}/allocation_redirect.h\"")
-    target_link_libraries(${cohort} PRIVATE wmb_framework)
-endforeach()
 target_compile_options(wmb_xlib_buffer_test PRIVATE
     "SHELL:-include \"${CMAKE_CURRENT_LIST_DIR}/allocation_redirect.h\"")
 target_link_options(wmb_xlib_buffer_test PRIVATE -Wl,--wrap=allocation_realloc)

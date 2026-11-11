@@ -28,7 +28,7 @@ question is "what do I do next?".
 | P6 | Linux dependency severing | "Is the OS coupling actually gone?" | all four |
 | P7 | JWM integration | "Does a real window manager work in this model?" | [`45-`](45-jwm-module-plan.md) |
 | P8 | External ABI + stability | "Can a separate binary use it? Does it survive an hour?" | [`44-`](44-framework-module-plan.md) |
-| P9 | Freestanding target build | "Does it compile and run with no OS?" | [`43-`](43-kdrive-module-plan.md) + [`44-`](44-framework-module-plan.md) |
+| P9 | Freestanding target build | **P9a verified** compile/link closure; **P9b pending** real hardware execution | [`43-`](43-kdrive-module-plan.md) + [`44-`](44-framework-module-plan.md) |
 
 Mapping to the other workstreams' phase names: [`11-portability-plan.md`](11-portability-plan.md)'s Q2+Q3 = P1, Q1 = P4, Q4 = P5, Q5 = P6, Q6 = P9.
 [`30-host-build.md`](30-host-build.md)'s B1–B4 = P1–P3, B5 = P4, B6–B7 = P5, B8 = P7, B9 = P8.
@@ -434,6 +434,11 @@ for budgets, allocator domains and exact normal/instrumented workloads.
 
 **Goal:** Prove the "no OS" claim.
 
+**Status: P9a is complete; P9b has not started.** The approved Cortex-M3/Thumb
+reference cross-compiles all real selected cohorts and links against the
+reviewed actual target floor. It does not choose a board. See
+[the runnable build/verification guide](../freestanding/README.md).
+
 ### 10.1 Scope
 
 | Item | Deliverable |
@@ -449,13 +454,13 @@ for budgets, allocator domains and exact normal/instrumented workloads.
 
 ### 10.2 Definition of Done
 
-- [ ] Every translation unit compiles with `-ffreestanding -fno-builtin -fno-pic`.
-- [ ] The link references nothing outside `docs/floor-symbols.txt`.
-- [ ] No forbidden symbol: `socket`, `select`, `poll`, `fork`, `exec*`, `sigaction`, `getenv`, `fopen`, `dlopen`, `pthread_*`.
-- [ ] Exactly one `main`, from `wmb_boot.o`.
-- [ ] `readelf -r` shows no dynamic relocations.
-- [ ] `.wmb_api` is at offset 0 and `WMB_API_ADDRESS == WMB_LOAD_BASE`.
-- [ ] The image fits the memory budget.
+- [x] All 544 reference translation units compile freestanding/non-PIC; actual ARM object headers and dependency freshness are verified.
+- [x] Complete-archive floor requirements stay within reviewed `docs/floor-symbols.txt` and have real target-library providers.
+- [x] No forbidden OS imports, `libnosys`, semihosting runtime or atomic-library helpers.
+- [x] Exactly one `main` from the reference boot entry.
+- [x] All linked reference images have no unresolved symbols or dynamic relocations.
+- [x] The immutable 508-byte `.wmb_api` begins the raw component image and matches the separate ARM application's binding.
+- [x] Component and SDK application fit explicit **synthetic reference** budgets with disjoint ROM/RAM; real board sizing remains P9b.
 - [ ] **On hardware**: boot to a JWM root window; `wmb_test_client` runs; keyboard and mouse work.
 - [ ] One‑hour run on hardware: flat heap, no canary trip.
 
@@ -465,11 +470,18 @@ If target hardware is not available, P9 splits cleanly:
 
 | Sub‑phase | Requires hardware | Gates |
 |---|---|---|
-| **P9a — freestanding compile** | No | All gates except the last two. Can be done with any cross toolchain, linking against a stub backend |
-| **P9b — hardware bring‑up** | Yes | The last two |
+| **P9a - freestanding compile/link: DONE** | No | Actual ARM reference ELF/raw/SDK, 14-whole-archive proof, reviewed library floor and linker/mutation failure tests |
+| **P9b - hardware bring-up: pending** | Yes | Real ports, startup/loader, integration/locking and board memory budget; the last two runtime gates |
 
-**P9a is worth doing as soon as P6 is green**, out of order, because it surfaces libc floor surprises ([`11-`](11-portability-plan.md) R6) while there is
-still time to absorb them. Running it early against a stub backend costs little and de‑risks a lot.
+P9a exposed the actual missing POSIX regex provider, strict C11 declarations,
+portable ARM raster configuration and nano-stdio format limitations. The user
+approved the installed full-newlib reference, existing HAL allocator seam and
+one guarded font-declaration site (D-57). Those are tested fixes, not weaker
+compiler/linker checks or success-shaped stubs.
+
+P9a cannot close the unknown-hardware question. P9b must replace deliberately
+non-runnable device/time/context/CRT stubs, choose actual addresses and execute
+the on-device gates.
 
 ## 11. Dependency Graph
 
@@ -489,7 +501,7 @@ graph TD
     P9a --> P9b
 ```
 
-## 12. Deliverable Index by Phase
+## 12. Deliverable Index by Phase (Original Estimates)
 
 | Phase | New files | Modified upstream files | ~New LOC |
 |---:|---:|---:|---:|
@@ -505,7 +517,9 @@ graph TD
 | **Total** | **~48** | **13** | **~5,200** |
 
 Roughly **5,200 lines of new code and 13 guarded upstream files** to turn four independent source trees into one OS‑free windowing system. The number is
-small because the strategy is substitution, not rewriting.
+small because the strategy is substitution, not rewriting. These are historical
+planning estimates, not the current inventory: the authoritative patch ledger
+now has 45 guarded sites, and the P9a guide records the actual verified source set.
 
 ## 13. Detachment — Deferred, but Specified
 

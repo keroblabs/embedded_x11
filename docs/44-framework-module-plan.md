@@ -89,7 +89,8 @@ Every runtime substrate item is complete. What follows is a status snapshot rath
 | P6 | — | — | → [`46-`](46-transport-module-plan.md) |
 | P7 | — | — | Not owned by this module |
 | **P8** | Generic owner allocation statistics and touched-stack/canary diagnostics | Light | **DONE**: real hour, 10,000 managed lifecycles and host measurement record |
-| **P9** | **Primary owner** — the target fiber port, freestanding heap, freestanding boot half | **Heavy** | Deferred |
+| **P9a** | Real bare-metal compile/link of the unchanged portable runtime plus explicit reference floor/stubs | Medium | **Verified**, independently of hardware |
+| **P9b** | Actual target fiber/interrupt/stack/allocation ports and startup/locking | **Heavy** | Pending hardware selection |
 
 **This module was the critical path from commits 1 through 8; it becomes a supplier through P4–P8 and returns to the critical path at P9.**
 
@@ -235,10 +236,17 @@ memory errors or disabling scheduler canaries; normal runs provide sizing data.
 | Linker script + `.wmb_api` placement at `WMB_LOAD_BASE` | [`22-`](22-entry-point-abi.md) §4.1 |
 | `docs/floor-symbols.txt`, generated from [`11-`](11-portability-plan.md) §9.1 + §9.2 | [`11-`](11-portability-plan.md) §9.3 |
 
-- [ ] Exactly one `main`, from the target's `wmb_boot.o` (N7).
-- [ ] `readelf -r` shows no dynamic relocations (N9); `.wmb_api` is at offset 0 and `WMB_API_ADDRESS == WMB_LOAD_BASE` (N10).
-- [ ] The link references nothing outside `docs/floor-symbols.txt` (N8).
-- [ ] No forbidden symbol: `socket`, `select`, `poll`, `fork`, `exec*`, `sigaction`, `getenv`, `fopen`, `dlopen`, `pthread_*` (N1–N4).
+- [x] P9a has exactly one reference boot `main` (N7).
+- [x] Actual ARM component/application/whole-archive images have no unresolved symbols or dynamic relocations; API and SDK binding agree at raw load offset zero (N9/N10).
+- [x] Full archive requirements have real compiler/libc providers and stay inside the reviewed floor (N8).
+- [x] No forbidden OS-service imports or libnosys/semihosting fallback (N1-N4).
+
+The [P9a reference](../freestanding/README.md) uses full newlib through the
+existing HAL allocation seam and a bounded synthetic arena, as approved by the
+user. It does not claim that legacy `heap.c` was the tested hosted allocator or
+choose the board's final allocator. Native arena/console/fatal/OOM tests run;
+real stack/context/clock/CRT stubs deliberately fail. P9b still owns the
+hardware port, actual startup, memory sizing and shared-newlib/allocator locking.
 
 ## 9. Interfaces With Other Modules
 

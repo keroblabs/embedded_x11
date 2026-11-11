@@ -1094,7 +1094,7 @@ static uint32_t gateway_wmbApiRevision(void)
     if (wmb_gateway_submit(&call)) wmb_api_fatal("foreign API call failed");
     return call.result.wmbApiRevision;
 }
-static const wmb_api_t foreign_api = {
+static const wmb_api_t foreign_api WMB_API_PLACEMENT = {
     .magic = WMB_API_MAGIC, .version = WMB_API_VERSION,
     .count = WMB_API_SLOT_COUNT, .layout = WMB_API_LAYOUT,
     .XBitmapBitOrder = gateway_XBitmapBitOrder,

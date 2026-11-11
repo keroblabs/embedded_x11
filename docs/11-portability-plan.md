@@ -228,8 +228,9 @@ exists specifically to catch this.
 **P6/P7 are implemented and verified for the selected hosted windowing cohorts.**
 The [actual guide](48-p6-portability.md) and
 [generated manifest](../patches/MANIFEST.md) supersede earlier estimated budgets.
-There are now 44 implemented sites including real JWM. D-54 records the P6
-budget expansion; D-55 records the approved P7 scope and actual additional seams.
+There are now 45 implemented sites including real JWM and the P9a private font
+prototype. D-54/D-55 record the P6/P7 expansions; D-57 records the explicitly
+approved 17th TinyX site and actual freestanding reference proof.
 
 ### 8.1 `tinyx/` — 16 guarded files
 
@@ -307,7 +308,7 @@ it does not rewrite C fields or fake native APIs. See
 
 | Tree | Cap | Planned | Slack |
 |---|---:|---:|---:|
-| `tinyx/` | 16 | 16 | 0 |
+| `tinyx/` | 17 | 17 | 0 |
 | `libX11/` | 10 | 10 | 0 |
 | shared `X11/` | 2 | 2 | 0 |
 | `jwm/` | 16 | 16 | 0 |
@@ -327,6 +328,8 @@ as a portability proof were rejected. P6 closed 27 sites.
 D-55 expands JWM to 16 for real configuration/identity/header/cadence/cancellation
 seams, and TinyX to 16 for defined empty-property storage exposed by the WM
 memory run. The verified P7 ledger has 44 implemented sites and no slack.
+P9a adds only the approved WMB_DEVEL private font prototype, raising TinyX to
+17 and the total to 45. Its exact source/notice/reference-variant gates remain.
 
 ### 8.5 Patch manifest
 
@@ -363,7 +366,10 @@ The gate that makes the "no OS dependency" claim true rather than plausible.
 
 ### 9.1 The libc floor
 
-The target build is allowed to use exactly these, and they must be satisfiable by a minimal libc (newlib‑nano, picolibc, or a hand‑written set):
+This was the planning hypothesis. The authoritative P9a allow-list is now
+[floor-symbols.txt](floor-symbols.txt), derived from complete ARM archives and
+verified against actual matching full-newlib/libm/libgcc providers. It includes
+82 entries across Release/Debug; other ABIs/toolchains must be rechecked.
 
 | Group | Functions |
 |---|---|
@@ -374,37 +380,46 @@ The target build is allowed to use exactly these, and they must be satisfiable b
 | `<setjmp.h>` | `setjmp` `longjmp` — mandatory ([`90-`](90-decisions.md) D‑32) |
 | `<math.h>` | `sin` `cos` `sqrt` `floor` `ceil` (RENDER only) |
 
-† `vfprintf` is only reachable through `ErrorF`; the target build redirects it to `wmb_os_console_write()` and does not need real stdio.
+† Actual selected clients/framework diagnostics also use stdio directly.
+The installed nano library cannot represent their `%zu`/`%llu` formats. The
+user approved full newlib and console-only local hooks instead of incomplete
+formatting, incompatible mixed formatter objects or success-shaped stubs.
 
-**Explicitly not in the floor:** `fopen`, `fread`, `fwrite`, `fseek`, `getenv`, `exit`, `time`, `localtime`, `gettimeofday`, `signal`, `raise`, `system`.
+OS file/environment/time/process/signal services remain forbidden. Standard
+`exit` is a real observed requirement whose local termination ultimately
+reaches the port's fatal policy, not an operating-system process. Exact import
+and complete-image symbol checks, not this old sketch, define acceptance.
 
-### 9.2 The syscall floor
+### 9.2 Local runtime glue and platform seams
 
-Four, via `wmb_os.h`:
+These are conceptual seams, not an OS syscall layer. The P9a
+[runtime adapter](../freestanding/p9a/runtime.c) maps actual newlib hooks to a
+bounded arena/console or explicitly refuses unsupported I/O. There is no
+libnosys/semihosting fallback; hardware/context/CRT stubs deliberately stop.
 
 | Contract function | Purpose | Backed by |
 |---|---|---|
 | `wmb_os_sbrk(intptr_t)` | Heap growth | Region allocator or platform allocator |
 | `wmb_os_console_write(const char *, int)` | `ErrorF` output | UART / semihosting / SDL stdout |
-| `wmb_os_tick_ms(void)` | Monotonic milliseconds | Hardware timer |
+| `hal_tick_ms(void)` / `hal_tick_us(void)` | Monotonic elapsed time | Hardware timer |
 | `wmb_os_abort(void)` | `FatalError` termination | Reset / halt |
 
 ### 9.3 Q6 exit gate
 
 ```bash
-# every TU compiles freestanding
-cmake -B build-target -DWMB_PROFILE=target -DCMAKE_C_FLAGS="-ffreestanding" && cmake --build build-target
-
-# the link references nothing outside the floor
-nm --undefined-only build-target/wmb.elf | c++filt | sort -u > /tmp/undef.txt
-comm -23 /tmp/undef.txt docs/floor-symbols.txt          # → empty
-
-# and nothing from the forbidden set
-grep -E '\b(socket|bind|listen|accept|connect|select|poll|readv|writev|fcntl|sigaction|fork|execve|waitpid|getenv|fopen|dlopen|pthread_)' /tmp/undef.txt
-# → empty
+cmake -S . -B build-p9a-arm -DWMB_PROFILE=p9a \
+    -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-arm-p9a.cmake \
+    -DCMAKE_BUILD_TYPE=Release
+cmake --build build-p9a-arm -j4
+ctest --test-dir build-p9a-arm --output-on-failure
 ```
 
-`docs/floor-symbols.txt` is a Q6 deliverable, generated from §9.1 + §9.2 and checked in.
+The ALL verification target checks actual ARM objects/fresh dependencies,
+full archive requirements before library resolution, complete raw load bytes,
+immutable ABI/binding, real budgets, no unresolved/forbidden symbols and no
+dynamic relocations. Negative tests also require actual linker overflow and
+missing-regex-provider failures. See [the verified P9a guide](../freestanding/README.md).
+This closes the reference compile/link proof, not Q6's actual hardware or P9b.
 
 ## 10. Per‑Dependency Disposition Matrix
 

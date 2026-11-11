@@ -1,0 +1,138 @@
+{
+  "scope": "P9a real bare-metal compile/link verification; deliberately non-runnable reference, not P9b hardware certification",
+  "compiler": "arm-none-eabi-gcc (Arm GNU Toolchain 14.2.Rel1 (Build arm-14.52)) 14.2.1 20241119",
+  "architecture": "Cortex-M3, Thumb, little-endian ELF32 ARM EABI5, ILP32, soft float",
+  "libc": "Matching full newlib/libm/libgcc from the selected toolchain; no nano/full formatter mixing or libnosys",
+  "user_approved_decisions": [
+    "Use the installed Cortex-M3/Thumb reference without selecting a final board",
+    "Add one WMB_DEVEL-guarded private font-registration prototype; TinyX cap 16 to 17",
+    "Keep the actual hal_alloc seam with a bounded newlib reference arena; final board allocator/locking remains P9b",
+    "Use full newlib after inspecting nano's missing C99 size/64-bit formats and different reentrancy layout"
+  ],
+  "actual_target_translation_units": 544,
+  "complete_no_gc_no_lto_archives": 14,
+  "floor": {
+    "file": "../floor-symbols.txt",
+    "release_requirements": 81,
+    "debug_requirements": 79,
+    "reviewed_union": 82,
+    "real_target_library_providers_checked": true,
+    "no_forbidden_os_imports": true,
+    "no_unresolved_image_symbols": true,
+    "no_dynamic_relocations": true,
+    "atomic_int_and_pointer_always_lock_free": true
+  },
+  "abi": {
+    "version": 2,
+    "typed_slots": 123,
+    "readonly_table_bytes": 508,
+    "load_base": "0x08000000",
+    "first_in_raw_load_image": true,
+    "all_function_pointers_are_real_thumb_code": true,
+    "separate_sdk_application_binding_matches": true,
+    "component_and_application_rom_ram_are_disjoint": true,
+    "all_raw_file_backed_payload_matches_elf": true,
+    "arm_sdk_archive_bytes": 15600,
+    "host_sdk_archive_bytes": 15924,
+    "sdk_archive_limit_exclusive": 16384
+  },
+  "synthetic_budgets": {
+    "component_rom_base": "0x08000000",
+    "component_rom_bytes": 4194304,
+    "component_ram_base": "0x20000000",
+    "component_ram_bytes": 8388608,
+    "component_heap_reserved": 4194304,
+    "component_stack_area_reserved": 2162688,
+    "application_rom_base": "0x08400000",
+    "application_rom_bytes": 4194304,
+    "application_ram_base": "0x20800000",
+    "application_ram_bytes": 1048576,
+    "application_heap_reserved": 524288,
+    "application_stack_reserved": 65536,
+    "framebuffer_reserved": false,
+    "working_stack_pool_or_context_port": false
+  },
+  "release_verified_at_utc": "2026-11-11T15:45:58.070368+00:00",
+  "release": {
+    "component": {
+      "rom_load_span": 919808,
+      "ram_reserved": 6398488,
+      "elf_file_bytes": 1187164,
+      "sha256": "7d8d41edc25a8b88aae7397f4a5e0982ffd938b06f88187196a25517214736e1"
+    },
+    "whole_archive": {
+      "rom_load_span": 1074112,
+      "ram_reserved": 6401232,
+      "elf_file_bytes": 1403128,
+      "sha256": "b306966fbd2a16a36f6b1d0d634fba2f68dd892fdba915ff85a7fc3d482b2333"
+    },
+    "sdk_application": {
+      "rom_load_span": 44608,
+      "ram_reserved": 591960,
+      "elf_file_bytes": 75012,
+      "sha256": "face2e35eaf7cf070c6d3adb6067b54c002d90a7a4b89d7a7ab11a3f9b047422"
+    }
+  },
+  "debug_verified_at_utc": "2026-11-11T15:45:58.189118+00:00",
+  "debug": {
+    "component": {
+      "rom_load_span": 1142036,
+      "ram_reserved": 6399792,
+      "elf_file_bytes": 7685508,
+      "sha256": "9f3078c28b0e74ec84d7f833f209b33c8fbfb43be1f2676268228b5131f9160a"
+    },
+    "whole_archive": {
+      "rom_load_span": 1320968,
+      "ram_reserved": 6402752,
+      "elf_file_bytes": 10698516,
+      "sha256": "bb03bb5cfd941f4475f89604ea3c8dc1535d39e8078b07bd886263896723a296"
+    },
+    "sdk_application": {
+      "rom_load_span": 45984,
+      "ram_reserved": 591960,
+      "elf_file_bytes": 120272,
+      "sha256": "64b3dfab16146e75fb2b93830774d9d897601e2d5a2efad51e476460e3d6e088"
+    }
+  },
+  "dependencies": {
+    "zlib": {
+      "version": "1.4",
+      "url": "https://zlib.net/fossils/zlib-1.4.tar.gz",
+      "sha256": "02dd159783677a749c04adbdd02b55b8a2bcc7e054f51b76b549199a916ad584",
+      "selected_units": 6,
+      "profile": "Z_SOLO inflate/checksum utility subset; no native gzip/file backend"
+    },
+    "tre": {
+      "version": "0.9.0",
+      "url": "https://github.com/laurikari/tre/releases/download/v0.9.0/tre-0.9.0.tar.gz",
+      "sha256": "f57f5698cafdfe516d11fb0b71705916fe1162f14b08cf69d7cf86923b5a2477",
+      "selected_units": 10,
+      "profile": "Byte/C-locale POSIX matching; no wide/multibyte/approximate features",
+      "checked_oom_patch": "../../cmake/patches/tre-0.9.0-oom-tags.patch",
+      "assertions_not_disabled_to_hide_failure": true
+    }
+  },
+  "tests": {
+    "arm_release_ctest_passed": 2,
+    "arm_debug_ctest_passed": 2,
+    "negative_verification_cases": 13,
+    "actual_linker_rom_ram_and_missing_regex_failures": true,
+    "ordinary_hosted_passed": 52,
+    "bundled_floor_hosted_passed": 54,
+    "bundled_floor_strict_asan_ubsan_padded_rgb565_passed": 54,
+    "stock_posix_matching_comparisons": 210,
+    "regex_backing_allocation_fault_positions": 100,
+    "runtime_arena_console_unsupported_io_fatal_tests": true,
+    "guarded_upstream_files": 45,
+    "native_reference_probes": 36,
+    "tinyx_guard_cap_and_count": 17,
+    "presence_one_zero_empty_variants": true
+  },
+  "not_claimed": [
+    "An actual board/production memory map or framebuffer budget",
+    "ARM execution, reset/vector/CRT initialization or a working fiber context/stack port",
+    "Hardware display/input/timing or loader validation",
+    "Production shared allocator/newlib-state/diagnostic locking policy",
+    "An on-device endurance run"
+  ]
+}

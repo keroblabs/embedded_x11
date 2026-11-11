@@ -599,6 +599,13 @@ data structures.
 
 ### D‑29 — `heap.c` is the allocator in every profile · SETTLED
 
+**Implementation correction, D-57:** the verified hosted backend actually uses
+the public `hal_alloc` seam backed by libc malloc/free, not legacy `heap.c`.
+The user explicitly approved retaining that seam for the P9a full-newlib
+reference with a bounded arena. The older rationale below is historical, not
+evidence that the legacy allocator was exercised by P8. P9b must settle the
+real board allocator/newlib-state/diagnostic locking policy.
+
 `framework/library/heap.c` backs `malloc`/`calloc`/`realloc`/`free` on host and target alike, through a redirect (`#define malloc wmb_malloc`, or
 `-Wl,--wrap`).
 
@@ -790,6 +797,12 @@ unaffected — SDL already presents from a texture. This is separate from TinyX'
 **Consequences:** [`31-`](31-target-build.md) §4.1, §8. Closes [`91-`](91-open-questions.md) Q12 and unblocks it from Q6.
 
 ### D‑36 — newlib‑nano for the first target build · PROVISIONAL
+
+**P9a amendment, D-57:** the installed nano build lacks C99 size/64-bit
+formatting used by actual WMB diagnostics and has a different reentrancy layout.
+The user approved matching **full newlib** rather than mixing incompatible
+formatter objects or altering diagnostic formats. A rebuilt small libc remains
+a later size optimization; the actual board still requires revalidation.
 
 | Alternative | Why not first |
 |---|---|
@@ -1309,6 +1322,89 @@ edit was needed.
 Fixed-address placement, target atomic/libc/compiler closure, hardware sizing
 and loader validation remain P9.
 
+### D-57 - Independent P9a proof with an explicit reference ABI and real library floor - SETTLED
+
+The user requested P9a before P9b and approved the installed Arm GNU 14.2
+Cortex-M3/Thumb ILP32 reference. This is a real bare-metal cross build, not a
+host compile with `-ffreestanding`, a chosen board, or a runnable port.
+
+The profile shares the existing server/client/font/JWM/transport/framework
+targets and hosted source inventories, while excluding SDL, Linux ports,
+pthread/socket scaffolds and hosted test executables. The keysym utility is
+compiled/executed with a separate native compiler. All 544 target translation
+units have real ARM object headers and fresh dependency evidence; a flag in a
+compile database is not the sole proof.
+
+The actual compiler exposed missing architecture configuration and declaration
+requirements. Owned server configuration now supplies byte order, glyph padding/
+alignment and `INITARGS void`, rather than pretending to be Linux or
+`__arm32__`. The user approved one additional TinyX site for the pinned font
+registration prototype. Pulling its entire private header caused conflicting
+legacy atom declarations, so the exact private function declaration is guarded
+in `dixfonts.c`. The TinyX cap/count becomes 17; the full ledger becomes 45
+sites with original notices, 36 native-reference probes and one/zero/empty
+variants preserved. No device policy or renderer algorithm moved into DIX.
+
+Installed newlib-nano compiled/linked but did not satisfy actual `%zu`/`%llu`
+diagnostics: its feature configuration disables them and changes reentrancy
+layout. The user explicitly approved full newlib, matching its real headers,
+libm and libgcc. Mixing full formatter objects into nano, suppressing declaration
+errors, using libnosys or altering diagnostics to fit a smaller formatter were
+rejected. The checked reference requires the actual C99/long-long feature
+configuration.
+
+The user also explicitly approved keeping the implemented `hal_alloc` seam
+with a bounded synthetic newlib arena. This reconciles the older D-29 text
+with actual hosted behavior; it does not retrofit legacy `heap.c` or silently
+choose the board's final allocator. P9b must establish real shared allocator/
+newlib-state/console synchronization and interrupt rules.
+
+The complete link exposed JWM's POSIX-regex requirement, absent from newlib.
+Hash-pinned byte-oriented TRE 0.9.0 provides it through its real compatibility
+header; the native matcher is unchanged and compared with 210 stock-POSIX
+cases. A narrow, tested include-audit rule permits only the TRE public header's
+libc `ssize_t` data edge, not service headers. Hash-pinned inflate-only zlib 1.4
+provides the real font decoder without native gzip/file I/O. Both dependencies
+retain allocation-owner accounting and original notices.
+
+OOM injection exposed a real TRE tag-construction assertion on partial work.
+A zero-fuzz checked dependency patch returns the error through cleanup before
+finalizing partial tags and preserves the first failed allocation status.
+Assertions were not disabled. Native arena/console/fatal/OOM tests run against
+actual owned glue; unsupported file operations diagnose errors, never pretend
+successful I/O.
+
+The reference produces a GC'd component, a fourteen-whole-archive no-GC/no-LTO
+proof, a raw component image and an independent SDK-only ARM hello ELF.
+The readonly 508-byte 123-slot table starts the load image at synthetic
+`0x08000000`; all slot addresses are actual Thumb code. Application ROM/RAM
+is disjoint and its binding agrees. Every file-backed raw section matches the
+ELF. There are no unresolved/native OS symbols or dynamic relocations.
+Actual linker overflow and omitted-provider tests fail as required.
+
+Per-function/data section splitting initially made the ARM SDK archive exceed
+16 KiB despite only about 5 KiB of text. Disabling that metadata overhead
+privately in the thin SDK retains every typed slot and all hardening; the
+actual ARM archive is 15,600 bytes and hosted archive remains 15,924.
+
+Release/Debug cross gates and 13 negative tests pass. Ordinary hosted tests
+remain 52/52; the bundled floor passes 54/54 native and 54/54 strict ASan/UBSan
+checks. The reviewed floor has 82 entries across the two reference builds,
+with real target-library providers, not an empty already-linked undefined set.
+
+The map gives explicit synthetic budgets, including heap/stack reservations;
+it does not certify target runtime usage or include a framebuffer/working
+stack allocator. Device/time/context/CRT stubs record the missing operation
+and stop. They are intentionally non-runnable and are not board firmware.
+P9b still owns real hardware selection, reset/CRT/loader/ports, actual memory/
+locking policy, execution/input/desktop and the on-device endurance gate.
+
+**Consequences:** [the P9a guide](../freestanding/README.md),
+[the target build](31-target-build.md), [implementation phase status](40-implementation-plan.md),
+[verification](41-verification-plan.md), [TinyX](42-tinyx-module-plan.md),
+[framework](44-framework-module-plan.md), [the floor](floor-symbols.txt) and
+[the exact patch ledger](../patches/MANIFEST.md).
+
 ## 8. Superseded Decisions
 
 Recorded so that reading `docs_old/` does not resurrect them.
@@ -1387,6 +1483,7 @@ Recorded so that reading `docs_old/` does not resurrect them.
 | D-54 | Active/whole-archive P6 proof, approved guard budgets, built-in profile and exact imported-source patch provenance | SETTLED | [48-](48-p6-portability.md) |
 | D-55 | Real P7 JWM, lifecycle/launch ownership, symbol/error isolation, modal cancellation and measured integration | SETTLED | [45-](45-jwm-module-plan.md) |
 | D-56 | Bounded typed SDK, API-level foreign gateway, pointer-free host validation and attributed P8 measurement | SETTLED | [22-](22-entry-point-abi.md) |
+| D-57 | Separate P9a ARM proof, real full-newlib/regex/zlib floor, explicit allocator/reference scope and P9b boundary | SETTLED | [31-](31-target-build.md) |
 
 D‑46 is load‑bearing and easy to under‑read. Every request, from every kind of client, is executed by the `xsrv` fiber running upstream's `Dispatch()`; no
 client ever calls `ProcVector` on its own stack. The safety property is **structural** — only one fiber can enter `dix` — rather than a rule imposed on

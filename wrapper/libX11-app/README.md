@@ -109,5 +109,8 @@ stop-responsive event/yield behavior and extension procedure are documented in
 [the runtime integration guide](../../transport/api/README.md).
 
 The [host process bridge](../../linux_hosted/abi_bridge/README.md) is optional
-validation scaffolding, not an embedded loader. Fixed address discovery and
-relocation certification are P9.
+validation scaffolding, not an embedded loader. The
+[P9a reference](../../freestanding/README.md) separately links the actual ARM
+SDK and application, verifies fixed-base binding and has no dynamic relocations.
+Its raw ARM archive is 15,600 bytes; hosted remains 15,924. It uses synthetic
+addresses and does not certify board startup/loading or runtime execution (P9b).

@@ -175,5 +175,8 @@ checks run in `tinyx_p8_sdk`; generated prefix/ownership regressions run separat
 
 See [the ABI contract](../../docs/22-entry-point-abi.md),
 [host-only process validation](../../linux_hosted/abi_bridge/README.md) and
-[target measurements](../../docs/31-target-build.md). Fixed-address placement,
-loader/relocation, target libc/atomic floor and hardware certification remain P9.
+[target measurements](../../docs/31-target-build.md).
+[P9a](../../freestanding/README.md) now verifies actual ARM fixed-base placement,
+the separate SDK binding, no relocations and the reviewed target-library floor.
+Real board loader/runtime execution, synchronization and hardware certification
+remain P9b.

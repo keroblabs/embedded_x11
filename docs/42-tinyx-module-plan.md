@@ -74,7 +74,8 @@ The last three require one guarded line each in `mi/miinitext.c`. The rest requi
 | **P6** | **Verified portability/patch closure:** twelve server sites plus three KDrive sites; full native-reference and no-backend gates | Medium |
 | **P7** | **Verified with real JWM:** native grabs/input/rendering, deferred HAL stop and defined empty property storage; `Dispatch()` remains unchanged | Light |
 | **P8** | **No new DIX/core changes.** Typed SDK/gateway and two-caller tests retain runtime-owned Xlib and serialized `xsrv` dispatch; attribution covers all server allocations | Light |
-| P9 | The freestanding compile of ~96 kLOC — the largest surface for libc‑floor surprises | Medium |
+| **P9a** | **Verified** freestanding ARM compile of every selected server unit; actual full-archive/floor/ABI gates | Medium |
+| P9b | Execute the same server on the selected real board after actual ports/startup are available | Pending |
 
 **This module is idle until P4 and then becomes the critical path for two consecutive phases.** Plan staffing accordingly: the C1 audit (§4.2) and the
 reference `configure` run (§4.3) are the two items that can start early and remove the most uncertainty.
@@ -264,7 +265,9 @@ is the only possible cause.
 [P6 guide](48-p6-portability.md) records commands, evidence and target boundaries.
 The authoritative [generated patch ledger](../patches/MANIFEST.md) is explained
 in [11-](11-portability-plan.md) section 8. P6 closed 15 TinyX files (D-54);
-P7's empty-property correction raises the current cap/count to 16 (D-55).
+P7's empty-property correction raised it to 16 (D-55). The user-approved P9a
+private font-registration declaration raises the current cap/count to **17**
+(D-57), without changing font behavior or moving policy into DIX.
 
 | # | File | Guard | Edit |
 |--:|---|---|---|
@@ -280,6 +283,7 @@ P7's empty-property correction raises the current cap/count to 16 (D-55).
 | 18 | `fb/fbbits.h` | `WMB_DEVEL` | Defined negative Bresenham-error doubling |
 | 20 | `Xext/sync.c` | `WMB_DEVEL` | Typed millisecond callback/deadline and project initializer prototype |
 | 21 | `os/strlcat.c` | `WMB_DEVEL` | Standard size_t header with unchanged native alternative |
+| P9a | `dix/dixfonts.c` | `WMB_DEVEL` | Correct prototype for the pinned library's private built-in registration function |
 
 KDrive's `kinput.c`, `kdrive.h` and `kdrive.c` belong to
 [43-](43-kdrive-module-plan.md) and draw on the same cap. Shared `Xos.h` and
@@ -290,7 +294,7 @@ KDrive's `kinput.c`, `kdrive.h` and `kdrive.c` belong to
 - [x] All ledger sites have exact replayable patches, hashes, reasons and LOC deltas.
 - [x] Every patch checks/applies to the pristine imported source and reproduces current bytes/notices.
 - [x] TinyX uses presence-based `WMB_DEVEL`; native reference compilation and one/zero/empty variants pass.
-- [x] TinyX guarded-file count is 15, including KDrive's three files.
+- [x] P6's original count was 15; current count is 17 including P7/P9a and KDrive's three files.
 - [x] Every P5 gate passes, including added native SYNC deadline, glyph cursor and WM identity checks.
 - [x] Compiler-active includes and complete-archive symbol audits pass; reference-only POSIX includes are deliberately retained.
 - [x] The full windowing/runtime archive set links with contract stubs and no backend, host launcher or dead-section elimination.
@@ -313,17 +317,28 @@ from the P6 value of 15 to 16 for this real engine seam, not a driver policy.
 **P6 is deliberately after P5.** A guard applied to code that has never been compiled is a guess; once `host-pure` runs, each guard is applied and
 immediately re‑verified against a working system.
 
-## 7. Phase P9 — Freestanding Compile
+## 7. Phase P9a - Freestanding Compile - VERIFIED
 
 This module contributes ~96 kLOC to the `-ffreestanding -fno-builtin -fno-pic` compile, which makes it the largest surface for
 [`11-`](11-portability-plan.md) R6: a libc dependency nobody censused, e.g. `qsort` in `dix/resource.c`. **This is expected, is rated low‑impact, and
 is why Q6/P9a is its own phase.**
 
-- [ ] Every `tinyx/` translation unit compiles freestanding.
-- [ ] Nothing this module needs falls outside `docs/floor-symbols.txt`, or the floor is amended with a one‑line justification per addition.
+- [x] All 173 selected server/KDrive units compile for bare-metal Cortex-M3/Thumb with the same hosted source inventory.
+- [x] The whole-archive image resolves against actual ARM libraries and the reviewed [floor](floor-symbols.txt), without OS imports, unresolved symbols, section GC or LTO.
 
-**P9a is worth starting as soon as P6 is green**, out of order, against a stub backend. It costs little and surfaces the floor surprises while there
-is still time to absorb them.
+The actual compiler required a private built-in-font prototype; it is guarded
+with `WMB_DEVEL`, and its undefined reference remains unchanged. The prototype
+was verified in the pinned dependency; importing its entire private header
+would expose conflicting legacy atom declarations and was rejected.
+
+Owned configuration supplies `INITARGS void` and explicit raster byte order,
+four-byte glyph padding and access alignment. It does not impersonate Linux or
+an obsolete `__arm32__` compiler. No renderer/DDX policy was changed.
+
+Across the full stack, 544 actual units and 14 complete archives pass Release
+and Debug ARM verification. The [P9a guide](../freestanding/README.md) records
+the synthetic map, full-newlib/TRE/zlib floor and negative tests.
+**P9b is still pending:** this stub backend does not run on hardware.
 
 ## 8. Interfaces With Other Modules
 
@@ -359,8 +374,8 @@ The seams, stated as contracts so that a change on either side is a conversation
 |---|---|
 | New files | `excluded_stubs_wmb.c`, `waitfor_wmb.c`, `connection_wmb.c`, `io_wmb.c` + two config templates |
 | New LOC | ~750 |
-| Upstream files guarded | **13 server files plus 3 KDrive files, current cap 16**; shared protocol headers are budgeted separately |
-| Slack | **0.** Additional sites require a decision with the rejected alternative; D-54/P6 and D-55/P7 record the approved expansions |
+| Upstream files guarded | **14 server files plus 3 KDrive files, current cap 17**; shared protocol headers are budgeted separately |
+| Slack | **0.** D-54/P6, D-55/P7 and the explicitly approved D-57/P9a declaration record the expansions |
 
 ## 11. What to Do First
 

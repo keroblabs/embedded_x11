@@ -218,7 +218,8 @@ def compiler_flags(entry: Compile, overlay: Path | None = None) -> list[str]:
     return result
 
 
-def native_includes(output: str, roots: tuple[Path, ...]) -> set[str]:
+def native_includes(output: str, roots: tuple[Path, ...],
+                    regex_type_header: Path | None = None) -> set[str]:
     origin = ""
     prefixes = tuple(str(root) + "/" for root in roots)
     owned = False
@@ -232,7 +233,9 @@ def native_includes(output: str, roots: tuple[Path, ...]) -> set[str]:
             number = int(marker[1])
             continue
         include = re.match(r'#include [<"]([^>"]+)[>"]', line)
-        if include and owned and NATIVE_HEADER.match(include[1]):
+        data_only = (include is not None and include[1] == "sys/types.h" and
+                     regex_type_header is not None and Path(origin).resolve() == regex_type_header)
+        if include and owned and NATIVE_HEADER.match(include[1]) and not data_only:
             violations.add(f"{Path(origin).resolve()}:{number}: {include[1]}")
         number += 1
     return violations
@@ -241,6 +244,8 @@ def native_includes(output: str, roots: tuple[Path, ...]) -> set[str]:
 def audit_sources(entries: list[Compile], build: Path) -> None:
     font_entries = [entry for entry in entries if entry.target == "wmb_xfont" and not entry.file.is_relative_to(ROOT)]
     roots = (ROOT, build, *sorted({entry.file.parent for entry in font_entries}))
+    regex_types = build / "generated/regex/tre/tre.h"
+    regex_types = regex_types.resolve() if regex_types.exists() else None
 
     def scan(entry: Compile) -> set[str]:
         if entry.target in ("wmb_xlib", "wmb_jwm", "wmb_api_runtime") and any(
@@ -248,7 +253,7 @@ def audit_sources(entries: list[Compile], build: Path) -> None:
         ):
             raise RuntimeError(f"Server ABI leaked into client: {entry.file}")
         output = run(compiler_flags(entry) + ["-E", "-dI", str(entry.file)], entry.directory)
-        return native_includes(output.decode(errors="replace"), roots)
+        return native_includes(output.decode(errors="replace"), roots, regex_types)
 
     violations: set[str] = set()
     with ThreadPoolExecutor(max_workers=3) as pool:

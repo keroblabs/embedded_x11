@@ -188,14 +188,40 @@ The cycle test covers 10,000 managed windows with separately attributed WMB and
 other-tenant allocations. The hour test takes 3,600 real input-processing
 seconds; it must not be replaced by a short/accelerated run. See the
 [P8 contract](docs/22-entry-point-abi.md), [ownership/reuse instructions](transport/api/README.md)
-and [recorded host measurements](docs/31-target-build.md). Target placement,
-freestanding compiler/libc/atomic closure and hardware remain P9.
+and [recorded host measurements](docs/31-target-build.md). P9a now verifies the
+freestanding reference build; actual board loading/execution remain P9b.
 
 **Hosted P8 sign-off passed:** 10,000 managed lifecycles with a flat attributed
 heap, plus a full 3,600-second input run independently measured at 3,604.442
 wall seconds. Its heap peak stayed flat and maximum root gap was 8 ms.
 [The verification record](docs/reference/p8-host-verification.json) preserves
 the exact binary hash, traffic, stack/heap data and test matrix.
+
+## P9a freestanding reference
+
+P9a is complete independently of P9b. The reference cross-build uses
+**Cortex-M3/Thumb ILP32**, the installed Arm GNU toolchain and **full newlib**.
+It compiles the real shared cohorts, not reduced source copies or fake libc
+functions.
+
+```sh
+cmake -S . -B build-p9a-arm -DWMB_PROFILE=p9a \
+    -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-arm-p9a.cmake \
+    -DCMAKE_BUILD_TYPE=Release
+cmake --build build-p9a-arm -j4
+ctest --test-dir build-p9a-arm --output-on-failure
+```
+
+The normal build verifies 544 actual ARM translation units, fourteen complete
+archives without section GC, the reviewed library/compiler floor, immutable
+fixed-base API, a separate SDK-only ARM application, raw-image payloads and
+explicit memory budgets. The ARM wrapper archive is **15,600 bytes**. Release
+and Debug checks pass, including negative tests against the actual linker.
+
+**These are non-runnable reference artifacts, not firmware for a chosen board.**
+The memory map is synthetic; display/time/interrupt/context/CRT stubs fail fast.
+The [P9a guide](freestanding/README.md) records outputs, dependencies, native
+floor/sanitizer tests and the precise hardware/loader/allocator work left for P9b.
 
 ## AddressSanitizer
 
@@ -223,6 +249,7 @@ ASan prints a boilerplate `WARNING: ASan doesn't fully support makecontext/swapc
 | `transport/` | Retained-Xlib in-process transport, component lifecycle, versioned ABI, gateway and diagnostics. |
 | `wrapper/libX11-app/` | Independently buildable opaque application SDK, without full Xlib or framework. |
 | `apps/wmb_hello/` | Portable SDK-only application body; host binding is separate scaffolding. |
+| `freestanding/` | P9a reference linker/runtime/stub scaffolding and native floor tests; not a board port. |
 | `tinyx/`, `libX11/`, `jwm/`, `X11/` | Vendored upstream trees. |
 | `docs/` | Module and implementation plans (00–91, numbered). |
 

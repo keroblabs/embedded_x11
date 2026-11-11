@@ -1,0 +1,36 @@
+ENTRY(main)
+MEMORY
+{
+    ROM (rx) : ORIGIN = @WMB_APP_BASE@, LENGTH = @WMB_ROM_BYTES@
+    RAM (rw) : ORIGIN = @WMB_APP_RAM_BASE@, LENGTH = @WMB_APP_RAM_BYTES@
+}
+SECTIONS
+{
+    .wmb_binding : { KEEP(*(.wmb_binding)) } > ROM
+    .text : { *(.text*) *(.rodata*) } > ROM
+    .fini_array (READONLY) : {
+        __fini_array_start = .;
+        KEEP(*(SORT(.fini_array.*)))
+        KEEP(*(.fini_array))
+        __fini_array_end = .;
+    } > ROM
+    .ARM.extab : { *(.ARM.extab*) } > ROM
+    .ARM.exidx : {
+        __exidx_start = .;
+        *(.ARM.exidx*)
+        __exidx_end = .;
+    } > ROM
+    .data : { *(.data*) } > RAM AT > ROM
+    .bss (NOLOAD) : { *(.bss*) *(COMMON) } > RAM
+    .heap (NOLOAD) : {
+        . = ALIGN(8);
+        __heap_start = .;
+        . += @WMB_APP_HEAP_BYTES@;
+        __heap_end = .;
+    } > RAM
+    .stacks (NOLOAD) : {
+        . = ALIGN(8);
+        . += @WMB_APP_STACK_BYTES@;
+    } > RAM
+    /DISCARD/ : { *(.comment) *(.note*) }
+}

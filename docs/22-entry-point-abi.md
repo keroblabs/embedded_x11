@@ -102,15 +102,18 @@ value, normally -1. It is not a descriptor on which an application should
 
 ## 4. Placement and Discovery
 
-### 4.1 Current discovery and future section placement
+### 4.1 Pointer discovery and verified P9a placement
 
 P8 uses explicit pointer injection and `wmb_bind(const wmb_api_t *)`.
 `wmb_api_native_table()` and `wmb_gateway_table()` supply trusted immutable
 same-address tables after owner configuration.
 
-P9 must place the chosen external table in `.wmb_api`, define the actual
-`WMB_LOAD_BASE`, and verify agreement with loader/application discovery. The old
-example address `0x80100000` was a placeholder, not a P8 implementation.
+P9a now places the real foreign-call table in readonly `.wmb_api`. The ARM
+reference verifies its 508 bytes at synthetic `0x08000000`, first in the raw
+load image, with all 123 real Thumb function pointers. A separate SDK-only ARM
+application binds that same configured base in disjoint ROM/RAM.
+[The P9a guide](../freestanding/README.md) records the build and actual checks.
+Real board addresses and startup/loader execution remain P9b.
 
 ### 4.2 Validation
 
@@ -135,9 +138,10 @@ Compile and runtime tests include:
 
 ### 4.3 Non-PIC
 
-Target linker placement, load-base agreement, compiler/runtime floor and absence
-of dynamic relocations remain P9 gates. A working RPC scaffold does not prove
-any of them.
+P9a's actual Release/Debug ARM images pass non-PIC compile, load-base agreement,
+no unresolved symbols and no dynamic relocations, independently of RPC.
+The raw image's complete file-backed payload is checked against the ELF.
+This is a non-runnable reference, not proof of board loading/execution.
 
 ## 5. The Wrapper Library
 

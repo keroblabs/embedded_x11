@@ -1,0 +1,44 @@
+ENTRY(main)
+MEMORY
+{
+    ROM (rx) : ORIGIN = @WMB_LOAD_BASE@, LENGTH = @WMB_ROM_BYTES@
+    RAM (rw) : ORIGIN = @WMB_RAM_BASE@, LENGTH = @WMB_RAM_BYTES@
+}
+SECTIONS
+{
+    .wmb_api ORIGIN(ROM) : {
+        __wmb_api_start = .;
+        KEEP(*(.wmb_api))
+        __wmb_api_end = .;
+    } > ROM
+    .text : { *(.text*) *(.rodata*) } > ROM
+    .fini_array (READONLY) : {
+        __fini_array_start = .;
+        KEEP(*(SORT(.fini_array.*)))
+        KEEP(*(.fini_array))
+        __fini_array_end = .;
+    } > ROM
+    .ARM.extab : { *(.ARM.extab*) } > ROM
+    .ARM.exidx : {
+        __exidx_start = .;
+        *(.ARM.exidx*)
+        __exidx_end = .;
+    } > ROM
+    .data : { *(.data*) } > RAM AT > ROM
+    .bss (NOLOAD) : { *(.bss*) *(COMMON) } > RAM
+    .heap (NOLOAD) : {
+        . = ALIGN(8);
+        __heap_start = .;
+        . += @WMB_HEAP_BYTES@;
+        __heap_end = .;
+    } > RAM
+    .stacks (NOLOAD) : {
+        . = ALIGN(8);
+        __stack_pool_start = .;
+        . += @WMB_STACK_BYTES@;
+        __stack_pool_end = .;
+    } > RAM
+    /DISCARD/ : { *(.comment) *(.note*) }
+}
+ASSERT(ADDR(.wmb_api) == @WMB_LOAD_BASE@, "WMB API load address drift")
+ASSERT(SIZEOF(.wmb_api) == @WMB_API_TABLE_BYTES@, "Expected exactly one complete typed API")

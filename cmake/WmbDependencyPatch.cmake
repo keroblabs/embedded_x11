@@ -1,0 +1,21 @@
+find_program(WMB_PATCH_EXECUTABLE patch)
+if(NOT WMB_PATCH_EXECUTABLE)
+    message(FATAL_ERROR "Pinned dependency repairs require the patch utility")
+endif()
+function(wmb_apply_dependency_patch directory patch_file)
+    execute_process(COMMAND "${WMB_PATCH_EXECUTABLE}" --batch --fuzz=0 --dry-run --forward -p1 -i "${patch_file}"
+        WORKING_DIRECTORY "${directory}" RESULT_VARIABLE needed OUTPUT_QUIET ERROR_QUIET)
+    if(needed EQUAL 0)
+        execute_process(COMMAND "${WMB_PATCH_EXECUTABLE}" --batch --fuzz=0 --forward -p1 -i "${patch_file}"
+            WORKING_DIRECTORY "${directory}" RESULT_VARIABLE result)
+        if(NOT result EQUAL 0)
+            message(FATAL_ERROR "Could not apply pinned dependency patch: ${patch_file}")
+        endif()
+    else()
+        execute_process(COMMAND "${WMB_PATCH_EXECUTABLE}" --batch --fuzz=0 --dry-run --reverse -p1 -i "${patch_file}"
+            WORKING_DIRECTORY "${directory}" RESULT_VARIABLE applied OUTPUT_QUIET ERROR_QUIET)
+        if(NOT applied EQUAL 0)
+            message(FATAL_ERROR "Dependency differs from the supported patch state: ${patch_file}")
+        endif()
+    endif()
+endfunction()

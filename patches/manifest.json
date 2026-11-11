@@ -2,7 +2,7 @@
   "baseline": "73ab9f28bccf8e2ff56638896a4d82f079a2e5a7",
   "baseline_description": "Unmodified source files from the repository's initial import; not a claim that the entire import is an official upstream release.",
   "caps": {
-    "tinyx": 16,
+    "tinyx": 17,
     "libX11": 10,
     "X11": 2,
     "jwm": 16
@@ -168,6 +168,16 @@
       "result_sha256": "e45b9677cfd7604883f0f2ee9ac84eed790bcf2dba90f4329b0c4dc60081ccee",
       "added": 13,
       "removed": 0
+    },
+    {
+      "file": "tinyx/dix/dixfonts.c",
+      "patch": "tinyx/0017-declare-builtin-font-registration.patch",
+      "selector": "WMB_DEVEL",
+      "reason": "Declare the pinned library's private built-in registration function for strict C11 cross compilation",
+      "base_sha256": "62644eab24fba1f1e7e96ce9c9a733875fba4f688e9a9b5b587b13e71a8703bb",
+      "result_sha256": "0f7bc99e5ddf5840be90537f236bde1ece483267a724ab84aa7e885010d7e05b",
+      "added": 3,
+      "removed": 1
     },
     {
       "file": "libX11/include/X11/Xlibint.h",

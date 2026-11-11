@@ -1,0 +1,28 @@
+--- a/lib/tre-compile.c
++++ b/lib/tre-compile.c
+@@ -592,6 +592,8 @@
+ 		if (!first_pass)
+ 		  {
+ 		    status = tre_add_tag_right(mem, left, tag_left);
++		    if (status != REG_OK)
++		      break;
+ 		    tnfa->tag_directions[tag_left] = TRE_TAG_MAXIMIZE;
+ 		    status = tre_add_tag_right(mem, right, tag_right);
+ 		    tnfa->tag_directions[tag_right] = TRE_TAG_MAXIMIZE;
+@@ -611,5 +613,8 @@
+     } /* end while(tre_stack_num_objects(stack) > bottom) */
+ 
++  if (status != REG_OK)
++    goto cleanup;
++
+   if (!first_pass)
+     tre_purge_regset(regset, tnfa, tag);
+ 
+@@ -635,6 +640,7 @@
+   tnfa->end_tag = num_tags;
+   tnfa->num_tags = num_tags;
+   tnfa->num_minimals = num_minimals;
++cleanup:
+   xfree(orig_regset);
+   xfree(parents);
+   xfree(saved_states);

@@ -6,15 +6,28 @@ foreach(name xcb_io xcb_disp x11_xcb locking os2Stubs SetLocale Xrm ClDisplay
 endforeach()
 configure_file("${PROJECT_SOURCE_DIR}/cmake/xlib-config.h.in"
     "${CMAKE_BINARY_DIR}/generated/xlib/config.h" @ONLY)
-add_executable(wmb_makekeys "${XLIB_ROOT}/src/util/makekeys.c")
+if(WMB_FREESTANDING)
+    find_program(WMB_HOST_C_COMPILER NAMES cc gcc clang NO_CMAKE_FIND_ROOT_PATH)
+    if(NOT WMB_HOST_C_COMPILER)
+        message(FATAL_ERROR "A native C compiler is required for the makekeys build tool")
+    endif()
+    set(makekeys "${CMAKE_CURRENT_BINARY_DIR}/wmb_makekeys_host")
+    add_custom_command(OUTPUT "${makekeys}"
+        COMMAND "${WMB_HOST_C_COMPILER}" -std=c11
+            "${XLIB_ROOT}/src/util/makekeys.c" -o "${makekeys}"
+        DEPENDS "${XLIB_ROOT}/src/util/makekeys.c" VERBATIM)
+else()
+    add_executable(wmb_makekeys "${XLIB_ROOT}/src/util/makekeys.c")
+    set(makekeys "$<TARGET_FILE:wmb_makekeys>")
+endif()
 file(GLOB keysym_headers "${PROJECT_SOURCE_DIR}/X11/*keysym.h")
 list(APPEND keysym_headers "${PROJECT_SOURCE_DIR}/X11/keysymdef.h")
 add_custom_command(OUTPUT "${CMAKE_BINARY_DIR}/generated/xlib/ks_tables.h"
-    COMMAND "${CMAKE_COMMAND}" "-DGENERATOR=$<TARGET_FILE:wmb_makekeys>"
+    COMMAND "${CMAKE_COMMAND}" "-DGENERATOR=${makekeys}"
         "-DHEADERS=${keysym_headers}"
         "-DOUTPUT=${CMAKE_BINARY_DIR}/generated/xlib/ks_tables.h"
         -P "${PROJECT_SOURCE_DIR}/cmake/GenerateXlibKeys.cmake"
-    DEPENDS wmb_makekeys ${keysym_headers}
+    DEPENDS "${makekeys}" ${keysym_headers}
     VERBATIM)
 add_library(wmb_xlib STATIC ${XLIB_SOURCES}
     "${CMAKE_BINARY_DIR}/generated/xlib/ks_tables.h"
@@ -45,6 +58,10 @@ target_compile_definitions(wmb_xlib PUBLIC WMB_INPROC=1 PRIVATE HAVE_CONFIG_H=1)
 target_compile_options(wmb_xlib PRIVATE -ffunction-sections -fdata-sections)
 set_target_properties(wmb_xlib PROPERTIES C_VISIBILITY_PRESET hidden)
 target_link_libraries(wmb_xlib PUBLIC wmb_transport_core)
+
+if(WMB_FREESTANDING)
+    return()
+endif()
 
 add_library(wmb_xlib_test_client STATIC
     "${PROJECT_SOURCE_DIR}/transport/x11/wmb_client_test.c"

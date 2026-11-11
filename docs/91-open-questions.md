@@ -41,12 +41,12 @@ every document that cites it is updated.
 | Q10 | Is XKB compiled in? | P1 | P4 | **CLOSED** · D‑39 |
 | Q11 | Fiber core or the platform's own scheduler on target? | P1 | P9 | **CLOSED** · D‑31 |
 | Q12 | Shadow framebuffer or direct scanout on target? | P1 | P9 | **CLOSED** · D‑35 |
-| Q13 | Which libc on target? | P1 | P9 | **CLOSED** · D‑36 |
+| Q13 | Which libc on target? | P1 | P9 | **P9a: full newlib approved**, D-57 amends the provisional nano choice; board ABI revalidation remains P9b |
 | Q14 | Do the `osdep.h` fd bitsets leak into `dix/`? | **P0** | P5 | INVESTIGATING · scheduled ([`40-`](40-implementation-plan.md) §5.1) |
 | Q15 | Is `kdrive/src/kmap.c` referenced by any retained file? | P1 | P4 | **CLOSED** · D‑40 |
 | Q16 | Does anything require DBE? | P2 | P4 | **CLOSED** · D‑41 |
 | Q17 | Does `FatalError` need `setjmp`/`longjmp` on target? | P2 | P9 | **CLOSED** · D‑32 |
-| Q18 | What is the complete libc floor? | P1 | P9 | OPEN |
+| Q18 | What is the complete libc floor? | P1 | P9a | **CLOSED for the verified ARM reference**, D-57; recheck if the board/toolchain/features change |
 | Q19 | How does JWM's `XOpenDisplay` know the server is ready? | P1 | P7 | **CLOSED** · D‑33 |
 | Q20 | Which Display/Screen-dereferencing macros must the wrapper redefine? | P1 | P8 | **CLOSED**: 51 generated accessors, real opacity/compatibility tests, D-56 |
 | Q21 | Who schedules WMB once `wmb_main()` returns? | P1 | P9 | **CLOSED** · D‑44 |
@@ -138,12 +138,17 @@ classification as transport‑only (safe), typedef‑only (guardable), or a genu
 
 Recorded as census item C1 in [`10-`](10-os-dependency-census.md) §11.
 
-### Q18 — The complete libc floor · P1 · due P9
+### Q18 - Actual reference libc/compiler floor - CLOSED FOR P9a
 
 [`11-`](11-portability-plan.md) §9.1 and [`31-`](31-target-build.md) §3.1 state a hypothesis. The real list is whatever the freestanding link demands, and
 it cannot be known before the link is attempted — which is the reason this question cannot be closed early, only prepared for.
 
-**Closing requires:** running P9a and generating `docs/floor-symbols.txt` from the actual undefined‑symbol set:
+**Closed:** [floor-symbols.txt](floor-symbols.txt) records the 82-entry union
+needed by real Release/Debug ARM reference builds, from complete archive
+requirements before resolution. [The implemented checker](../tools/check_freestanding.py)
+verifies actual full-newlib/libm/libgcc providers, no forbidden/unresolved
+imports, no dynamic relocations and an explicit budget. The old sketch below
+describes the census principle; the current targets are not those old names:
 
 ```
 nm --undefined-only libwmb_runtime.a libwmb_hal.a libtinyx.a libx11_wmb.a libjwm.a \
@@ -162,6 +167,13 @@ nm --undefined-only libwmb_runtime.a libwmb_hal.a libtinyx.a libx11_wmb.a libjwm
 
 Expected to surface surprises ([`11-`](11-portability-plan.md) R6) — which is exactly why P9a is worth running early, out of order, as soon as P6 is green.
 Census item C6.
+
+The real surprises were JWM's missing regex provider, newlib errno/state and
+compiler math helpers, Debug assertions, and nano's missing C99 size/64-bit
+formatting. The user approved matching full newlib, not incompatible mixed
+formatter objects or altered diagnostics. A source-hash-pinned POSIX TRE
+provider retains byte/C-locale matching and passes stock-POSIX/OOM tests.
+Q6 is still open: no synthetic map certifies actual board memory or execution.
 
 ### Q20 - Display/Screen macro compatibility - CLOSED, D-56
 
@@ -194,7 +206,8 @@ machinery moves verbatim into `waitfor_wmb.c`, raising its estimate from ~90 to 
 | **P4** | Q2 (**P0**) |
 | **P5** | Q14 (**P0**) — audited in P4 |
 | **P8** | Q20 closed; Q9 explicitly deferred from the approved core-v1 profile |
-| **P9** | Q6 (**P0**), Q18 |
+| **P9a** | Q18 closed for the verified ARM reference |
+| **P9b** | Q6 (**P0**); revalidate the floor if the real target differs |
 
 P7 no longer has an open question against it: Q4, Q5 and Q19 all closed. P9 is down to the target itself and the libc floor it produces.
 

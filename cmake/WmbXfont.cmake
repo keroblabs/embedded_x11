@@ -1,7 +1,11 @@
 include(FetchContent)
-find_package(ZLIB REQUIRED)
 if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.24)
     set(timestamp_option DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
+endif()
+if(WMB_FREESTANDING OR WMB_USE_BUNDLED_FLOOR)
+    include("${CMAKE_CURRENT_LIST_DIR}/WmbZlib.cmake")
+else()
+    find_package(ZLIB REQUIRED)
 endif()
 
 FetchContent_Declare(wmb_xfont_source
@@ -11,29 +15,10 @@ FetchContent_Declare(wmb_xfont_source
 )
 FetchContent_MakeAvailable(wmb_xfont_source)
 set(XFONT_ROOT "${wmb_xfont_source_SOURCE_DIR}")
-find_program(WMB_PATCH_EXECUTABLE patch)
-if(NOT WMB_PATCH_EXECUTABLE)
-    message(FATAL_ERROR "The pinned font dependency requires the patch utility")
-endif()
+include("${CMAKE_CURRENT_LIST_DIR}/WmbDependencyPatch.cmake")
 foreach(patch_name empty-directory pcf-unsigned-reads builtins-only allocation)
     set(font_patch "${WMB_SOURCE_ROOT}/cmake/patches/libxfont-1.5.4-${patch_name}.patch")
-    execute_process(COMMAND "${WMB_PATCH_EXECUTABLE}" --batch --fuzz=0 --dry-run --forward -p1 -i "${font_patch}"
-        WORKING_DIRECTORY "${XFONT_ROOT}" RESULT_VARIABLE patch_needed
-        OUTPUT_QUIET ERROR_QUIET)
-    if(patch_needed EQUAL 0)
-        execute_process(COMMAND "${WMB_PATCH_EXECUTABLE}" --batch --fuzz=0 --forward -p1 -i "${font_patch}"
-            WORKING_DIRECTORY "${XFONT_ROOT}" RESULT_VARIABLE patch_result)
-        if(NOT patch_result EQUAL 0)
-            message(FATAL_ERROR "Could not apply the libXfont repair: ${patch_name}")
-        endif()
-    else()
-        execute_process(COMMAND "${WMB_PATCH_EXECUTABLE}" --batch --fuzz=0 --dry-run --reverse -p1 -i "${font_patch}"
-            WORKING_DIRECTORY "${XFONT_ROOT}" RESULT_VARIABLE already_patched
-            OUTPUT_QUIET ERROR_QUIET)
-        if(NOT already_patched EQUAL 0)
-            message(FATAL_ERROR "The libXfont source differs from the pinned, supported patch state")
-        endif()
-    endif()
+    wmb_apply_dependency_patch("${XFONT_ROOT}" "${font_patch}")
 endforeach()
 set(XFONT_SOURCES)
 set(selected_xfont_sources "tinyx/os/fonts_wmb.c")

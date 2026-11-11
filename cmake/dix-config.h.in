@@ -28,9 +28,17 @@
 #define HAVE_VPRINTF 1
 #define HAVE_LIBM 1
 #define STDC_HEADERS 1
+#define INITARGS void
 #cmakedefine _XSERVER64 1
 #ifndef X_BYTE_ORDER
 #define X_BYTE_ORDER @WMB_X_BYTE_ORDER@
+#endif
+#cmakedefine WMB_PORTABLE_SERVERMD 1
+#if defined(WMB_PORTABLE_SERVERMD)
+#define IMAGE_BYTE_ORDER @WMB_BITMAP_BYTE_ORDER@
+#define BITMAP_BIT_ORDER @WMB_BITMAP_BYTE_ORDER@
+#define GLYPHPADBYTES 4
+#define GETLEFTBITS_ALIGNMENT 1
 #endif
 
 /* Smart-scheduler layout is retained; WMB OsInit disables its signal timer. */

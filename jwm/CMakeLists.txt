@@ -28,6 +28,10 @@ if(NOT "${jwm_source_manifest}" STREQUAL "${reference_jwm_sources}")
     message(FATAL_ERROR "JWM source cohort differs from docs/reference/jwm-sources.reference")
 endif()
 
+if(WMB_FREESTANDING)
+    return()
+endif()
+
 option(WMB_JWM_BUILD_REFERENCE "Build the independent stock-Xlib JWM harness" OFF)
 if(WMB_JWM_BUILD_REFERENCE)
     find_package(PkgConfig REQUIRED)
