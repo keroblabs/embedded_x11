@@ -1,6 +1,6 @@
 --- a/libX11/include/X11/Xlib.h
 +++ b/libX11/include/X11/Xlib.h
-@@ -35,7 +35,11 @@
+@@ -35,13 +35,24 @@
  
  #define XlibSpecificationRelease 6
  
@@ -12,3 +12,56 @@
  
  #if defined(__SCO__) || defined(__UNIXWARE__)
  #include <stdint.h>
+ #endif
+ 
+ #include <X11/X.h>
++
++#if defined(WMB_APP_OPAQUE) && defined(XLIB_ILLEGAL_ACCESS)
++#error "Opaque application clients cannot enable XLIB_ILLEGAL_ACCESS"
++#endif
++#if defined(WMB_APP_OPAQUE) && !defined(WMB_INPROC)
++#error "Opaque application clients require the matching WMB_INPROC client profile"
++#endif
+ 
+ /* applications should not depend on these two headers being included! */
+ #include <X11/Xfuncproto.h>
+@@ -254,7 +265,14 @@
+ 
+ struct _XDisplay;		/* Forward declare before use for C++ */
+ 
+-typedef struct {
++#if defined(WMB_APP_OPAQUE)
++typedef struct _WmbScreen Screen;
++#else
++#if defined(WMB_INPROC)
++typedef struct _WmbScreen {
++#else
++typedef struct {
++#endif
+ 	XExtData *ext_data;	/* hook for extension to hang data */
+ 	struct _XDisplay *display;/* back pointer to display structure */
+ 	Window root;		/* Root window id. */
+@@ -273,6 +291,7 @@
+ 	Bool save_unders;
+ 	long root_input_mask;	/* initial root input mask */
+ } Screen;
++#endif
+ 
+ /*
+  * Format structure; describes ZFormat data the screen will understand.
+@@ -490,6 +509,7 @@
+ struct _XPrivate;		/* Forward declare before use for C++ */
+ struct _XrmHashBucketRec;
+ 
++#if !defined(WMB_APP_OPAQUE)
+ typedef struct
+ #ifdef XLIB_ILLEGAL_ACCESS
+ _XDisplay
+@@ -548,6 +568,7 @@
+ Display,
+ #endif
+ *_XPrivDisplay;
++#endif
+ 
+ #undef _XEVENT_
+ #ifndef _XEVENT_

@@ -47,6 +47,13 @@ in this Software without prior written authorization from The Open Group.
 
 #include <X11/X.h>
 
+#if defined(WMB_APP_OPAQUE) && defined(XLIB_ILLEGAL_ACCESS)
+#error "Opaque application clients cannot enable XLIB_ILLEGAL_ACCESS"
+#endif
+#if defined(WMB_APP_OPAQUE) && !defined(WMB_INPROC)
+#error "Opaque application clients require the matching WMB_INPROC client profile"
+#endif
+
 /* applications should not depend on these two headers being included! */
 #include <X11/Xfuncproto.h>
 #include <X11/Xosdefs.h>
@@ -258,7 +265,14 @@ typedef struct {
 
 struct _XDisplay;		/* Forward declare before use for C++ */
 
+#if defined(WMB_APP_OPAQUE)
+typedef struct _WmbScreen Screen;
+#else
+#if defined(WMB_INPROC)
+typedef struct _WmbScreen {
+#else
 typedef struct {
+#endif
 	XExtData *ext_data;	/* hook for extension to hang data */
 	struct _XDisplay *display;/* back pointer to display structure */
 	Window root;		/* Root window id. */
@@ -277,6 +291,7 @@ typedef struct {
 	Bool save_unders;
 	long root_input_mask;	/* initial root input mask */
 } Screen;
+#endif
 
 /*
  * Format structure; describes ZFormat data the screen will understand.
@@ -494,6 +509,7 @@ typedef struct _XDisplay Display;
 struct _XPrivate;		/* Forward declare before use for C++ */
 struct _XrmHashBucketRec;
 
+#if !defined(WMB_APP_OPAQUE)
 typedef struct
 #ifdef XLIB_ILLEGAL_ACCESS
 _XDisplay
@@ -552,6 +568,7 @@ _XDisplay
 Display,
 #endif
 *_XPrivDisplay;
+#endif
 
 #undef _XEVENT_
 #ifndef _XEVENT_

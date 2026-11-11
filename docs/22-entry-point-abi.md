@@ -1,468 +1,272 @@
-# 22 — Entry‑Point ABI
+# 22 - Entry-Point ABI
 
 ## 1. Purpose
 
-This document specifies **how an application that is a separate binary reaches into WMB**. It is the third deliverable of workstream 3
-([`00-introduction.md`](00-introduction.md) §5.3).
+P8 provides a typed application boundary above retained Xlib. An application
+links a thin SDK, not another full Xlib or another X transport. The same contract
+can be supplied to a cooperative application fiber or to a foreign platform
+task. Display/input hardware still implements the independent HAL.
 
-Internal clients — JWM, in‑tree applications, `wmb_test_client` — need none of this; they are compiled into the image and use the in‑process transport
-directly ([`21-inprocess-transport.md`](21-inprocess-transport.md)). This document is only about the **external** case: a program loaded by the target
-platform at some other address, which must not carry its own copy of Xlib.
+The [runtime integration guide](../transport/api/README.md),
+[standalone SDK guide](../wrapper/libX11-app/README.md) and
+[host validation guide](../linux_hosted/abi_bridge/README.md) document commands,
+ownership and failure policies. [D-56](90-decisions.md) records the approved
+core-v1 scope and corrections to the original design sketches.
+
+**Hosted P8 sign-off passed**, including the actual 3,600-second input run.
+[The host verification record](reference/p8-host-verification.json) preserves
+its independent wall timer, unchanged binary hash and measurements.
 
 ### 1.1 What this document is not
 
-- **Not the in‑process transport.** [`21-`](21-inprocess-transport.md).
-- **Not a requirement for the hosted milestone.** Everything here is phase P8, after JWM works. It is documented early so that nothing in P1–P7
-  accidentally makes it impossible.
+- The [P5 in-process X transport](21-inprocess-transport.md).
+- A socket-based embedded architecture.
+- A completed fixed-address loader or freestanding/hardware certificate: those
+  remain [P9](31-target-build.md).
 
-### 1.2 The problem
+## 2. Two-Block Design
 
-An external application `#include <X11/Xlib.h>` and calls `XCreateWindow(dpy, …)`. Three ways to satisfy that:
-
-| Option | Approach | Verdict |
-|---|---|---|
-| A | Link a full copy of libX11 into each application | ~34 kLOC and a separate `Display` universe per app, with no way to reach the server. **Impossible** — the transport is in‑process by definition |
-| B | Restore a socket between the app and WMB | Reintroduces exactly what the project removes |
-| C | **The application links a thin wrapper whose functions jump into WMB's Xlib through a vtable at a known address** | Chosen |
-
-Option C is the only one consistent with "one image contains the whole windowing system".
-
-## 2. Two‑Block Design
-
-```
-   ┌────────────────────────────────────────────────────────────────┐
-   │ APPLICATION BINARY                                             │
-   │                                                                │
-   │   app.c        XCreateSimpleWindow(dpy, root, ...)             │
-   │      │                                                         │
-   │      ▼                                                         │
-   │   libX11-app.a   ← the ONLY thing the app links                │
-   │      Window XCreateSimpleWindow(Display *d, Window p, ...) {   │
-   │          return WMB_API->XCreateSimpleWindow(d, p, ...);       │
-   │      }                                                         │
-   │      ~20 KB · one line per entry point · no protocol logic     │
-   └───────────────────────────┬────────────────────────────────────┘
-                               │ load WMB_API_ADDRESS, indirect call
-   ┌───────────────────────────▼────────────────────────────────────┐
-   │ WMB IMAGE (fixed load address, non-PIC)                        │
-   │                                                                │
-   │   .wmb_api section  ──►  const wmb_api_t wmb_api = { ... }     │
-   │                              │                                 │
-   │                              ▼                                 │
-   │   real libX11-wmb  →  wmb_transport.c  →  TinyX                │
-   └────────────────────────────────────────────────────────────────┘
+```text
+application, using ordinary selected Xlib source names
+    -> libX11-app.a: typed thunks + explicit wmb_bind(table)
+        -> native table: application fiber -> retained Xlib
+        OR
+        -> foreign table: API-level MPSC mailbox
+            -> runtime-owned Display worker -> retained Xlib
+                -> P5 transport -> xsrv -> upstream Dispatch()
 ```
 
-The application ships with `Xlib.h` (unchanged, upstream) and `libX11-app.a`. It never sees `Xlibint.h`, never touches `dpy->buffer`, and never learns what
-a request looks like.
+Only the selected wrapper functions and `wmb_bind` are exported by the SDK
+archive. Stable compact linker names avoid duplicating long Xlib names in the
+archive; compiler external-name pragmas do not rename C field identifiers.
+The host can therefore link an SDK application without interposing its wrapper
+on the server's actual Xlib.
+
+Internal retained-Xlib clients, including JWM, need no SDK and retain their
+existing P5/P7 path.
 
 ## 3. The Vtable
 
 ### 3.1 Layout rules
 
-| # | Rule | Why |
-|---|---|---|
-| A1 | **Append‑only.** New entries go at the end. Existing entries never move, never change signature | An application built against version *n* must run against version *n+k* |
-| A2 | **First two fields are `magic` and `version`.** | An application can validate before calling |
-| A3 | **`count` records how many function slots are populated.** | Forward compatibility: an old WMB with a new app fails cleanly instead of jumping into `.bss` |
-| A4 | **Only Xlib public types cross the boundary.** `Display*`, `Window`, `GC`, `XEvent*`, `Atom`, … Never `WmbDisplay*`, never `ClientPtr` | The application must not depend on WMB internals |
-| A5 | **`Display*` is opaque to the application.** It is allocated inside WMB | An app must not `sizeof(Display)` or dereference it |
-| A6 | **No varargs entries.** | Impossible to forward through a thin wrapper portably |
-
-A5 has a consequence worth stating plainly: the application must not use any Xlib **macro** that dereferences `Display` — `DefaultScreen(dpy)`,
-`RootWindow(dpy, s)`, `BlackPixel(dpy, s)`, `DisplayWidth(dpy, s)` and friends all expand to `((dpy)->…)`. They are therefore provided as **functions** in
-the vtable, and `libX11-app.a` ships a header fragment that `#undef`s the macros and declares the functions. This is the one place the application's
-compile environment differs from stock Xlib.
-
-### 3.2 Structure
-
-```c
-/* transport/api/wmb_api.h — shipped to applications */
-#ifndef WMB_API_H
-#define WMB_API_H
-
-#include <X11/Xlib.h>
-#include <X11/Xutil.h>
-#include <stdint.h>
-
-#define WMB_API_MAGIC    0x574D4241u   /* 'W' 'M' 'B' 'A' */
-#define WMB_API_VERSION  1u
-
-typedef struct wmb_api_s {
-    uint32_t magic;                     /* WMB_API_MAGIC   */
-    uint32_t version;                   /* WMB_API_VERSION */
-    uint32_t count;                     /* populated slots */
-    uint32_t reserved;
-
-    /* ---- display ------------------------------------------------ */
-    Display *(*XOpenDisplay)(const char *);
-    int      (*XCloseDisplay)(Display *);
-    int      (*XFlush)(Display *);
-    int      (*XSync)(Display *, Bool);
-    int      (*XConnectionNumber)(Display *);
-
-    /* ---- display accessors (macros in stock Xlib — A5) ---------- */
-    int      (*wmbDefaultScreen)(Display *);
-    Window   (*wmbRootWindow)(Display *, int);
-    unsigned long (*wmbBlackPixel)(Display *, int);
-    unsigned long (*wmbWhitePixel)(Display *, int);
-    int      (*wmbDisplayWidth)(Display *, int);
-    int      (*wmbDisplayHeight)(Display *, int);
-    int      (*wmbDefaultDepth)(Display *, int);
-    Visual  *(*wmbDefaultVisual)(Display *, int);
-    Colormap (*wmbDefaultColormap)(Display *, int);
-    GC       (*wmbDefaultGC)(Display *, int);
-
-    /* ---- windows ------------------------------------------------ */
-    Window   (*XCreateSimpleWindow)(Display *, Window, int, int, unsigned, unsigned,
-                                    unsigned, unsigned long, unsigned long);
-    Window   (*XCreateWindow)(Display *, Window, int, int, unsigned, unsigned,
-                              unsigned, int, unsigned, Visual *, unsigned long,
-                              XSetWindowAttributes *);
-    int      (*XDestroyWindow)(Display *, Window);
-    int      (*XMapWindow)(Display *, Window);
-    int      (*XMapRaised)(Display *, Window);
-    int      (*XUnmapWindow)(Display *, Window);
-    int      (*XMoveWindow)(Display *, Window, int, int);
-    int      (*XResizeWindow)(Display *, Window, unsigned, unsigned);
-    int      (*XMoveResizeWindow)(Display *, Window, int, int, unsigned, unsigned);
-    int      (*XConfigureWindow)(Display *, Window, unsigned, XWindowChanges *);
-    int      (*XRaiseWindow)(Display *, Window);
-    int      (*XLowerWindow)(Display *, Window);
-    Status   (*XGetWindowAttributes)(Display *, Window, XWindowAttributes *);
-    int      (*XSetWindowBackground)(Display *, Window, unsigned long);
-    int      (*XClearWindow)(Display *, Window);
-    int      (*XClearArea)(Display *, Window, int, int, unsigned, unsigned, Bool);
-
-    /* ---- graphics context --------------------------------------- */
-    GC       (*XCreateGC)(Display *, Drawable, unsigned long, XGCValues *);
-    int      (*XFreeGC)(Display *, GC);
-    int      (*XSetForeground)(Display *, GC, unsigned long);
-    int      (*XSetBackground)(Display *, GC, unsigned long);
-    int      (*XSetLineAttributes)(Display *, GC, unsigned, int, int, int);
-    int      (*XSetFunction)(Display *, GC, int);
-    int      (*XSetFont)(Display *, GC, Font);
-
-    /* ---- drawing ------------------------------------------------ */
-    int      (*XDrawPoint)(Display *, Drawable, GC, int, int);
-    int      (*XDrawLine)(Display *, Drawable, GC, int, int, int, int);
-    int      (*XDrawLines)(Display *, Drawable, GC, XPoint *, int, int);
-    int      (*XDrawRectangle)(Display *, Drawable, GC, int, int, unsigned, unsigned);
-    int      (*XFillRectangle)(Display *, Drawable, GC, int, int, unsigned, unsigned);
-    int      (*XFillPolygon)(Display *, Drawable, GC, XPoint *, int, int, int);
-    int      (*XDrawArc)(Display *, Drawable, GC, int, int, unsigned, unsigned, int, int);
-    int      (*XFillArc)(Display *, Drawable, GC, int, int, unsigned, unsigned, int, int);
-    int      (*XDrawString)(Display *, Drawable, GC, int, int, const char *, int);
-    int      (*XDrawImageString)(Display *, Drawable, GC, int, int, const char *, int);
-    int      (*XCopyArea)(Display *, Drawable, Drawable, GC, int, int,
-                          unsigned, unsigned, int, int);
-
-    /* ---- pixmaps & images --------------------------------------- */
-    Pixmap   (*XCreatePixmap)(Display *, Drawable, unsigned, unsigned, unsigned);
-    int      (*XFreePixmap)(Display *, Pixmap);
-    XImage  *(*XCreateImage)(Display *, Visual *, unsigned, int, int, char *,
-                             unsigned, unsigned, int, int);
-    int      (*XPutImage)(Display *, Drawable, GC, XImage *, int, int, int, int,
-                          unsigned, unsigned);
-    int      (*XDestroyImage)(XImage *);
-
-    /* ---- events -------------------------------------------------- */
-    int      (*XSelectInput)(Display *, Window, long);
-    int      (*XNextEvent)(Display *, XEvent *);
-    Bool     (*XCheckMaskEvent)(Display *, long, XEvent *);
-    Bool     (*XCheckTypedWindowEvent)(Display *, Window, int, XEvent *);
-    int      (*XPending)(Display *);
-    int      (*XPutBackEvent)(Display *, XEvent *);
-    int      (*XSendEvent)(Display *, Window, Bool, long, XEvent *);
-
-    /* ---- atoms & properties -------------------------------------- */
-    Atom     (*XInternAtom)(Display *, const char *, Bool);
-    char    *(*XGetAtomName)(Display *, Atom);
-    int      (*XChangeProperty)(Display *, Window, Atom, Atom, int, int,
-                                const unsigned char *, int);
-    int      (*XDeleteProperty)(Display *, Window, Atom);
-    int      (*XGetWindowProperty)(Display *, Window, Atom, long, long, Bool, Atom,
-                                   Atom *, int *, unsigned long *, unsigned long *,
-                                   unsigned char **);
-
-    /* ---- colours -------------------------------------------------- */
-    Status   (*XAllocColor)(Display *, Colormap, XColor *);
-    Status   (*XAllocNamedColor)(Display *, Colormap, const char *, XColor *, XColor *);
-    int      (*XFreeColors)(Display *, Colormap, unsigned long *, int, unsigned long);
-
-    /* ---- fonts & cursors ------------------------------------------ */
-    XFontStruct *(*XLoadQueryFont)(Display *, const char *);
-    int      (*XFreeFont)(Display *, XFontStruct *);
-    int      (*XTextWidth)(XFontStruct *, const char *, int);
-    Cursor   (*XCreateFontCursor)(Display *, unsigned);
-    int      (*XDefineCursor)(Display *, Window, Cursor);
-    int      (*XFreeCursor)(Display *, Cursor);
-
-    /* ---- WM hints -------------------------------------------------- */
-    int      (*XSetWMProperties)(Display *, Window, XTextProperty *, XTextProperty *,
-                                 char **, int, XSizeHints *, XWMHints *, XClassHint *);
-    int      (*XStoreName)(Display *, Window, const char *);
-    Status   (*XSetWMProtocols)(Display *, Window, Atom *, int);
-
-    /* ---- error handling & misc ------------------------------------- */
-    XErrorHandler (*XSetErrorHandler)(XErrorHandler);
-    int      (*XFree)(void *);
-    int      (*XGrabServer)(Display *);
-    int      (*XUngrabServer)(Display *);
-    int      (*XBell)(Display *, int);
-
-    /* ---- WMB-specific ---------------------------------------------- */
-    /* Cooperative yield, so an external app's event loop does not spin. */
-    int      (*wmbYield)(uint32_t max_ms);
-} wmb_api_t;
-
-#ifndef WMB_API_ADDRESS
-#  define WMB_API_ADDRESS  ((uintptr_t)0x80100000u)   /* build-time override */
-#endif
-#define WMB_API  ((const wmb_api_t *)WMB_API_ADDRESS)
-
-#endif /* WMB_API_H */
-```
-
-Roughly **75 entries**. That is enough for JWM's own needs plus a typical application; the append‑only rule means growing it later is free.
-
-### 3.3 `wmbYield` — the entry that is not Xlib
-
-An external application's event loop looks like:
-
-```c
-for (;;) {
-    while (XPending(dpy)) { XNextEvent(dpy, &ev); handle(&ev); }
-    /* ... and then what? */
-}
-```
-
-On a normal system it blocks in `XNextEvent`. In WMB, blocking inside the vtable would suspend the *platform's* task, not a WMB fiber. `wmbYield(ms)` gives
-the application an explicit, honest way to give time back:
-
-```c
-for (;;) {
-    while (WMB_API->XPending(dpy)) { WMB_API->XNextEvent(dpy, &ev); handle(&ev); }
-    WMB_API->wmbYield(10);
-}
-```
-
-`XNextEvent` **does** block: it loops on `wmbYield` internally until an event is available ([`90-`](90-decisions.md) D‑27), so an ordinary Xlib event loop
-behaves as its author expected. `wmbYield` remains in the vtable for applications that want an explicit non‑blocking loop — they are no longer *obliged*
-to write one. The consequence for a port is that `wmbYield(ms)` must be callable from a platform‑owned task; it is the one contract function a platform
-cannot implement as a no‑op.
-
-## 4. Placement and Discovery
-
-### 4.1 Section placement
-
-```c
-/* transport/api/wmb_api_table.c */
-__attribute__((section(".wmb_api"), used))
-const wmb_api_t wmb_api = {
-    .magic   = WMB_API_MAGIC,
-    .version = WMB_API_VERSION,
-    .count   = WMB_API_SLOT_COUNT,
-    .XOpenDisplay        = XOpenDisplay,
-    .XCloseDisplay       = XCloseDisplay,
-    /* ... */
-    .wmbYield            = wmb_yield_external,
-};
-```
-
-```ld
-/* transport/api/wmb.ld — linker fragment */
-SECTIONS
-{
-    . = WMB_LOAD_BASE;
-    .wmb_api : { KEEP(*(.wmb_api)) }    /* first section, at offset 0 */
-    .text    : { *(.text*) }
-    /* ... */
-}
-```
-
-Placing `.wmb_api` at offset 0 of the image means an application needs exactly one number — the load base — and no symbol table.
-
-### 4.2 Discovery and validation
-
-```c
-/* wrapper/libX11-app/wmb_bind.c */
-static const wmb_api_t *api;
-
-int wmb_bind(void)
-{
-    const wmb_api_t *p = WMB_API;
-    if (p->magic   != WMB_API_MAGIC)   return -1;
-    if (p->version >  WMB_API_VERSION) return -2;  /* WMB newer than we know: OK */
-    if (p->count   <  WMB_API_SLOT_COUNT) return -3; /* WMB older: some slots missing */
-    api = p;
-    return 0;
-}
-```
-
-Called from the wrapper's constructor or from the first `XOpenDisplay`. A validation failure is a hard error — better than jumping to address zero.
-
-### 4.3 Non‑PIC
-
-The WMB image is built non‑PIC and loaded at a fixed base:
-
-```
--fno-pic -fno-pie -no-pie -Wl,-T,transport/api/wmb.ld -Wl,--defsym,WMB_LOAD_BASE=0x80100000
-```
-
-`WMB_LOAD_BASE` and `WMB_API_ADDRESS` are the same number and are supplied by one CMake variable, `WMB_LOAD_BASE`, so they cannot drift.
-
-## 5. The Wrapper Library
-
-### 5.1 Shape
-
-`wrapper/libX11-app/wrappers.c` — one line per entry, generated rather than hand‑written:
-
-```c
-#define WRAP0(ret, name)             ret name(void) { return api->name(); }
-#define WRAP1(ret, name, T1)         ret name(T1 a) { return api->name(a); }
-#define WRAP2(ret, name, T1, T2)     ret name(T1 a, T2 b) { return api->name(a, b); }
-/* ... up to WRAP12 ... */
-
-WRAP1(Display *, XOpenDisplay, const char *)
-WRAP2(int,       XMapWindow,   Display *, Window)
-WRAP9(Window,    XCreateSimpleWindow, Display *, Window, int, int,
-                 unsigned, unsigned, unsigned, unsigned long, unsigned long)
-/* ... */
-```
-
-Generated from a single table so that `wmb_api.h`, `wrappers.c` and the slot count cannot get out of step. The generator (`tools/gen_wmb_api.py`) reads
-`transport/api/api.def` and emits all three.
-
-### 5.2 Macro replacements
-
-Ships `wrapper/libX11-app/include/X11/Xlib_wmb_compat.h`, included automatically via `-include`:
-
-```c
-#undef  DefaultScreen
-#define DefaultScreen(d)      wmbDefaultScreen(d)
-#undef  RootWindow
-#define RootWindow(d, s)      wmbRootWindow((d), (s))
-#undef  BlackPixel
-#define BlackPixel(d, s)      wmbBlackPixel((d), (s))
-/* ... one per dereferencing macro ... */
-```
-
-The full list of `Display`‑dereferencing macros in `X11/Xlib.h` must be enumerated exhaustively; any that is missed produces a segfault at the
-application's first use, which is at least loud.
-
-### 5.3 Size budget
-
-| Component | Size |
+| Rule | Contract |
 |---|---|
-| `wrappers.o` (75 one‑line functions) | ~6 KB |
-| `wmb_bind.o` | ~0.5 KB |
-| Headers | — |
-| **Total `libX11-app.a`** | **< 10 KB** |
+| A1 | Append-only: preserve every existing signature, position and ownership rule |
+| A2 | First 16 bytes: `uint32_t magic, version, count, layout` |
+| A3 | `count` is the number of populated typed function slots |
+| A4 | Public Xlib/scalar types only; no server or private transport objects |
+| A5 | Both `Display` and `Screen` are genuinely incomplete application types |
+| A6 | No varargs or application callbacks in core v1 |
 
-Compare: linking real libX11 would be ~400 KB per application.
+The schema is [api.def](../transport/api/api.def), not a manually maintained
+prototype sketch. Its native initializer is compiled against the actual retained
+headers with incompatible-pointer diagnostics enabled.
 
-## 6. Hosted Validation
+### 3.2 Structure and selected scope
 
-Target hardware does not exist yet, so the ABI is validated on the host with a **bridge**: a socket carrying a trivially framed remote‑call encoding of the
-same vtable.
-
-```
-   test_apps/wmb_hello (separate host process)
-       links libX11-app-bridge.a   ← same wrappers, different binding
-           XMapWindow(dpy, w)
-             → bridge_call(SLOT_XMapWindow, dpy, w)
-                 → write(sock, {slot, args})   ← /tmp/.wmb-N
-   ────────────────────────────────────────────────────────
-   WMB host process
-       wmb_bridge.c accepts, decodes, invokes wmb_api.XMapWindow(...)
-```
-
-This proves the **slot table, the argument marshalling and the wrapper generator** — everything except the fixed‑address load, which cannot be tested
-without a loader.
-
-**The bridge is scaffolding.** It is compiled only under `WMB_HAS_OS_TRANSPORT` and is explicitly not part of the architecture
-([`03-target-architecture.md`](03-target-architecture.md) §7). No capability may be declared working on the strength of a bridge test alone.
-
-### 6.1 Bridge wire format
-
-Deliberately trivial — it is a test harness, not a protocol:
+[wmb_api.h](../transport/api/wmb_api.h) is generated. The fixed prefix is:
 
 ```c
 typedef struct {
-    uint32_t length;     /* total bytes including this header */
-    uint16_t slot;       /* index into wmb_api_t              */
-    uint16_t flags;      /* WMB_BR_CALL | WMB_BR_RETURN       */
-    uint32_t seq;
-    /* followed by packed arguments or the return value       */
-} wmb_bridge_hdr_t;
+    uint32_t magic, version, count, layout;
+} wmb_api_header_t;
 ```
 
-Pointer arguments (`Display*`, `XEvent*`) are handled by slot‑specific marshalling stubs, generated from the same `api.def`.
+It is followed by individually typed function pointers, never `void **` or
+casts between incompatible function pointer signatures.
+
+- Frozen v1: **122 slots**, including all **51** Display/Screen macro accessors.
+- Current v2: the unchanged v1 prefix plus `uint32_t wmbApiRevision(void)`.
+- Core window/GC/drawing/pixmap/event/property/color/cursor/hint/query operations
+  are implemented. Core-font string drawing remains available.
+- Rich font/image objects, extension event cookies and application callback
+  APIs are deferred append-only extensions, not advertised NULL/stub slots.
+
+The independently frozen [v1 schema](reference/api-v1.json) cannot be rewritten
+by ordinary regeneration. Its SDK/header/wrapper are built separately for both
+genuine same-address tests and the separate-process v1 application.
+
+### 3.3 `wmbYield` and event waits
+
+Both tables provide `wmbYield(max_ms)`. A native call yields the application
+fiber; a foreign call waits using the supplied platform callback, never the
+fiber scheduler. Long waits are sliced so even `UINT32_MAX` is stop-responsive.
+
+`XNextEvent` blocks until a core event exists, but returns -1 on component stop
+without producing an event. `wmbYield` also returns negative on stop. Ordinary
+applications may use `XPending` plus `wmbYield` in a nonblocking loop.
+
+`ConnectionNumber` returns the retained in-process display's descriptor
+value, normally -1. It is not a descriptor on which an application should
+`select` or `poll`.
+
+## 4. Placement and Discovery
+
+### 4.1 Current discovery and future section placement
+
+P8 uses explicit pointer injection and `wmb_bind(const wmb_api_t *)`.
+`wmb_api_native_table()` and `wmb_gateway_table()` supply trusted immutable
+same-address tables after owner configuration.
+
+P9 must place the chosen external table in `.wmb_api`, define the actual
+`WMB_LOAD_BASE`, and verify agreement with loader/application discovery. The old
+example address `0x80100000` was a placeholder, not a P8 implementation.
+
+### 4.2 Validation
+
+Binding copies only the readable 16-byte header before rejecting an older
+version or insufficient slot count. It then verifies the C data model and every
+required typed function pointer before accepting the table.
+
+A newer append-only version is accepted. Failed binding clears the old
+binding; unbound API use diagnoses/fails instead of calling NULL. Callers must
+provide genuinely readable table storage matching its advertised count and
+must not race binding with calls.
+
+Compile and runtime tests include:
+
+- A header-only older/short table, including sanitizer validation that missing
+  fields are not read.
+- Wrong magic/layout, insufficient version/count and a missing required slot.
+- Independently compiled v1 on real v2, plus acceptance of a future appended
+  provider.
+- Rejection of the native table on an actual foreign thread before Xlib or
+  fiber globals are accessed.
+
+### 4.3 Non-PIC
+
+Target linker placement, load-base agreement, compiler/runtime floor and absence
+of dynamic relocations remain P9 gates. A working RPC scaffold does not prove
+any of them.
+
+## 5. The Wrapper Library
+
+### 5.1 Generation
+
+Run [generate_api.py](../tools/generate_api.py). It reads `api.def` and the
+frozen v1 prefix and emits the public tables, native/foreign typed adapters,
+thin wrappers, compatibility/namespace headers, macro-use tests and host RPC
+metadata/adapters. `--check` requires byte-identical checked-in output.
+
+Changing the old prefix, introducing an unhandled RPC parameter kind or adding
+an unhandled dereferencing macro fails generation.
+
+### 5.2 Macro replacements
+
+The generator audits the canonical
+[Xlib.h](../libX11/include/X11/Xlib.h), including transitive macro aliases,
+and produces [xlib-display-macros.txt](xlib-display-macros.txt).
+
+The SDK automatically includes the generated compatibility header. The
+`WMB_APP_OPAQUE` profile omits Display internals and exposes only a forward
+declaration of Screen. Actual Xlib sees the corresponding full project Screen
+tag without changing layout; undefined native-reference preprocessing remains
+identical. Private-header mixing and `XLIB_ILLEGAL_ACCESS` are explicit errors.
+
+Tests compile every macro in C and C++ with selectors defined as one, zero and
+empty. Separate negative TUs prove `sizeof(Display)`, `sizeof(Screen)` and field
+access really fail; this is not merely an unchecked application convention.
+
+### 5.3 Size and packaging
+
+The **actual raw `libX11-app.a` is 15,924 bytes**, below the strict **16,384**
+limit in both Debug/Release hosted builds and a standalone SDK build. This
+includes the archive index, symbol/relocation tables and object headers, not
+just text size. Instrumented sanitizer archives are not production size claims.
+
+The SDK builds standalone without SDL, framework, font fetching or full Xlib.
+Use its CMake target in another project so matching headers and both generated
+forced includes travel with the archive.
+
+## 6. Hosted Validation
+
+The Linux-only [bridge](../linux_hosted/abi_bridge/README.md) uses framed Unix
+IPC to drive the same API. The separate hello executable links only the SDK,
+host proxy/copy codec and libc.
+
+### 6.1 Wire format and object lifetime
+
+Frames have bounded lengths, opcodes, sequence numbers and explicit ABI/layout/
+byte-order negotiation. Display/Screen/GC values are typed, generation-checked
+per-connection handles, never native addresses.
+
+Strings, arrays, Visuals, hints, colors, window attributes and every supported
+core event are copied field by field. Masked/uninitialized fields and structure
+padding are not read. Format-32 properties pack 32-bit protocol words and rebuild
+native-long arrays, preserving retained LP64 behavior.
+
+The reader submits through the gateway; it never runs Xlib or DIX. Native
+owned outputs are freed through that gateway after copying. Proxies preserve
+borrowed identity/lifetime, local put-back events, `QLength`, `XPending` and
+discarding `XSync`. Disconnect drains calls before reclaiming buffers and closes
+GCs/managed windows/Displays on runtime-owned contexts.
+
+The tests verify real JWM parent/frame geometry, actual green framebuffer
+pixels and drawn core-font text, not just successful RPC return values.
+[The actual SDL x11/software capture](reference/tinyx-abi-external-rgb565.png)
+shows the separate application's managed window.
 
 ## 7. Threading and Ownership
 
-An external application runs on a task owned by the **platform**, not by WMB ([`90-`](90-decisions.md) D‑42 — WMB does not assume it owns the system). When
-it calls through the vtable, WMB code executes on that task's stack. Three consequences:
+Threadless Xlib and the global fiber runtime are **not safe on foreign native
+stacks**. Making only the byte-queue producer atomic is insufficient.
 
-| # | Consequence | Handling |
-|---|---|---|
-| E1 | WMB cannot `hal_task_wait()` on a platform‑owned task | Vtable entries that would block instead poll: `wmb_dispatch` uses a bounded cooperative spin when `hal_task_self()` is not a WMB fiber |
-| E2 | The external app's `Display` still needs a `ClientRec` and slots | `XOpenDisplay` through the vtable registers one exactly as an internal client would; the `owner` field is NULL |
-| E3 | Stack depth is the platform's problem | Documented requirement: an external app's task needs ≥ 32 KB of stack to survive a call into `fb` |
-| E4 | **Two platform tasks can be in the transport at once** if the platform preempts between them | The request queue is MPSC on the producer side (one atomic on the ready mask) and the server wake is a polled mailbox flag. [`90-`](90-decisions.md) D‑44 |
+| Rule | Implemented handling |
+|---|---|
+| E1 | Foreign producers use only C11 atomics and platform-safe callbacks; Xlib runs on runtime fibers |
+| E2 | Each external Display has an ordinary native client connection, owned by a lazy gateway worker |
+| E3 | Foreign stack use is the small admission path; Xlib stack use is measured on its runtime worker |
+| E4 | MPSC API-call admission and a polled mailbox serialize ownership without a lock held across waits |
 
-E1 is the substantive one and is the reason `wmbYield` exists (§3.3). `XNextEvent` uses it internally rather than returning early
-([`90-`](90-decisions.md) D‑27).
+There are four lazy workers and 64 admitted calls, constrained further by the
+shared `FIBER_MAX=8`. One outstanding call per Display is enforced; separate
+Displays progress independently. No admin fiber or worker is allocated when
+the gateway is unused.
 
-**E4 is narrower than it first looks, and the narrowing matters.** An external caller never reaches `dix` concurrently: D‑04 applies to it exactly as it
-applies to an internal client — it posts the request, wakes the server fiber and waits, so the server fiber serialises every client in the image. That is
-the same role the socket and dispatch loop play in a stock X server, and it is why `dix` never has to be made concurrency‑safe (it is not, and neither is
-upstream's: `Dispatch()` sets `requestingClient`, `grabState` and `spriteTrace` as per‑server globals for the request in flight).
+Requests borrow caller storage until completion. Foreign cancellation is
+forbidden while borrowed; ordinary service deadlines are fatal rather than
+returning and leaving live pointers behind. An executing event wait can block
+for input but stops cooperatively.
 
-What the external caller *does* execute on its own task is the transport. Request building is per‑`Display` and safe (D‑05); reply reading is per‑client
-and safe (D‑08). Only two steps touch shared state — posting into the queue, and waking the server — and those are what E4 guards. **The external caller
-is the only actor in the image that is not a fiber**; everything else is serialised by cooperative scheduling for free.
-
-Guarding the whole vtable instead would be worse than unnecessary: the guard would be held across `wmb_dispatch`'s wait for the reply, which yields.
+Shutdown remains WM -> applications/gateway Displays -> server/HAL, with
+atomic final admission closure. Normal failure policy is explicit and
+callback APIs are deferred. See the integration guide for exact contracts.
 
 ## 8. Versioning
 
-| Change | Allowed | Requires |
+| Application | Provider | Result |
 |---|---|---|
-| Append a new function slot | ✓ | Bump `WMB_API_VERSION`, bump `WMB_API_SLOT_COUNT` |
-| Change an existing signature | ✗ | A new major ABI and a new magic |
-| Reorder slots | ✗ | — |
-| Remove a slot | ✗ | Replace the entry with a stub that returns an error |
-| Change `WMB_API_ADDRESS` | ✓ (build‑time) | Rebuild both sides; there is no runtime negotiation |
+| v1 / 122 slots | v1 / 122 slots | Works |
+| independently frozen v1 / 122 | v2 / 123 | Works; all prior types/order/ownership preserved |
+| v2 / 123 | v1 / 122 | Bind fails before reading missing fields or opening a Display |
+| older supported prefix | newer appended version | Works when the complete required prefix is present |
 
-Compatibility matrix:
-
-| App built for | WMB provides | Result |
-|---|---|---|
-| v1 (60 slots) | v1 (60 slots) | Works |
-| v1 (60 slots) | v2 (75 slots) | Works — slots 0–59 unchanged |
-| v2 (75 slots) | v1 (60 slots) | `wmb_bind` returns −3; the app must fail cleanly |
+Append implemented slots and increase version/count. Changing an old signature,
+layout or ownership rule requires a new major contract/magic; reordering or
+removing a slot is not allowed.
 
 ## 9. Open Items
 
-| # | Item | Tracked as |
-|---|---|---|
-| A1 | Is `0x80100000` the right load base? It is inherited from prior documents and is a placeholder until target memory is known | [`91-`](91-open-questions.md) Q6 |
-| A2 | May `XNextEvent` block for an external caller? | **Closed** — yes, by yielding internally ([`90-`](90-decisions.md) D‑27) |
-| A3 | Flat `void*` slot array instead of a struct of typed pointers? | **Closed** — typed struct ([`90-`](90-decisions.md) D‑28) |
-| A4 | Does any application need `XCreateImage`/`XPutImage` on the target, or is drawing entirely through primitives? Affects whether image handling stays in the vtable | [`91-`](91-open-questions.md) Q9 |
-| A5 | Exhaustive list of `Display`‑dereferencing macros in `X11/Xlib.h` — generated from the header, not typed | [`91-`](91-open-questions.md) Q20; P8 deliverable ([`40-`](40-implementation-plan.md) §9.1) |
-| A6 | Who schedules WMB, and may the platform preempt it? | **Closed** — the caller of `wmb_main()`; preemptible as a unit, never within ([`90-`](90-decisions.md) D‑44) |
+| Item | Status |
+|---|---|
+| Typed versus flat function-pointer array | Closed: typed fields, D-28 |
+| All Display/Screen macro replacements | Closed: 51 generated/audited accessors, Q20 |
+| Foreign threading boundary | Closed for the selected profile: API-level gateway, D-56 |
+| Rich `XImage`/font/callback support | Deferred append-only, not a v1 capability |
+| Transparent multi-instance/reinitialization | Not implemented |
+| Fixed address, target memory/atomic/libc floor, loader and hardware | P9; actual target still required |
 
 ## 10. Verification
 
-| # | Gate | Phase |
-|---|---|---|
-| E‑V1 | `wmb_api.h`, `wrappers.c` and the slot count are all generated from `api.def`; regenerating produces no diff | P8 |
-| E‑V2 | `nm libX11-app.a` shows no symbol other than the wrapper entry points and `wmb_bind` | P8 |
-| E‑V3 | `libX11-app.a` is < 16 KB | P8 |
-| E‑V4 | `wmb_hello` runs over the bridge and produces a visible window | P8 |
-| E‑V5 | An app built against v1 runs against a v2 WMB | P8 |
-| E‑V6 | The `.wmb_api` section is at offset 0 of the image and `WMB_API_ADDRESS == WMB_LOAD_BASE` | P9 |
-| E‑V7 | `readelf -r wmb.elf` shows no dynamic relocations (non‑PIC confirmed) | P9 |
+| Gate | Evidence |
+|---|---|
+| E-V1 / S9 | Regeneration check plus frozen-prefix and unknown-shape mutation tests |
+| E-V2 | Exact SDK symbol inventory; stable linker thunks plus `wmb_bind` only |
+| E-V3 | Raw archive byte gate, 15,924 < 16,384 |
+| E-V4 | Separate process, real JWM frame/text/pixels and actual SDL capture |
+| E-V5 | Frozen v1 on v2 in both true same-address and process tests |
+| E4 | Two preempting callers and two process readers, no lost property results; ownership/cancellation diagnostics |
+| V-P8-4 | 10,000 managed lifecycles; settled WMB bytes/blocks/peak unchanged while another owner allocates |
+| V-P8-5 | Passed actual 3,600,000-ms input endurance; 3,604.442 independent wall seconds, flat peak and no starvation/canary trip |
+| V-P8-6 | [Recorded heap/stack/image measurements](31-target-build.md), not MCU guarantees |
+| E-V6 / E-V7 | P9 section placement/load-base and relocation proofs |

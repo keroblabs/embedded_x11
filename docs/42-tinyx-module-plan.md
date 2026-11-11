@@ -73,7 +73,7 @@ The last three require one guarded line each in `mi/miinitext.c`. The rest requi
 | **P5** | **Implemented and verified server transport/client gate** — real setup, dispatch, replies/events, replay and grabs | **Heavy** |
 | **P6** | **Verified portability/patch closure:** twelve server sites plus three KDrive sites; full native-reference and no-backend gates | Medium |
 | **P7** | **Verified with real JWM:** native grabs/input/rendering, deferred HAL stop and defined empty property storage; `Dispatch()` remains unchanged | Light |
-| P8 | None directly; `dix` re‑entrancy is asserted by the E4 test, not changed | — |
+| **P8** | **No new DIX/core changes.** Typed SDK/gateway and two-caller tests retain runtime-owned Xlib and serialized `xsrv` dispatch; attribution covers all server allocations | Light |
 | P9 | The freestanding compile of ~96 kLOC — the largest surface for libc‑floor surprises | Medium |
 
 **This module is idle until P4 and then becomes the critical path for two consecutive phases.** Plan staffing accordingly: the C1 audit (§4.2) and the

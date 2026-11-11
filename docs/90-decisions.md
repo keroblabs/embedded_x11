@@ -1207,6 +1207,108 @@ math/zlib/hardware closure remain P8/P9.
 [42-](42-tinyx-module-plan.md), [46-](46-transport-module-plan.md),
 [11-](11-portability-plan.md), and [the patch ledger](../patches/MANIFEST.md).
 
+### D-56 - Bounded typed ABI, runtime-owned foreign calls and attributed P8 measurements - SETTLED
+
+The user approved `core_v1_gateway`: complete selected core window/event/
+drawing/property support and every Display/Screen macro accessor, with a safe
+API-level foreign-call gateway. Rich font/image objects and application callbacks
+are deferred append-only extensions, not advertised NULL slots or success stubs.
+The original approximately 75-entry draft and its guessed prototypes were not
+an implementation contract.
+
+The sole schema produces 122 frozen v1 slots and a real 123-slot v2 table whose
+only addition is a revision accessor. Every pointer is typed against actual
+retained headers, including void-returning normal-hint APIs. A separately frozen
+v1 SDK/app runs against real v2, both in the same address space and through the
+host scaffold. Newer-on-insufficient-older rejects after reading only the fixed
+header; future appended versions are accepted. Failed binding clears the old
+binding and unbound calls diagnose/fail.
+
+The SDK makes Display and Screen genuinely incomplete, not merely objects
+applications are asked not to inspect. The implementation uses a matching
+project Screen tag with unchanged layout; undefined-reference preprocessing
+and compilation remain identical. All 51 dereferencing macros, including
+transitive aliases and `XAllocID`, are generated and used by C/C++ test TUs;
+layout/private-header misuse and defined-one/zero/empty profiles are gated.
+
+Actual archive bytes mattered: the first straightforward wrappers exceeded
+16 KiB. Reusing the compiler external-name mechanism already proven for JWM
+shortens duplicate linker strings without renaming typed C fields, dropping
+APIs or disabling hardening. The complete raw archive is **15,924 bytes** and
+builds standalone without framework, SDL, Python, font fetching or full Xlib.
+External strict C99/C++11 projects and source/build paths containing spaces are
+regression-tested. The wrapper requests C11 privately without changing the
+consumer's dialect.
+
+Threadless Xlib and fiber globals cannot execute on foreign OS stacks. Making
+only the byte-queue producer atomic, or holding a generic mutex across an Xlib
+wait, was rejected. C11 atomic MPSC admission and a polled mailbox route whole
+typed API calls to lazy persistent Display workers. Producers use only platform
+identity/wait/tick callbacks; no POSIX or scheduler calls enter the portable API.
+All DIX still runs on `xsrv` through unchanged upstream `Dispatch()`.
+
+The shared runtime remains `FIBER_MAX=8`. Four lazy workers and 64 admitted
+calls are upper bounds, not a private reservation; resource exhaustion is
+diagnosed and display admission is fallible. Simultaneous use of one Display is
+rejected while different Displays progress independently. Display/Screen lookup
+requires a non-NULL Display with a live worker: a regression
+reproduced NULL matching an empty client slot and hanging the admission.
+Display/Screen NULLs now diagnose/reject immediately. Descriptors/arguments
+remain borrowed until completion: foreign cancellation is forbidden, service
+timeouts are fatal rather than abandoning pointers, and event waits plus even
+`UINT32_MAX` native/foreign yields stop cooperatively. WM -> applications/
+gateway Displays -> server/HAL cleanup and atomic final admission close prevent
+late requests from racing teardown.
+
+The Linux-only bridge uses generated typed adapters, copied fields/arrays and
+generation-checked handles. Raw Display/Screen/GC addresses, native XEvent
+padding and uninitialized masked members never cross a process boundary.
+LP64 format-32 property arrays preserve native-long/sign-extension semantics.
+Local put-back events preserve queue length, matching and discarding `XSync`.
+The separate hello binary contains no full Xlib, TinyX or SDL and produces real
+JWM frame/text/framebuffer pixels, also captured through an actual SDL
+x11/software window. RPC is scaffolding, not an embedded loader or security
+sandbox; genuine same-address typed calls are verified independently.
+
+Generic framework owner accounting covers payload plus separate tracking nodes,
+preserves realloc owner/data on OOM and permits raw frees from the same HAL
+allocator family. The list free seam recognizes owned nodes without changing
+`types.h`'s standalone SDL allocation macros. Every selected windowing allocator
+is redirected privately; symbol gates forbid bypasses. Pinned font zlib uses
+tracked callbacks and closes real invalid-header/metadata-OOM paths. Stack
+sentinels precede context forging; diagnostics sample before reaping, identify
+canary failures by FCB slot/generation and explicitly report main as unknown.
+Bounded metric names aggregate instead of capping valid application lifecycles.
+
+The 10,000 managed lifecycle workload has unchanged settled WMB bytes/blocks/
+peak while a second generic owner retains 100 KiB. The final real 3,600,000-ms
+input run passed, independently measured at 3,604.442 wall seconds, with a flat
+402,602-byte WMB peak and maximum root gap of 8 ms. A shortened run is not
+evidence. One failed
+attempt exposed stale pre-yield timestamp subtraction in the harness, not a
+reason to relax timing. A real-WM regression verifies fresh sampling.
+Memory-tool mode skips only diagnostic reads of inaccessible inactive frames;
+it suppresses no memory errors and leaves canaries active.
+
+All 52 normal tests pass in Debug and both-format strict sanitizers; Release
+passes 53 including the genuine stock-Xlib/Xvfb JWM oracle. Standalone SDL and
+KDrive remain 8/8 and 9/9. Failed-listen fault injection verifies only an owned
+socket is removed on startup failure, never an existing endpoint. The
+native 60-second HAL/gateway, codec/font and actual separate v1/v2 client
+Memcheck runs report zero errors/lost bytes. The boundary proof extends to 510
+selected units, 35 native-reference probes and eleven whole archives, with
+unchanged 44-site upstream budgets and notices. No new TinyX engine/DDX policy
+edit was needed.
+
+**Consequences:** [the ABI contract](22-entry-point-abi.md),
+[runtime integration](../transport/api/README.md),
+[standalone SDK](../wrapper/libX11-app/README.md),
+[host-only scaffold](../linux_hosted/abi_bridge/README.md), [41-](41-verification-plan.md),
+[31-](31-target-build.md), [44-](44-framework-module-plan.md),
+[46-](46-transport-module-plan.md), and [the exact patch ledger](../patches/MANIFEST.md).
+Fixed-address placement, target atomic/libc/compiler closure, hardware sizing
+and loader validation remain P9.
+
 ## 8. Superseded Decisions
 
 Recorded so that reading `docs_old/` does not resurrect them.
@@ -1284,6 +1386,7 @@ Recorded so that reading `docs_old/` does not resurrect them.
 | D-53 | Real P5 client/transport, ABI/library isolation, framing/serial contracts and necessary guarded framebuffer repair | SETTLED | [21-](21-inprocess-transport.md) |
 | D-54 | Active/whole-archive P6 proof, approved guard budgets, built-in profile and exact imported-source patch provenance | SETTLED | [48-](48-p6-portability.md) |
 | D-55 | Real P7 JWM, lifecycle/launch ownership, symbol/error isolation, modal cancellation and measured integration | SETTLED | [45-](45-jwm-module-plan.md) |
+| D-56 | Bounded typed SDK, API-level foreign gateway, pointer-free host validation and attributed P8 measurement | SETTLED | [22-](22-entry-point-abi.md) |
 
 D‑46 is load‑bearing and easy to under‑read. Every request, from every kind of client, is executed by the `xsrv` fiber running upstream's `Dispatch()`; no
 client ever calls `ProcVector` on its own stack. The safety property is **structural** — only one fiber can enter `dix` — rather than a rule imposed on

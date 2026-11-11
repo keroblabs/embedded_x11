@@ -26,5 +26,6 @@ add_test(NAME tinyx_p7_launch COMMAND wmb_apps_test)
 
 add_library(wmb_desktop STATIC wmb_main.c)
 target_link_libraries(wmb_desktop PUBLIC wmb_transport_api
-    PRIVATE wmb_tinyx wmb_kdrive wmb_jwm wmb_applications)
+    PRIVATE -Wl,--start-group wmb_tinyx wmb_kdrive -Wl,--end-group
+    wmb_jwm wmb_applications)
 target_compile_options(wmb_desktop PRIVATE -Wall -Wextra -Werror)

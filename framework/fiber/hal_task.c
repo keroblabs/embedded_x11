@@ -1,7 +1,7 @@
 /*
  * hal_task.c - WMB's implementation of hal_task.h.
  *
- * Not a platform backend: these nine functions are the same on every
+ * Not a platform backend: these functions are the same on every
  * profile (90-decisions.md D-31, 12-platform-contract.md section 9).
  * Mapping is docs/12-platform-contract.md section 6.3.
  *
@@ -145,6 +145,11 @@ hal_task_t *hal_task_self(void)
 const char *hal_task_name(const hal_task_t *t)
 {
     return (t != NULL) ? t->name : NULL;
+}
+
+int hal_task_stack_usage(const hal_task_t *t, size_t *used, size_t *reserved)
+{
+    return t && t->fiber ? fiber_stack_usage(t->fiber, used, reserved) : FIBER_ERR_INVALID;
 }
 
 void hal_task_yield(void)

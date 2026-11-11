@@ -15,6 +15,7 @@
 
 #include <stddef.h>
 #include <string.h>
+#include <stdio.h>
 
 /* --------------------------------------------------------------------
  * Internal types
@@ -119,6 +120,8 @@ void *fiber_sched_swap(void *cur_sp)
 
     /* Canary check on the outgoing fiber (skip main - no canary). */
     if (cur->canary && *(cur->canary) != FIBER_CANARY) {
+        fprintf(stderr, "fiber stack canary tripped: slot=%zu generation=%u\n",
+                (size_t)(cur - fcb_pool), (unsigned)cur->generation);
         intr_handler_call_crash((uint32_t)FIBER_ERR_OVERFLOW);
     }
 
@@ -240,6 +243,7 @@ static fiber_t *fiber_create_common(fiber_func_t func, void *arg,
         return NULL;
     }
 
+    memset(stack_buf, 0xa5, stack_size);
     uint32_t prev = fiber_port_irq_lock();
     struct fiber *f = fcb_alloc_locked();
     if (!f) {
@@ -261,6 +265,21 @@ static fiber_t *fiber_create_common(fiber_func_t func, void *arg,
     ring_insert_after_locked(g_current, f);
     fiber_port_irq_unlock(prev);
     return f;
+}
+
+int fiber_stack_usage(const fiber_t *fiber, size_t *used, size_t *reserved)
+{
+    const unsigned char *stack;
+    size_t offset = sizeof(uint32_t);
+    if (!fiber || !used || !reserved || fiber->is_main ||
+        fiber->state == FIBER_STATE_FREE || !fiber->stack_base)
+        return FIBER_ERR_INVALID;
+    if (*fiber->canary != FIBER_CANARY) return FIBER_ERR_OVERFLOW;
+    stack = fiber->stack_base;
+    while (offset < fiber->stack_size && stack[offset] == 0xa5) offset++;
+    *reserved = fiber->stack_size;
+    *used = fiber->stack_size - offset;
+    return FIBER_OK;
 }
 
 fiber_t *fiber_create(fiber_func_t func, void *arg, size_t stack_size)

@@ -1,3 +1,8 @@
+add_library(wmb_host_capture STATIC capture.c)
+target_link_libraries(wmb_host_capture PRIVATE wmb_hal)
+target_include_directories(wmb_host_capture PUBLIC "${CMAKE_CURRENT_LIST_DIR}")
+target_compile_options(wmb_host_capture PRIVATE -Wall -Wextra -Werror)
+
 add_library(wmb_desktop_clients OBJECT desktop_client.c wm_test.c)
 target_link_libraries(wmb_desktop_clients PRIVATE wmb_xlib wmb_transport_api wmb_jwm)
 target_compile_options(wmb_desktop_clients PRIVATE -Wall -Wextra -Werror)
@@ -7,7 +12,7 @@ target_link_libraries(wmb_host PRIVATE
     wmb_xlib_test_client wmb_xlib wmb_jwm
     -Wl,--start-group wmb_tinyx wmb_kdrive -Wl,--end-group
     wmb_hosted_display wmb_transport_test_client
-    wmb_sdl_library wmb_desktop wmb_desktop_clients)
+    wmb_sdl_library wmb_desktop wmb_desktop_clients wmb_host_capture wmb_metrics)
 target_include_directories(wmb_host PRIVATE "${PROJECT_SOURCE_DIR}/linux_hosted/sdl_drivers")
 target_compile_options(wmb_host PRIVATE -Wall -Wextra -Werror)
 target_link_options(wmb_host PRIVATE -Wl,--gc-sections -Wl,--wrap=hal_display_flush

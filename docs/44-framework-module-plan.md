@@ -9,9 +9,10 @@ It is the slice of [`40-implementation-plan.md`](40-implementation-plan.md) that
 the measurement half of P8, plus the **P9 target port**. [`40-`](40-implementation-plan.md) remains the authority on phase order; this document is the
 authority on what this module builds.
 
-**Status: framework is DONE.** As of the top-level `CMakeLists.txt` landing, every V-P2 and V-P3 gate closes cleanly on the hosted profile. The
+**Status: P2/P3 and the P8 measurement infrastructure are implemented.** Every V-P2 and V-P3 gate closes cleanly on the hosted profile. The
 detachment procedure of §7 is realized by construction: `hal/`, `framework/`, `transport/` and the hosted platform tree are physically separated. What
-remains for this module is (a) the target fiber port (§8) and (b) measurement infrastructure for P8 (§6).
+remains is the target fiber port (§8); P8's real hour and measurement record
+are complete (§6), without redesigning the runtime.
 
 ### 1.1 Ownership boundary
 
@@ -19,7 +20,7 @@ remains for this module is (a) the target fiber port (§8) and (b) measurement i
 |---|---|---|
 | Scheduler | `framework/fiber/` + `hal_task.c` | `hal_task.h` contract → [`hal/`](../hal), authored here |
 | Fiber ports | `linux_hosted/fiber_linux/`, `<target>_native/fiber_<target>/` | The display/input/time/alloc ports → [`43-`](43-kdrive-module-plan.md) |
-| Portable library | `framework/library/` — `heap.c`, `heap_mngr.c`, `buffer.c`, `lists.c`, `pipe.c` | — |
+| Portable library | `framework/library/` — heap/buffer/list/pipe plus generic owner-tagged `allocation.c/.h` | — |
 | Hosted memory contract | `hal/hal_alloc.h`, `linux_hosted/system_linux/hal_alloc_hosted.c` | Target impl → [`43-`](43-kdrive-module-plan.md)'s target platform tree |
 | Build skeleton | Top-level `CMakeLists.txt`, per-module `.cmake` fragments | Backend-specific groups → [`43-`](43-kdrive-module-plan.md) |
 | Client-side transport, external ABI, boot host, wrapper | — | → [`46-transport-module-plan.md`](46-transport-module-plan.md) |
@@ -87,7 +88,7 @@ Every runtime substrate item is complete. What follows is a status snapshot rath
 | P5 | — | — | → [`46-`](46-transport-module-plan.md) |
 | P6 | — | — | → [`46-`](46-transport-module-plan.md) |
 | P7 | — | — | Not owned by this module |
-| P8 | Heap and stack instrumentation (measurement half) | Light | Deferred |
+| **P8** | Generic owner allocation statistics and touched-stack/canary diagnostics | Light | **DONE**: real hour, 10,000 managed lifecycles and host measurement record |
 | **P9** | **Primary owner** — the target fiber port, freestanding heap, freestanding boot half | **Heavy** | Deferred |
 
 **This module was the critical path from commits 1 through 8; it becomes a supplier through P4–P8 and returns to the critical path at P9.**
@@ -163,17 +164,39 @@ framework owes it.
 
 | # | Item | Spec |
 |--:|---|---|
-| F8‑8 | Per-fiber stack high-water mark instrumentation, exposed via a diagnostic API | [`31-`](31-target-build.md) §5.2 |
-| F8‑9 | Heap high-water tracking that attributes usage to WMB rather than the whole process | §7.3 step 4 |
-| F8‑10 | An always-on "canary tripped" fatal path that reports which fiber overflowed | — |
+| F8‑8 | Sentinel initialization before context forging; `fiber_stack_usage` / `hal_task_stack_usage` | [`31-`](31-target-build.md) §5.2 |
+| F8‑9 | Generic owner statistics for live payload/tracking bytes, blocks, peaks and operations; no WMB-specific types/owners in framework | §7.3 step 4 |
+| F8‑10 | Always-on scheduler canaries identify the FCB slot/generation before the fatal port handler | Real corruption test in `tinyx_p8_canary` |
 
 Written together they close **V-P8-6**: the measurements that let [`31-target-build.md`](31-target-build.md) §5.2 and §8.1 replace estimates with facts.
 
 ### 6.2 Definition of Done
 
-- [ ] The leak gate (V-P8-4) reports a flat **WMB** high-water mark while another component allocates concurrently.
-- [ ] The stability gate (V-P8-5) reports per-fiber stack HWM at end of run.
-- [ ] The measurements land in [`31-`](31-target-build.md) §5.2 and §8.1 as facts, not estimates (V-P8-6).
+- [x] The leak gate (V-P8-4) reports unchanged settled WMB bytes/blocks/peak over 10,000 managed windows, while a second owner retains 100 KiB.
+- [x] The actual 3,600,000-ms stability run reports per-runtime-fiber stack HWM at orderly shutdown; main's bounds remain explicitly unknown.
+- [x] The measurements are recorded in [`31-`](31-target-build.md) sections 5.2/8 and [the host certificate](reference/p8-host-verification.json) as facts, not target estimates (V-P8-6).
+
+The [implementation/integration guide](../transport/api/README.md) records
+allocator domains and normal versus instrumented measurements. Tracking nodes
+are separate HAL allocations, never hidden prefixes before caller pointers.
+Realloc preserves the original owner/data on failure; unknown realloc diagnoses
+an error. Unknown frees remain valid for untracked allocations from the same
+HAL family, including generic list nodes and the native reference harness.
+
+Only the selected windowing cohorts receive a private allocation redirect.
+`types.h`'s standalone SDL allocation macros are unchanged. The generic list's
+free seam recognizes tracked nodes; the pinned font supplies tracked zlib
+callbacks and closes its invalid-header/OOM paths. Real allocation-fault tests
+interpose the new seams rather than accidentally bypassing them. Symbol gates
+reject raw allocation imports in every selected windowing archive.
+
+Stack HWM is a sentinel-touched estimate including the forged hosted context,
+not the OS main stack or an unwritten automatic object. Its first observed
+hosted context/frame footprint is 1,016 bytes. Normal stress runs collect each
+owned task before destruction. Additional/long task names aggregate into a
+bounded peak record instead of limiting otherwise valid application lifecycles.
+Memory-tool mode explicitly skips inactive-stack reads without suppressing
+memory errors or disabling scheduler canaries; normal runs provide sizing data.
 
 ## 7. Detachment — Realized
 
@@ -192,10 +215,10 @@ Written together they close **V-P8-6**: the measurements that let [`31-target-bu
 | # | Step | Status |
 |---|---|---|
 | 1 | **Fix the public surface.** `fiber.h`, `hal_task.h`, `heap.h`, `buffer.h` are the API | Done — the four are what the `wmb_framework` and `wmb_hal` targets expose PUBLIC |
-| 2 | **Extract the host.** `wmb_boot.c` belongs to no `libwmb*.a` | In progress — `linux_hosted/wmb_boot/` exists as an empty landing site; the code moves in when [`46-`](46-transport-module-plan.md) §4 lands |
-| 3 | **Stop assuming WMB initialises the runtime.** | Not yet — the runtime brings itself up today; a hosted app already does `fiber_runtime_init` itself. See `linux_hosted/apps/wmb_fiber_smoke/wmb_fiber_smoke.c` |
-| 4 | **Account WMB's heap usage separately.** | Deferred to §6 |
-| 5 | **Declare a fiber budget.** `FIBER_MAX` is a compile-time global; WMB reserves slots rather than assuming the table is its own | Not yet — worth revisiting when a second tenant appears |
+| 2 | **Extract the host.** Boot/OS scaffolding belongs to no portable archive | Done for selected cohorts: hosted entry points and P8 process/thread scaffolding stay in `linux_hosted/` |
+| 3 | **Stop assuming WMB initialises the runtime.** | Done: the caller initializes the runtime before `wmb_main`, then continues polling/yielding |
+| 4 | **Account WMB's heap usage separately.** | Done: generic owners in `allocation.h`, private cohort redirects, real independent-owner stress |
+| 5 | **Declare a shared fiber budget.** Do not assume the runtime is private | `FIBER_MAX=8` stays unchanged; root/server/WM use three, gateway workers are lazy/bounded/fallible, and the stress test fits two SDK apps, two workers and a separate tenant in the remaining five |
 | 6 | **Package.** `libwmb_framework.a` + public headers + a manifest of what a host must supply | Done — the top-level `CMakeLists.txt` produces these |
 | 7 | **Prove it.** A trivial second component running alongside WMB | `linux_hosted/apps/wmb_fiber_smoke` is exactly this — a hosted app that uses `wmb_framework` without any transport, X11 or WMB code |
 
@@ -221,7 +244,7 @@ Written together they close **V-P8-6**: the measurements that let [`31-target-bu
 
 | Seam | This module provides | Consumer |
 |---|---|---|
-| `hal_task.h` — 9 functions | `hal_task_create`, `hal_task_wait`, `hal_task_wake`, `hal_yield_timeout`, … | `tinyx/os/waitfor_wmb.c`, `jwm/src/event.c`, `transport/x11/` |
+| `hal_task.h` | Task lifecycle/wake/wait plus diagnostic `hal_task_stack_usage` | `tinyx/os/waitfor_wmb.c`, `jwm/src/event.c`, `transport/x11/`, ABI metrics |
 | `hal_alloc.h` — 2 functions | `wmb_alloc`, `wmb_free` | Every WMB-side allocator (framework's `heap_mngr.c` today; transport later) |
 | `fiber_critical_enter/exit` | Tick-suppressing critical sections | `buffer.c`, `hal_display_flush` (R3) |
 | `fiber_port.h`, `intr_handler.h` | 7 symbols the port implements | *Consumed* from each port tree — [`43-`](43-kdrive-module-plan.md) supplies the peer device ports; §8 above supplies the target fiber port |
@@ -235,7 +258,7 @@ Written together they close **V-P8-6**: the measurements that let [`31-target-bu
 | FW‑2 | **L8 violated silently** by a convenience edit to `buffer.h` or `fiber_config.h` | ~~High~~ **Low** | Medium | Structural now: `framework/` cannot reach `transport/`, `libX11/`, `tinyx/`, `jwm/`. Gate S11 still runs as a regression check |
 | FW‑3 | The glibc `<ucontext.h>` fallback misbehaves on a developer machine | Low | Medium | [`90-`](90-decisions.md) D‑11 reopens vendoring if it bites; Valgrind suppression file already tracks which implementation was selected |
 | FW‑4 | Target fiber port picks up hosted assumptions when P9 starts | Medium | Medium | §8's item list is explicit; every hosted-only mechanism (mmap, ASan) is behind `#ifdef` guards or lives outside `framework/` |
-| FW‑5 | P8 measurement instrumentation added ad-hoc, later needs re-doing | Medium | Low | Fold instrumentation into `heap_mngr.c` and the fiber canary before P8 starts; keep it always-on |
+| FW‑5 | Incomplete or intrusive P8 measurements | Low | Low | Generic HAL-backed owner accounting covers all selected allocators, including zlib; bounded diagnostic stack records never cap app lifecycles; main/tool limits are explicit |
 
 ## 11. Budget
 

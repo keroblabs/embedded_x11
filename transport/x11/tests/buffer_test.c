@@ -7,11 +7,11 @@
     if (!(value)) { fprintf(stderr, "P5 buffer FAIL %d: %s\n", __LINE__, #value); return 1; } \
 } while (0)
 static bool fail;
-void *__real_realloc(void *memory, size_t size);
-void *__wrap_realloc(void *memory, size_t size)
+void *__real_allocation_realloc(unsigned owner, void *memory, size_t size);
+void *__wrap_allocation_realloc(unsigned owner, void *memory, size_t size)
 {
     if (fail) { fail = false; return NULL; }
-    return __real_realloc(memory, size);
+    return __real_allocation_realloc(owner, memory, size);
 }
 
 int main(void)

@@ -1,6 +1,16 @@
 --- a/libX11/include/X11/Xlibint.h
 +++ b/libX11/include/X11/Xlibint.h
-@@ -41,7 +41,21 @@
+@@ -29,6 +29,9 @@
+ 
+ #ifndef _X11_XLIBINT_H_
+ #define _X11_XLIBINT_H_ 1
++#if defined(WMB_APP_OPAQUE)
++#error "Opaque application clients must not include private Xlib headers"
++#endif
+ 
+ /*
+  *	Xlibint.h - Header definition and support file for the internal
+@@ -41,7 +44,21 @@
  #include <stdint.h>
  #include <X11/Xlib.h>
  #include <X11/Xproto.h>		/* to declare xEvent */
@@ -22,7 +32,7 @@
  
  #ifdef XTHREADS
  #include <X11/Xthreads.h>
-@@ -647,6 +661,21 @@
+@@ -647,6 +664,21 @@
   * "len" is the length of the data buffer.
   */
  #ifndef DataRoutineIsProcedure
@@ -44,7 +54,7 @@
  #define Data(dpy, data, len) {\
  	if (dpy->bufptr + (len) <= dpy->bufmax) {\
  		memcpy(dpy->bufptr, data, (size_t)(len));\
-@@ -654,6 +683,7 @@
+@@ -654,6 +686,7 @@
  	} else\
  		_XSend(dpy, (_Xconst char*)(data), (long)(len));\
  }
@@ -52,7 +62,7 @@
  #endif /* DataRoutineIsProcedure */
  
  
-@@ -671,12 +701,26 @@
+@@ -671,12 +704,26 @@
   *    BufAlloc (xTextElt *, elt, nbytes)
   */
  

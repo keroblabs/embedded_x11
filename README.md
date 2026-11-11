@@ -3,8 +3,9 @@
 X11 stack (TinyX server + libX11 + JWM window manager) running inside a cooperative fiber runtime, with an in-process transport replacing the socket. Two targets: Linux hosted (SDL backend) and a freestanding embedded platform.
 
 Status: the framework, hosted HAL, TinyX, retained Xlib and **P7 JWM desktop**
-are runnable. Portability/patch gates remain active; external ABI and hardware
-certification are later milestones. See the
+are runnable. P8 adds a typed external SDK, safe foreign-task gateway and a
+host-only process bridge. Portability/patch gates remain active; see the
+[application ABI and integration guide](transport/api/README.md),
 [JWM desktop and reuse guide](jwm/wmb/README.md),
 [P6 portability guide](docs/48-p6-portability.md),
 [client transport guide](transport/x11/README.md),
@@ -104,7 +105,7 @@ cmake -S . -B build-p4 -DWMB_TINYX_BUILD_SERVER=ON \
     -DWMB_KDRIVE_BUILD_TESTS=ON -DWMB_SDL_BUILD_TESTS=ON
 cmake --build build-p4
 ./build-p4/bin/wmb_host
-ctest --test-dir build-p4 --output-on-failure
+ctest --test-dir build-p4 -LE endurance --output-on-failure
 ```
 
 This opens the real X root window. Close it to stop. The optional
@@ -139,7 +140,7 @@ focus/raise, or right-click the background to open another application.
 The taskbar clock shows uptime, not calendar time. Closing the display or
 selecting **Exit desktop** unwinds JWM, applications and the server cooperatively.
 
-There are now **36 standard tests**, or 37 with the optional stock-Xlib/Xvfb
+The P7 milestone had 36 standard tests, or 37 with the optional stock-Xlib/Xvfb
 reference harness. The [JWM guide](jwm/wmb/README.md) documents the lifecycle/
 registry APIs, profile limits, exact interaction/cancellation gates and capture
 procedure. [The actual desktop capture](docs/reference/tinyx-jwm-rgb565.png)
@@ -149,6 +150,52 @@ Project-specific TinyX changes use the shared `WMB_DEVEL=1` selector, including
 Release and embedded builds. Driver policy stays in the HAL port; necessary
 core changes retain guarded reference alternatives. See the
 [TinyX change methodology](docs/47-tinyx-project-methodology.md).
+
+## P8 application ABI
+
+The [thin SDK](wrapper/libX11-app/README.md) has 122 frozen v1 slots and one
+appended v2 slot, including all 51 Display/Screen macro accessors. Its actual
+archive is **15,924 bytes**, and it also builds standalone without SDL, framework
+or a full Xlib. Both Display and Screen are opaque to applications.
+
+An application fiber uses a typed native table. Preempting platform tasks use
+the same signatures through an API-level MPSC gateway: runtime-owned Display
+workers execute Xlib, and only `xsrv` executes DIX. Do not call threadless Xlib
+or the fiber runtime directly from a foreign OS thread.
+
+To see a separate application in the hosted desktop, run in two terminals:
+
+```sh
+./build-p4/bin/wmb_rpc_host /tmp/my-wmb-session.sock
+./build-p4/bin/wmb_hello /tmp/my-wmb-session.sock
+```
+
+The [host-only scaffold](linux_hosted/abi_bridge/README.md) copies data and typed
+handles, not process pointers. [The actual SDL capture](docs/reference/tinyx-abi-external-rgb565.png)
+shows its JWM-decorated window and text. This bridge does not become an embedded
+dependency or prove target relocation/loading.
+
+There are **52 normal tests** (53 with the optional stock-Xlib reference)
+and two separately labeled endurance gates:
+
+```sh
+ctest --test-dir build-p4 -LE endurance --output-on-failure
+ctest --test-dir build-p4 -R '^tinyx_p8_cycles$' --output-on-failure
+ctest --test-dir build-p4 -R '^tinyx_p8_hour$' --output-on-failure
+```
+
+The cycle test covers 10,000 managed windows with separately attributed WMB and
+other-tenant allocations. The hour test takes 3,600 real input-processing
+seconds; it must not be replaced by a short/accelerated run. See the
+[P8 contract](docs/22-entry-point-abi.md), [ownership/reuse instructions](transport/api/README.md)
+and [recorded host measurements](docs/31-target-build.md). Target placement,
+freestanding compiler/libc/atomic closure and hardware remain P9.
+
+**Hosted P8 sign-off passed:** 10,000 managed lifecycles with a flat attributed
+heap, plus a full 3,600-second input run independently measured at 3,604.442
+wall seconds. Its heap peak stayed flat and maximum root gap was 8 ms.
+[The verification record](docs/reference/p8-host-verification.json) preserves
+the exact binary hash, traffic, stack/heap data and test matrix.
 
 ## AddressSanitizer
 
@@ -170,10 +217,12 @@ ASan prints a boilerplate `WARNING: ASan doesn't fully support makecontext/swapc
 
 | Directory | Contents |
 |---|---|
-| `framework/` | Fiber runtime + library primitives (heap, ring buffer, list, pipe). Platform-free, X11-free. |
+| `framework/` | Fiber runtime, generic allocation attribution and library primitives. Platform-free, X11-free. |
 | `hal/` | Contract headers: `hal_task.h`, `hal_display.h`, `hal_input.h`, `hal_time.h`, `hal_alloc.h`. |
 | `linux_hosted/` | Hosted fiber port, `hal_time`/`hal_alloc` implementations, SDL-backed `hal_display`/`hal_input`, test apps. |
-| `transport/` | X11 protocol replacement (client half). Held for P5 in [`docs/44`](docs/44-framework-module-plan.md) §§4–6. |
+| `transport/` | Retained-Xlib in-process transport, component lifecycle, versioned ABI, gateway and diagnostics. |
+| `wrapper/libX11-app/` | Independently buildable opaque application SDK, without full Xlib or framework. |
+| `apps/wmb_hello/` | Portable SDK-only application body; host binding is separate scaffolding. |
 | `tinyx/`, `libX11/`, `jwm/`, `X11/` | Vendored upstream trees. |
 | `docs/` | Module and implementation plans (00–91, numbered). |
 
@@ -196,3 +245,9 @@ ASan prints a boilerplate `WARNING: ASan doesn't fully support makecontext/swapc
 | `wmb_tinyx` | STATIC | Actual TinyX DIX/MI/FB/extensions and owned cooperative OS integration |
 | `wmb_transport_core` | STATIC | Standard-C request leases, framing, copied packet/event queues and control mailbox |
 | `wmb_xlib` | STATIC | Retained client API and in-process transport; matching client headers, no server ABI prefix |
+| `wmb_desktop` | STATIC | Once-only server/JWM/application lifecycle |
+| `wmb_api_runtime` | STATIC | Typed native API, MPSC gateway and runtime-owned Display workers |
+| `wmb_metrics` | STATIC | WMB task/heap report over generic framework measurements |
+| `wmb_sdk_headers` | INTERFACE | Opaque application profile, generated macro compatibility and linker namespace |
+| `wmb_app_wrapper` | STATIC | Standalone `libX11-app.a`; no full Xlib/server/backend dependencies |
+| `wmb_app_wrapper_v1` | STATIC | Independently frozen initial application SDK |

@@ -173,10 +173,10 @@
       "file": "libX11/include/X11/Xlibint.h",
       "patch": "libX11/0001-Xlibint-complete-builders.patch",
       "selector": "WMB_INPROC",
-      "reason": "Matching threadless client ABI and complete request-builder growth",
+      "reason": "Matching threadless client ABI, complete builders and rejection of opaque SDK/private-header mixing",
       "base_sha256": "5409a9c28f09b92d9774fc29bbd646358c1b769042512111350f0defc613b93e",
-      "result_sha256": "13bed5ad30aee21ad4b933dd5bab0e60e29376fa3bfbdee40dc74fa797c4eb7e",
-      "added": 44,
+      "result_sha256": "6af653df748c43d48b5992e8adc00d58b84f4b4de52a9b117311d7d623da24ba",
+      "added": 47,
       "removed": 0
     },
     {
@@ -203,11 +203,11 @@
       "file": "libX11/include/X11/Xlib.h",
       "patch": "libX11/0004-Xlib-standard-types.patch",
       "selector": "WMB_INPROC",
-      "reason": "Public client header without POSIX typedef dependency",
+      "reason": "Standard-C public client types plus genuinely opaque SDK Display/Screen profiles with unchanged native layout",
       "base_sha256": "748265b305975ae8396cdb310bcafa47d338211c977bfda9bf88d187a3a37c03",
-      "result_sha256": "f72823e2f0f30223042514e934cb9e864b9fe471fee8bfb8e4ad9cdd7f1f28b8",
-      "added": 4,
-      "removed": 0
+      "result_sha256": "7d27343dc49372b44921b91f8b63ad755c9db819ceae4782fb9f2b1f80baacce",
+      "added": 22,
+      "removed": 1
     },
     {
       "file": "libX11/src/reallocarray.h",

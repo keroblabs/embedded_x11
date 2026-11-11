@@ -1,0 +1,118 @@
+{
+  "profile": "hosted P8, GCC 13.3, glibc ucontext, SDL software renderer",
+  "runtime_binary": "build-p4/bin/wmb_abi_host",
+  "runtime_binary_sha256": "f0a9f5098ae20aa564cdb3bdecaa772a48c3ae86780712c508bf97e194464e4e",
+  "binary_unchanged_during_hour": true,
+  "abi": {
+    "frozen_v1_slots": 122,
+    "current_v2_slots": 123,
+    "opaque_display_screen_macros": 51,
+    "raw_sdk_archive_bytes": 15924,
+    "raw_sdk_archive_limit_exclusive": 16384,
+    "separate_c99_cpp11_consumer": true,
+    "source_and_build_paths_with_spaces": true,
+    "independent_v1_on_v2_same_address_and_process": true,
+    "insufficient_older_provider_rejected_before_missing_fields": true
+  },
+  "normal_test_matrix": [
+    {"build": "Debug", "framebuffer": "800x480 RGB565", "passed": 52, "total": 52},
+    {"build": "Release with stock-Xlib oracle", "framebuffer": "800x480 XRGB8888", "passed": 53, "total": 53},
+    {"build": "Debug ASan and strict UBSan", "framebuffer": "319x177 padded RGB565", "passed": 52, "total": 52},
+    {"build": "Debug ASan and strict UBSan", "framebuffer": "800x480 XRGB8888", "passed": 52, "total": 52}
+  ],
+  "standalone": {
+    "sdl_tests_passed": 8,
+    "kdrive_tests_passed": 9,
+    "stock_xlib_jwm_oracle_passed": true
+  },
+  "cycles": {
+    "warmup_managed_cycles": 32,
+    "measured_managed_cycles": 10000,
+    "elapsed_ms": 41008,
+    "wmb_settled_bytes_before": 348881,
+    "wmb_settled_bytes_after": 348881,
+    "wmb_payload_and_live_blocks_unchanged": true,
+    "wmb_peak_bytes_before": 402537,
+    "wmb_peak_bytes_after": 402537,
+    "other_owner_payload_bytes": 102400,
+    "other_owner_bytes_including_tracking": 105600,
+    "root_max_gap_ms": 1,
+    "orderly_shutdown": true
+  },
+  "hour": {
+    "start_utc": "2026-11-11T10:33:37.685908+00:00",
+    "end_utc": "2026-11-11T11:33:42.145952+00:00",
+    "independent_wall_seconds": 3604.4420235260004,
+    "measured_input_ms": 3600000,
+    "returncode": 0,
+    "interruption": null,
+    "injections": 174625,
+    "received_key_events": 349248,
+    "received_button_events": 349248,
+    "received_motion_events": 174624,
+    "wmb_bytes_before": 351745,
+    "wmb_bytes_after": 351745,
+    "wmb_peak_bytes_before": 402602,
+    "wmb_peak_bytes_after": 402602,
+    "v1_application_polls": 3192980,
+    "v2_application_polls": 3192965,
+    "wm_callbacks": 35350,
+    "completed_wm_clock_draws": 3597,
+    "wm_callback_max_gap_us": 113870,
+    "completed_clock_draw_max_gap_us": 1009947,
+    "root_max_gap_ms": 8,
+    "root_gap_limit_ms": 250,
+    "canary_failure": false,
+    "valid_framebuffer_pixels": true,
+    "orderly_shutdown": true
+  },
+  "gateway": {
+    "preempting_callers": 2,
+    "exact_format32_property_round_trips": 600,
+    "posted": 3016,
+    "completed": 3016,
+    "rejected": 0,
+    "live_after_shutdown": 0,
+    "null_and_busy_owner_rejection_regression": true,
+    "event_and_uint32_max_yield_cancellation_regression": true
+  },
+  "stack_measurements": {
+    "method": "sentinel-touched bytes, including port context; not an MCU reservation guarantee",
+    "fresh_port_context_and_frame_bytes": 1016,
+    "xsrv": {"max_used": 12056, "reserved": 524288},
+    "jwm": {"max_used": 3944, "reserved": 524288},
+    "abi_v1": {"max_used": 3912, "reserved": 262144},
+    "abi_v2": {"max_used": 3912, "reserved": 262144},
+    "api0": {"max_used_across_cycle_and_hour": 2312, "reserved": 262144},
+    "api1": {"max_used": 2184, "reserved": 262144},
+    "other_tenant": {"max_used": 2624, "reserved": 65536},
+    "main": "unknown OS bounds"
+  },
+  "post_shutdown_wmb_heap": {
+    "bytes_including_tracking": 40087,
+    "payload_bytes": 28247,
+    "tracking_bytes": 11840,
+    "live_cache_blocks": 370
+  },
+  "memory_validation": {
+    "native_hal_gateway_real_seconds": 60,
+    "native_memcheck_errors": 0,
+    "native_definitely_indirectly_possibly_lost_bytes": 0,
+    "actual_external_v1_memcheck_errors": 0,
+    "actual_external_v2_memcheck_errors": 0,
+    "external_client_lost_bytes": 0,
+    "core_event_and_masked_codec_memcheck_errors": 0,
+    "font_zlib_fault_path_memcheck_errors": 0,
+    "startup_cleanup_memcheck_errors": 0,
+    "memory_error_suppressions": 0,
+    "instrumented_stack_hwm_sampling": "explicitly disabled; scheduler canaries remain enabled"
+  },
+  "portability": {
+    "selected_translation_units": 510,
+    "native_reference_probes": 35,
+    "whole_archives_without_backend_or_gc": 11,
+    "guarded_upstream_files": 44,
+    "unattributed_allocator_imports": 0
+  },
+  "scope": "Hosted evidence, not target placement, freestanding atomic/libc/compiler closure or hardware certification"
+}

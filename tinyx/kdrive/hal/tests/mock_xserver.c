@@ -26,8 +26,16 @@ Bool SmartScheduleDisable = TRUE;
 long SmartScheduleTime;
 #endif
 
+#if defined(WMB_ALLOCATION_TRACKED)
+void *__real_allocation_calloc(unsigned owner, size_t count, size_t size);
+void *__wrap_allocation_calloc(unsigned owner, size_t count, size_t size)
+{
+    if (mock_calloc_failure_after == 0) return NULL;
+    if (mock_calloc_failure_after > 0) mock_calloc_failure_after--;
+    return __real_allocation_calloc(owner, count, size);
+}
+#endif
 void *__real_calloc(size_t count, size_t size);
-
 void *__wrap_calloc(size_t count, size_t size)
 {
     if (mock_calloc_failure_after == 0) return NULL;

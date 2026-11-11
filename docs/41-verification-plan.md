@@ -285,13 +285,86 @@ memory-error suppressions were introduced.
 
 | ID | Gate | Method |
 |---|---|---|
-| V‑P8‑1 | `libX11-app.a` < 16 KB, exports only wrappers + `wmb_bind` | `size`, `nm` |
-| V‑P8‑2 | `wmb_hello` produces a visible decorated window over the bridge | Screenshot |
-| V‑P8‑3 | v1 app runs against v2 WMB | Build both, run |
-| V‑P8‑4 | **Leak**: 10,000 window create/destroy cycles, flat heap high‑water | Instrumented `wmb_os_sbrk` high‑water mark |
+| V‑P8‑1 | Raw `libX11-app.a` < 16 KiB, only stable typed thunks + `wmb_bind` | Actual file bytes and exact `nm` inventory, not text size |
+| V‑P8‑2 | Separate `wmb_hello` produces real decorated text/pixels, without full Xlib | JWM parent/frame queries, framebuffer assertions and actual SDL screenshot |
+| V‑P8‑3 | Independently frozen v1 runs on v2; newer-on-insufficient-older rejects safely | Genuine typed same-address calls and separate process executables |
+| V‑P8‑4 | **Leak**: 10,000 managed lifecycles, unchanged WMB settled bytes/blocks/peak while another owner allocates | Generic owner-tagged HAL-backed accounting across selected cohorts and zlib |
 | V‑P8‑5 | **Stability**: 1‑hour run with continuous scripted input; flat heap; no canary trip; no starvation | Long‑run harness |
 | V‑P8‑6 | **Measurements recorded**: per‑fiber stack high‑water, heap high‑water, image size | Written into [`31-`](31-target-build.md) §5.2, §8.1, replacing the estimates |
 | S9 | | |
+
+**Verified normal matrix:** 52/52 in Debug/RGB565 and strict ASan/UBSan for both
+formats, including 319x177 padded RGB565; Release/XRGB8888 passes 53/53 including
+the optional genuine stock-Xlib/Xvfb JWM oracle. The two real-time/
+stress tests are separately labeled `endurance` so the normal command is
+`ctest --test-dir build-p4 -LE endurance --output-on-failure`.
+
+The [implementation guide](../transport/api/README.md) records the approved
+122-slot core-v1 profile and 123-slot v2 table. Generated adapters, all 51 opaque
+macro accessors, C/C++ selector/opacity failures, actual archive exports/bytes,
+frozen-prefix mutations and future append-only version acceptance are gated.
+The SDK also builds separately without the framework, server, SDL or font
+dependency; its raw archive is **15,924 bytes**.
+
+The same-address test opens real v1/current SDK windows through typed tables.
+Two preempting OS callers perform 600 exact format-32 property round trips;
+another test rejects NULL Display/Screen and concurrent same-Display use, and cancels indefinite event
+waits plus `UINT32_MAX` native/foreign yields without abandoned storage.
+Native-table misuse on a foreign thread fails before Xlib/fiber entry.
+
+The independent process gate uses only SDK/copy-codec clients, including the
+frozen v1 executable, and repeats two-reader contention with 600 exact property
+cycles. It rejects forged typed handles, bad operations/sequences, scalar
+overflow, pointer flags, frame lengths/magic and incompatible data models.
+Put-back queue length/matching and discarding `XSync` preserve Xlib semantics.
+The [actual SDL x11/software capture](reference/tinyx-abi-external-rgb565.png)
+shows its real JWM frame, core-font text and green framebuffer content.
+
+**V-P8-4 passed:** after 32 warmup cycles and quiescent sampling, 10,000 actual
+create/map/JWM-parent/withdraw/destroy cycles take **41.008 seconds**. WMB settled
+bytes stay **348,881 -> 348,881**, with unchanged payload/blocks and peak
+**402,537 -> 402,537**, while another generic owner retains **102,400 payload
+bytes** (105,600 including tracking). This busy workload is not idle-CPU evidence.
+
+**Memory checks passed:** the final 60-second native/HAL/gateway session and
+actual separate current/v1 clients report **zero Memcheck errors and zero lost
+bytes**, with no memory-error suppressions. The existing
+`--max-stackframe=65536` setting distinguishes nearby ucontext stacks.
+Instrumented memory mode disables only diagnostic inactive-frame HWM reads;
+canaries remain active and normal timing/heap certification is separate.
+All core-event/masked-structure codecs and real pinned zlib OOM/error paths are
+also Memcheck-clean. Reachable shutdown caches are explicitly not lost bytes.
+
+The actual hour gate must complete **3,600 input-processing seconds after
+warmup**, using SDL -> HAL -> KDrive -> DIX -> SDK traffic, a flat attributed
+peak, per-second application/WM progress, completed clock draws, scheduler
+canaries and a 250-ms root-gap bound. A pre-yield timestamp underflow discovered
+by an earlier attempt is reproduced against a real WM draw and fixed by taking
+a fresh sample; the gate was not relaxed. Builds/CPU-heavy instrumentation
+must finish before normal endurance certification.
+
+**V-P8-5 passed:** the final unchanged binary completed **3,600,000 input
+milliseconds**, independently timed at **3,604.442 wall seconds** including
+startup/cleanup. It processed 174,625 injections, 349,248 received key events,
+349,248 button events and 174,624 motion events. WMB live bytes stayed
+351,745 -> 351,745 and peak 402,602 -> 402,602. Root gap was at most 8 ms,
+WM callback gap 113.870 ms and completed clock-draw gap 1,009.947 ms.
+There was no canary trip or stalled component; both app loops exceeded 3.19
+million polls. Gateway counters were 3,016 posted/completed, zero rejected/live
+after orderly WM/apps/server shutdown.
+
+The [machine-readable certificate](reference/p8-host-verification.json) records
+the exact UTC interval, unchanged binary hash and independent timer. Earlier
+short/interrupted/failed runs are excluded. [Target-build sections 5.2/8](31-target-build.md)
+record stack, attributed heap and linked-image facts, closing V-P8-6 without
+claiming a different CPU ABI or a freestanding target.
+
+Standalone SDL remains 8/8 and standalone KDrive 9/9, with no new mandatory
+framework dependency in the backend. The SDK gate additionally imports both
+SDK generations into a separate strict C99/C++11 project with source/build
+paths containing spaces. Private C11 requirements do not change the
+application's dialect. Failed-listen fault injection verifies cleanup removes
+only the server's own socket, never a pre-existing endpoint.
 
 ### 4.9 P9 — Freestanding target
 

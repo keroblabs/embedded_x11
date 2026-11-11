@@ -39,6 +39,7 @@ hal_task_t *hal_task_create(const char *name, hal_task_entry_t entry,
 void        hal_task_destroy(hal_task_t *t);
 hal_task_t *hal_task_self(void);
 const char *hal_task_name(const hal_task_t *t);
+int hal_task_stack_usage(const hal_task_t *t, size_t *used, size_t *reserved);
 
 /* Round-robin yield.  Returns when the scheduler comes back around. */
 void hal_task_yield(void);

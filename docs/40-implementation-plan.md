@@ -384,41 +384,51 @@ exists because [`21-`](21-inprocess-transport.md) §5.7 is otherwise likely to b
 | `wmb_api.h`, `wmb_api_table.c` | [`22-`](22-entry-point-abi.md) §3, §4.1 |
 | **A5 enumeration** — generate the exhaustive list of `Display`‑dereferencing macros from `X11/Xlib.h` → `docs/xlib-display-macros.txt` | [`91-`](91-open-questions.md) Q20 |
 | `wrapper/libX11-app/` + macro compat header, driven by that list | [`22-`](22-entry-point-abi.md) §5 |
-| `wmb_bridge.c` (host validation scaffold) | [`22-`](22-entry-point-abi.md) §6 |
-| MPSC producer side on the request queue + polled server‑wake mailbox | [`22-`](22-entry-point-abi.md) §7 E4, [`90-`](90-decisions.md) D‑44 |
+| Generated typed host proxy/server and bounded handle/copy codecs | [`22-`](22-entry-point-abi.md) §6; `linux_hosted/abi_bridge/` |
+| API-level MPSC admission + polled mailbox; runtime-owned Xlib workers | [`22-`](22-entry-point-abi.md) §7 E4, D-56 |
 | `apps/wmb_hello/` | [`01-`](01-component-inventory.md) §11.2 |
 | Heap and stack instrumentation, **tagged as WMB's** rather than whole‑heap | [`40-`](40-implementation-plan.md) §13.3 step 4 |
 
 ### 9.1.1 The A5 enumeration is generated, not typed
 
 `DefaultScreen`, `RootWindow`, `BlackPixel`, `DisplayWidth`, `ScreenCount`, `NextRequest`, `ConnectionNumber` and their `*OfScreen` variants all expand to
-a dereference of a `Display` or `Screen` struct that the wrapper does not have. Missing one does not fail to compile — it segfaults at first use, in an
-application we did not write.
+a dereference of a `Display` or `Screen` struct that the wrapper does not have.
+P8 makes both types genuinely incomplete, so an unhandled dereference fails
+compilation rather than remaining a latent layout/segfault assumption.
 
 So the list is extracted mechanically from `X11/Xlib.h` (every macro whose expansion mentions its `Display` or `Screen` parameter), checked in as
 `docs/xlib-display-macros.txt`, and regenerated in CI so that an upstream header change appears as a diff rather than as a field report.
 
 ### 9.2 Definition of Done
 
-- [ ] `wmb_api.h`, `wrappers.c` and the slot count are all generated from `api.def`; regeneration produces no diff.
-- [ ] `docs/xlib-display-macros.txt` is generated, checked in, and regeneration produces no diff.
-- [ ] A test translation unit that **uses every macro in that list** compiles against the wrapper's compatibility header and produces no reference to any
+- [x] `wmb_api.h`, typed adapters, `wrappers.c` and the slot count are generated from `api.def`; regeneration produces no diff.
+- [x] The 51-entry `docs/xlib-display-macros.txt` is generated, checked in, and regeneration produces no diff.
+- [x] A test translation unit that **uses every macro in that list** compiles against the wrapper's compatibility header and produces no reference to any
   `Display` or `Screen` field — in the wrapper, both types are opaque.
-- [ ] `libX11-app.a` is **< 16 KB** and exports only the wrapper entry points plus `wmb_bind`.
-- [ ] `wmb_hello`, a separate process linking only the wrapper, produces a **visible, JWM‑decorated window** over the bridge.
-- [ ] An application built against ABI v1 runs against a v2 WMB.
-- [ ] **Re‑entrancy**: two bridge clients posting from two OS threads, with the threads deliberately preempting each other, produce correct results and
+- [x] Raw `libX11-app.a` is **15,924 bytes < 16 KiB**, with only stable typed thunks and `wmb_bind`.
+- [x] A separate `wmb_hello` links only the SDK/host copy scaffold and produces actual **JWM-decorated pixels/text**.
+- [x] An independently frozen v1 application runs against v2, both in real same-address and process tests; newer-on-insufficient-older rejects safely.
+- [x] **Re-entrancy**: two preempting foreign callers and two separate process clients produce correct results and
   lose no requests — the E4 guard. The contention is on the queue and the wake, not on `dix`, which the server fiber still serialises. This is the only
-  test in the project that deliberately uses threads, and it tests the boundary, not WMB.
-- [ ] **Leak test**: 10,000 window create/destroy cycles leave the heap high‑water mark flat.
-- [ ] The high‑water mark is attributed to **WMB**, not to the whole heap — so the gate survives a second tenant appearing later (§13.3 step 4).
-- [ ] **Stability**: a one‑hour run with scripted continuous input shows a flat heap high‑water mark, no fiber canary trip, and no fiber starvation.
-- [ ] Stack high‑water marks are measured for every fiber and recorded — these become the target's static stack sizes.
+  group of tests/scaffolds that deliberately uses threads; those threads test
+  the boundary, not WMB's cooperative scheduler or DIX.
+- [x] **Leak test**: 10,000 managed create/map/withdraw/destroy cycles preserve settled bytes/blocks and high-water mark.
+- [x] The high-water mark is attributed to **WMB**, while a second owner retains 100 KiB (§13.3 step 4).
+- [x] **Stability**: an actual 3,600,000-ms input run passed, independently timed at 3,604.442 wall seconds, with unchanged heap peak and no canary trip/starvation.
+- [x] Runtime-fiber stack HWM is instrumented and recorded with port context included and main's bounds explicitly unknown. Target sizes still need ABI-specific margins/revalidation.
 
 ### 9.3 Why the measurements matter
 
-[`31-target-build.md`](31-target-build.md) §5.2 and §8.1 both currently carry *estimates*. P8 replaces them with measurements. Sizing a target's static
-stacks and heap from an estimate is how embedded projects run out of memory in the field.
+**P8 is complete for the approved hosted core-v1/gateway scope.**
+[The verification record](reference/p8-host-verification.json) preserves the
+measured binary/time/heap/stack results. Rich image/font/callback additions stay
+append-only; target loading and freestanding/hardware closure remain P9.
+
+[`31-target-build.md`](31-target-build.md) sections 5.2 and 8 record actual hosted
+stack/heap/image data and distinguish it from the unfinished target build.
+Measurements do not certify another CPU ABI or an application's future stack
+requirements. See [the application integration guide](../transport/api/README.md)
+for budgets, allocator domains and exact normal/instrumented workloads.
 
 ## 10. Phase P9 — Freestanding Target Build
 

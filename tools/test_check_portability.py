@@ -1,7 +1,7 @@
 import unittest
 from pathlib import Path
 
-from check_portability import forbidden_symbols, licenses_unchanged, native_includes, patch_bytes
+from check_portability import imported_symbols, forbidden_symbols, licenses_unchanged, native_includes, patch_bytes
 
 
 class PortabilityChecks(unittest.TestCase):
@@ -32,6 +32,7 @@ class PortabilityChecks(unittest.TestCase):
             "                 U XCreateSimpleWindow\n"
         )
         self.assertEqual(forbidden_symbols(output), {"fork", "uname"})
+        self.assertEqual(imported_symbols(output), {"malloc", "fork", "uname", "XCreateSimpleWindow"})
         self.assertEqual(forbidden_symbols("                 U fopen\n"), {"fopen"})
 
     def test_original_license_bytes_must_be_preserved(self):

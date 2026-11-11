@@ -6,6 +6,8 @@
 #include "hal_task.h"
 #include "hal_time.h"
 #include "fiber.h"
+#include "wmb_gateway.h"
+#include "wmb_metrics.h"
 #include <stdio.h>
 
 static char *server_arguments[] = {"WMB", "-dpi", "96", "-noreset", NULL};
@@ -85,19 +87,27 @@ int wmb_poll(void)
         return -1;
     }
     if (finished) return failed ? -1 : 1;
+    wmb_metrics_dispatch_tick();
+    wmb_gateway_poll();
     wmb_apps_reap();
     if (manager.finished || server.finished) stopping = true;
     if (stopping) {
         if (!manager.finished) WmbJwm_RequestStop();
         else {
             applications_stopping = true;
+            wmb_gateway_stop();
             wmb_apps_stop();
-            if (!wmb_apps_count() && !server.finished) WmbTinyXServerStop();
+            if (!wmb_apps_count() && !wmb_gateway_count() && !server.finished) WmbTinyXServerStop();
         }
     }
-    if (server.finished && manager.finished && !wmb_apps_count()) {
-        failed = failed || server.result != 0 || manager.result != 0 || wmb_apps_result() != 0;
-        if (manager_task) hal_task_destroy(manager_task);
+    if (server.finished && manager.finished && !wmb_apps_count() && wmb_gateway_try_finish()) {
+        failed = failed || server.result != 0 || manager.result != 0 ||
+            wmb_apps_result() != 0 || wmb_gateway_result() != 0;
+        if (manager_task) {
+            if (wmb_metrics_record_task(manager_task) != 0) failed = true;
+            hal_task_destroy(manager_task);
+        }
+        if (wmb_metrics_record_task(server_task) != 0) failed = true;
         hal_task_destroy(server_task);
         KdHalSetStopHandler(NULL, NULL);
         finished = true;

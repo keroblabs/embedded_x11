@@ -89,9 +89,11 @@ target_link_libraries(wmb_portability_link PRIVATE wmb_tinyx_config
     "$<TARGET_FILE:wmb_xfont>" "$<TARGET_FILE:wmb_framework>"
     "$<TARGET_FILE:wmb_jwm>" "$<TARGET_FILE:wmb_applications>"
     "$<TARGET_FILE:wmb_desktop>"
+    "$<TARGET_FILE:wmb_api_runtime>" "$<TARGET_FILE:wmb_metrics>"
     -Wl,--no-whole-archive -Wl,--end-group ZLIB::ZLIB m)
 add_dependencies(wmb_portability_link wmb_tinyx wmb_kdrive wmb_xlib
-    wmb_transport_core wmb_xfont wmb_framework wmb_jwm wmb_applications wmb_desktop)
+    wmb_transport_core wmb_xfont wmb_framework wmb_jwm wmb_applications wmb_desktop
+    wmb_api_runtime wmb_metrics)
 target_link_libraries(wmb_portability_link PRIVATE wmb_transport_api)
 target_compile_options(wmb_portability_link PRIVATE -Wall -Wextra -Werror)
 target_link_options(wmb_portability_link PRIVATE -Wl,--no-gc-sections
@@ -101,7 +103,7 @@ set_tests_properties(tinyx_p6_detachability PROPERTIES TIMEOUT 10)
 
 find_package(Python3 3.10 REQUIRED COMPONENTS Interpreter)
 file(GENERATE OUTPUT "${CMAKE_BINARY_DIR}/portability-targets.json" CONTENT
-    "{\"archives\":[\"$<TARGET_FILE:wmb_tinyx>\",\"$<TARGET_FILE:wmb_kdrive>\",\"$<TARGET_FILE:wmb_xlib>\",\"$<TARGET_FILE:wmb_xfont>\",\"$<TARGET_FILE:wmb_transport_core>\",\"$<TARGET_FILE:wmb_jwm>\",\"$<TARGET_FILE:wmb_applications>\",\"$<TARGET_FILE:wmb_desktop>\"],\"probe\":\"$<TARGET_FILE:wmb_portability_link>\"}\n")
+    "{\"archives\":[\"$<TARGET_FILE:wmb_tinyx>\",\"$<TARGET_FILE:wmb_kdrive>\",\"$<TARGET_FILE:wmb_xlib>\",\"$<TARGET_FILE:wmb_xfont>\",\"$<TARGET_FILE:wmb_transport_core>\",\"$<TARGET_FILE:wmb_jwm>\",\"$<TARGET_FILE:wmb_applications>\",\"$<TARGET_FILE:wmb_desktop>\",\"$<TARGET_FILE:wmb_api_runtime>\",\"$<TARGET_FILE:wmb_metrics>\"],\"probe\":\"$<TARGET_FILE:wmb_portability_link>\"}\n")
 add_test(NAME tinyx_p6_portability COMMAND "${Python3_EXECUTABLE}"
     "${WMB_SOURCE_ROOT}/tools/check_portability.py" --build-dir "${CMAKE_BINARY_DIR}")
 set_tests_properties(tinyx_p6_portability PROPERTIES TIMEOUT 120)

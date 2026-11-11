@@ -3,6 +3,7 @@
 #include "wmb_apps.h"
 #include "hal_alloc.h"
 #include "fiber.h"
+#include "wmb_metrics.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -111,6 +112,7 @@ void wmb_apps_reap(void)
         if (!launch->done) position = &launch->next;
         else {
             if (launch->result) application_result = launch->result;
+            if (wmb_metrics_record_task(launch->task) != 0) application_result = -1;
             *position = launch->next;
             hal_task_destroy(launch->task);
             wmb_free(launch);

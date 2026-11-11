@@ -29,6 +29,9 @@ from The Open Group.
 
 #ifndef _X11_XLIBINT_H_
 #define _X11_XLIBINT_H_ 1
+#if defined(WMB_APP_OPAQUE)
+#error "Opaque application clients must not include private Xlib headers"
+#endif
 
 /*
  *	Xlibint.h - Header definition and support file for the internal

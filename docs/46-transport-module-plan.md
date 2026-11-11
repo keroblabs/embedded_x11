@@ -176,6 +176,13 @@ removed after the whole-archive gate exposed them. See
 
 **Goal:** prove the external application story, and prove the system survives. [`40-`](40-implementation-plan.md) §9, [`22-`](22-entry-point-abi.md).
 
+**Implemented:** a frozen 122-slot core-v1 ABI, a 123-slot v2 table, genuinely
+opaque Display/Screen SDK headers, standalone thin archives and a safe API-level
+gateway. [The integration guide](../transport/api/README.md) is the runnable
+reference. The native/foreign tables and host copy/handle bridge have independent
+verification; neither is inferred from the other. The final real-hour and
+measurement gates have passed; see [the verified host record](reference/p8-host-verification.json).
+
 ### 6.1 Work items
 
 | # | Item | Spec |
@@ -184,8 +191,8 @@ removed after the whole-archive gate exposed them. See
 | F8‑2 | `wmb_api.h`, `wmb_api_table.c` | [`22-`](22-entry-point-abi.md) §3, §4.1 |
 | F8‑3 | **A5 enumeration** → `docs/xlib-display-macros.txt`, generated from `X11/Xlib.h` | §6.2, [`91-`](91-open-questions.md) Q20 |
 | F8‑4 | `wrapper/libX11-app/` + the macro compatibility header, driven by F8‑3 | [`22-`](22-entry-point-abi.md) §5 |
-| F8‑5 | `wmb_bridge.c` — the host validation scaffold | [`22-`](22-entry-point-abi.md) §6 |
-| F8‑6 | MPSC producer side on the request queue + a **polled** server-wake mailbox | [`22-`](22-entry-point-abi.md) §7 E4, [`90-`](90-decisions.md) D‑44 |
+| F8‑5 | Generated typed proxy/server adapters and bounded copy codecs in `linux_hosted/abi_bridge/` | [`22-`](22-entry-point-abi.md) §6 |
+| F8‑6 | API-level MPSC admission and a **polled** mailbox; Xlib remains on runtime-owned workers | [`22-`](22-entry-point-abi.md) §7 E4, D-56 |
 | F8‑7 | `apps/wmb_hello/` | [`01-`](01-component-inventory.md) §11.2 |
 
 The **stack and heap instrumentation** (F8-8 in the old 44) is measurement of framework quantities and stays with [`44-`](44-framework-module-plan.md).
@@ -193,28 +200,41 @@ The **stack and heap instrumentation** (F8-8 in the old 44) is measurement of fr
 ### 6.2 The A5 enumeration is generated, not typed
 
 `DefaultScreen`, `RootWindow`, `BlackPixel`, `DisplayWidth`, `ScreenCount`, `NextRequest`, `ConnectionNumber` and their `*OfScreen` variants all
-expand to a dereference of a `Display` or `Screen` struct **that the wrapper does not have**. Missing one does not fail to compile — it segfaults at
-first use, in an application we did not write.
+expand to a dereference of a `Display` or `Screen` struct **that the wrapper does
+not have**. The SDK now makes both types incomplete: missing replacements are
+compile errors rather than unchecked layout assumptions.
 
-So the list is extracted mechanically from `X11/Xlib.h` (every macro whose expansion mentions its `Display` or `Screen` parameter), checked in, and
-regenerated in CI so that an upstream header change appears as a diff rather than as a field report.
+The list of 51 is extracted mechanically from canonical `libX11/include/X11/Xlib.h`,
+including transitive aliases, checked in, and verified by regeneration and a TU
+using every entry. C/C++ and defined-one/zero/empty profiles pass. Separate
+negative tests prove `sizeof`/field access and private-header mixing fail.
 
 ### 6.3 Definition of Done
 
-- [ ] `wmb_api.h`, `wrappers.c` and the slot count are all generated from `api.def`; regeneration produces no diff (S9).
-- [ ] `docs/xlib-display-macros.txt` is generated, checked in, and regeneration produces no diff.
-- [ ] A test TU **using every macro in that list** compiles against the wrapper's compatibility header and produces no reference to any `Display` or
+- [x] `wmb_api.h`, `wrappers.c` and the slot count are all generated from `api.def`; regeneration produces no diff (S9).
+- [x] `docs/xlib-display-macros.txt` is generated, checked in, and regeneration produces no diff.
+- [x] A test TU **using every macro in that list** compiles against the wrapper's compatibility header and produces no reference to any `Display` or
   `Screen` field — in the wrapper, both types are opaque.
-- [ ] `libX11-app.a` is **< 16 KB** and exports only the wrapper entry points plus `wmb_bind` (V-P8-1).
-- [ ] `wmb_hello`, a separate process linking only the wrapper, produces a **visible, JWM-decorated window** over the bridge (V-P8-2).
-- [ ] An application built against ABI v1 runs against a v2 WMB (V-P8-3).
-- [ ] **Re-entrancy (E4)**: two bridge clients posting from two OS threads, deliberately preempting each other, produce correct results and lose no
-  requests. The contention is on the queue and the wake, **not on `dix`**, which the server fiber still serialises. This is the only test in the
-  project that deliberately uses threads, and it tests the boundary, not WMB.
-- [ ] **Leak (V-P8-4)**: 10,000 window create/destroy cycles leave the heap high-water mark flat, **attributed to WMB rather than to the whole heap**.
-- [ ] **Stability (V-P8-5)**: a one-hour run with scripted continuous input — flat heap, no fiber canary trip, no fiber starvation.
-- [ ] **Measurements recorded (V-P8-6)** — captured against the framework's heap/stack instrumentation; recording is [`44-`](44-framework-module-plan.md)'s
+- [x] Raw `libX11-app.a` is **15,924 bytes < 16 KiB**, exporting only the stable linker thunks plus `wmb_bind` (V-P8-1).
+- [x] `wmb_hello`, a separate process linking the wrapper/host scaffold and no full Xlib, produces a **visible, JWM-decorated window** (V-P8-2).
+- [x] Independently frozen ABI v1 runs against v2 in actual same-address and process tests; insufficient older providers fail before missing-field reads (V-P8-3).
+- [x] **Re-entrancy (E4)**: two preempting OS callers and two separate process clients produce correct results and lose no
+  requests. Contention is on API admission, **not on DIX**, which the server
+  fiber still serializes. Deliberate host threads stay in these boundary
+  tests/scaffolds, never WMB's cooperative scheduler or DIX.
+- [x] **Leak (V-P8-4)**: 10,000 managed create/map/withdraw/destroy cycles leave settled bytes/blocks and peak flat while another owner allocates 100 KiB.
+- [x] **Stability (V-P8-5)**: a real 3,600,000-ms input run with a flat attributed heap, no canary trip/starvation and an 8-ms maximum root gap.
+- [x] **Measurements recorded (V-P8-6)** — captured against the framework's heap/stack instrumentation; recording is [`44-`](44-framework-module-plan.md)'s
   responsibility. The transport's obligation is to run the workload that produces the measurements.
+
+Debug/RGB565, Release/XRGB8888 and strict ASan/UBSan for both formats (including
+319x177 padded RGB565) pass all 52 normal tests; Release also passes the optional
+stock-Xlib JWM gate, for 53. Native 60-second HAL/gateway
+Memcheck and real current/legacy external processes have zero errors/lost bytes.
+Codec/font tests separately cover uninitialized/masked fields, every core event,
+LP64 properties and actual zlib OOM cleanup. The P6 boundary now audits 510
+selected units and eleven full archives without a backend or garbage collection;
+raw allocation imports cannot bypass owner attribution.
 
 ## 7. Interfaces With Other Modules
 
@@ -245,7 +265,7 @@ regenerated in CI so that an upstream header change appears as a diff rather tha
 
 | | Value |
 |---|---|
-| New LOC | ~1,100 (P5) + ~700 (P8) |
+| P8 implementation | Schema-generated typed tables/wrappers/adapters plus owned gateway, copy codecs and tests; the old ~700-line stub estimate is not a completeness limit |
 | Upstream files guarded | **10 of the `libX11/` cap of 10** - no remaining client slack |
 | Files this module *removes* from the build with no diff | ~10 kLOC of `libX11/src/` |
 

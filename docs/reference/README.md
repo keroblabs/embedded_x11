@@ -159,3 +159,40 @@ genuine system Xlib and a temporary Xvfb. It verifies two decorated native
 clients, registry launch and cleanup; native interaction/precision/cancellation
 are tested separately on the subject in-process stack.
 See [the JWM guide](../../jwm/wmb/README.md).
+
+## P8 ABI and external application references
+
+[api-v1.json](api-v1.json) freezes the initial **122-slot** typed ABI and its
+macro bindings independently of the current definition. Ordinary regeneration
+cannot rewrite it. Current v2 appends a revision slot; tests build and run the
+old SDK separately, rather than relabeling the same rebuilt client.
+
+[The generated macro inventory](../xlib-display-macros.txt) records every one
+of the 51 canonical Display/Screen dereferencing accessors. SDK tests compile
+them all in C/C++, prove both objects truly incomplete, and reject incompatible
+headers/data models and insufficient table prefixes.
+
+[The external-application image](tinyx-abi-external-rgb565.png) is an actual
+800x480 RGB565 framebuffer capture from SDL's x11/software presentation, with
+a separate SDK-only `wmb_hello` process. The application queries a native JWM
+parent different from the root, and the harness verifies real green pixels
+and drawn core-font text before retaining the image. No full Xlib, JWM or SDL
+is linked into that application.
+
+The [process validation driver](../../linux_hosted/abi_bridge/run.py) can retain
+its headless PPM with `--capture PATH`. The visible reference was captured with
+`SDL_VIDEODRIVER=x11 SDL_RENDER_DRIVER=software`, not reconstructed from RPC
+arguments. Reproduce the service/client manually using
+[the host scaffold guide](../../linux_hosted/abi_bridge/README.md).
+
+Heap/stack/image facts and final endurance status belong to
+[the target measurement record](../31-target-build.md) and
+[verification plan](../41-verification-plan.md), not the old image-size
+estimates. The 10,000-window and real-hour tests use the genuine same-address
+SDK/gateway workload independently of this process scaffold.
+
+[p8-host-verification.json](p8-host-verification.json) records the completed
+3,600,000-ms input run and independent 3,604.442-second wall timer, exact unchanged
+binary hash, received traffic, flat heap, stack measurements and full matrix.
+It is a host-build certificate, not a normative binary hash for another
+compiler/path/architecture or a hardware/freestanding result.

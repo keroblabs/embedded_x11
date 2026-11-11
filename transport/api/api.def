@@ -1,0 +1,2527 @@
+{
+  "magic": "0x574d4241",
+  "version": 2,
+  "macros": {
+    "BitmapBitOrder": "XBitmapBitOrder",
+    "BitmapPad": "XBitmapPad",
+    "BitmapUnit": "XBitmapUnit",
+    "BlackPixel": "XBlackPixel",
+    "BlackPixelOfScreen": "XBlackPixelOfScreen",
+    "CellsOfScreen": "XCellsOfScreen",
+    "ConnectionNumber": "XConnectionNumber",
+    "DefaultColormap": "XDefaultColormap",
+    "DefaultColormapOfScreen": "XDefaultColormapOfScreen",
+    "DefaultDepth": "XDefaultDepth",
+    "DefaultDepthOfScreen": "XDefaultDepthOfScreen",
+    "DefaultGC": "XDefaultGC",
+    "DefaultGCOfScreen": "XDefaultGCOfScreen",
+    "DefaultRootWindow": "XDefaultRootWindow",
+    "DefaultScreen": "XDefaultScreen",
+    "DefaultScreenOfDisplay": "XDefaultScreenOfDisplay",
+    "DefaultVisual": "XDefaultVisual",
+    "DefaultVisualOfScreen": "XDefaultVisualOfScreen",
+    "DisplayCells": "XDisplayCells",
+    "DisplayHeight": "XDisplayHeight",
+    "DisplayHeightMM": "XDisplayHeightMM",
+    "DisplayOfScreen": "XDisplayOfScreen",
+    "DisplayPlanes": "XDisplayPlanes",
+    "DisplayString": "XDisplayString",
+    "DisplayWidth": "XDisplayWidth",
+    "DisplayWidthMM": "XDisplayWidthMM",
+    "DoesBackingStore": "XDoesBackingStore",
+    "DoesSaveUnders": "XDoesSaveUnders",
+    "EventMaskOfScreen": "XEventMaskOfScreen",
+    "HeightMMOfScreen": "XHeightMMOfScreen",
+    "HeightOfScreen": "XHeightOfScreen",
+    "ImageByteOrder": "XImageByteOrder",
+    "LastKnownRequestProcessed": "XLastKnownRequestProcessed",
+    "MaxCmapsOfScreen": "XMaxCmapsOfScreen",
+    "MinCmapsOfScreen": "XMinCmapsOfScreen",
+    "NextRequest": "XNextRequest",
+    "PlanesOfScreen": "XPlanesOfScreen",
+    "ProtocolRevision": "XProtocolRevision",
+    "ProtocolVersion": "XProtocolVersion",
+    "QLength": "XQLength",
+    "RootWindow": "XRootWindow",
+    "RootWindowOfScreen": "XRootWindowOfScreen",
+    "ScreenCount": "XScreenCount",
+    "ScreenOfDisplay": "XScreenOfDisplay",
+    "ServerVendor": "XServerVendor",
+    "VendorRelease": "XVendorRelease",
+    "WhitePixel": "XWhitePixel",
+    "WhitePixelOfScreen": "XWhitePixelOfScreen",
+    "WidthMMOfScreen": "XWidthMMOfScreen",
+    "WidthOfScreen": "XWidthOfScreen",
+    "XAllocID": "wmbAllocID"
+  },
+  "functions": [
+    {
+      "name": "XBitmapBitOrder",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XBitmapPad",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XBitmapUnit",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XBlackPixel",
+      "returns": "unsigned long",
+      "result": "u",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XBlackPixelOfScreen",
+      "returns": "unsigned long",
+      "result": "u",
+      "params": [
+        {
+          "type": "Screen*",
+          "kind": "screen"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XCellsOfScreen",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Screen*",
+          "kind": "screen"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XConnectionNumber",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XDefaultColormap",
+      "returns": "Colormap",
+      "result": "u",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XDefaultColormapOfScreen",
+      "returns": "Colormap",
+      "result": "u",
+      "params": [
+        {
+          "type": "Screen*",
+          "kind": "screen"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XDefaultDepth",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XDefaultDepthOfScreen",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Screen*",
+          "kind": "screen"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XDefaultGC",
+      "returns": "GC",
+      "result": "gc",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XDefaultGCOfScreen",
+      "returns": "GC",
+      "result": "gc",
+      "params": [
+        {
+          "type": "Screen*",
+          "kind": "screen"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XDefaultRootWindow",
+      "returns": "Window",
+      "result": "u",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XDefaultScreen",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XDefaultScreenOfDisplay",
+      "returns": "Screen*",
+      "result": "screen",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XDefaultVisual",
+      "returns": "Visual*",
+      "result": "visual",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XDefaultVisualOfScreen",
+      "returns": "Visual*",
+      "result": "visual",
+      "params": [
+        {
+          "type": "Screen*",
+          "kind": "screen"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XDisplayCells",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XDisplayHeight",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XDisplayHeightMM",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XDisplayOfScreen",
+      "returns": "Display*",
+      "result": "display",
+      "params": [
+        {
+          "type": "Screen*",
+          "kind": "screen"
+        }
+      ],
+      "since": 1,
+      "local": true
+    },
+    {
+      "name": "XDisplayPlanes",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XDisplayString",
+      "returns": "char*",
+      "result": "borrowed_string",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XDisplayWidth",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XDisplayWidthMM",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XDoesBackingStore",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Screen*",
+          "kind": "screen"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XDoesSaveUnders",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Screen*",
+          "kind": "screen"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XEventMaskOfScreen",
+      "returns": "long",
+      "result": "i",
+      "params": [
+        {
+          "type": "Screen*",
+          "kind": "screen"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XHeightMMOfScreen",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Screen*",
+          "kind": "screen"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XHeightOfScreen",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Screen*",
+          "kind": "screen"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XImageByteOrder",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XLastKnownRequestProcessed",
+      "returns": "unsigned long",
+      "result": "u",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XMaxCmapsOfScreen",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Screen*",
+          "kind": "screen"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XMinCmapsOfScreen",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Screen*",
+          "kind": "screen"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XNextRequest",
+      "returns": "unsigned long",
+      "result": "u",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XPlanesOfScreen",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Screen*",
+          "kind": "screen"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XProtocolRevision",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XProtocolVersion",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XQLength",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XRootWindow",
+      "returns": "Window",
+      "result": "u",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XRootWindowOfScreen",
+      "returns": "Window",
+      "result": "u",
+      "params": [
+        {
+          "type": "Screen*",
+          "kind": "screen"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XScreenCount",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XScreenOfDisplay",
+      "returns": "Screen*",
+      "result": "screen",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XServerVendor",
+      "returns": "char*",
+      "result": "borrowed_string",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XVendorRelease",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XWhitePixel",
+      "returns": "unsigned long",
+      "result": "u",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XWhitePixelOfScreen",
+      "returns": "unsigned long",
+      "result": "u",
+      "params": [
+        {
+          "type": "Screen*",
+          "kind": "screen"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XWidthMMOfScreen",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Screen*",
+          "kind": "screen"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XWidthOfScreen",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Screen*",
+          "kind": "screen"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "wmbAllocID",
+      "returns": "XID",
+      "result": "u",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        }
+      ],
+      "since": 1,
+      "native": "wmb_api_alloc_id"
+    },
+    {
+      "name": "XOpenDisplay",
+      "returns": "Display*",
+      "result": "display",
+      "params": [
+        {
+          "type": "const char*",
+          "kind": "string",
+          "nullable": true
+        }
+      ],
+      "since": 1,
+      "native": "wmb_api_open"
+    },
+    {
+      "name": "XCloseDisplay",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XFlush",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XSync",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XCreateSimpleWindow",
+      "returns": "Window",
+      "result": "u",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "Window",
+          "kind": "u"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        },
+        {
+          "type": "unsigned int",
+          "kind": "u"
+        },
+        {
+          "type": "unsigned int",
+          "kind": "u"
+        },
+        {
+          "type": "unsigned int",
+          "kind": "u"
+        },
+        {
+          "type": "unsigned long",
+          "kind": "u"
+        },
+        {
+          "type": "unsigned long",
+          "kind": "u"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XCreateWindow",
+      "returns": "Window",
+      "result": "u",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "Window",
+          "kind": "u"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        },
+        {
+          "type": "unsigned int",
+          "kind": "u"
+        },
+        {
+          "type": "unsigned int",
+          "kind": "u"
+        },
+        {
+          "type": "unsigned int",
+          "kind": "u"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        },
+        {
+          "type": "unsigned int",
+          "kind": "u"
+        },
+        {
+          "type": "Visual*",
+          "kind": "visual"
+        },
+        {
+          "type": "unsigned long",
+          "kind": "u"
+        },
+        {
+          "type": "XSetWindowAttributes*",
+          "kind": "attributes",
+          "mask": 10,
+          "nullable": true
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XDestroyWindow",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "Window",
+          "kind": "u"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XMapWindow",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "Window",
+          "kind": "u"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XMapRaised",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "Window",
+          "kind": "u"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XUnmapWindow",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "Window",
+          "kind": "u"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XMoveWindow",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "Window",
+          "kind": "u"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XResizeWindow",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "Window",
+          "kind": "u"
+        },
+        {
+          "type": "unsigned int",
+          "kind": "u"
+        },
+        {
+          "type": "unsigned int",
+          "kind": "u"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XMoveResizeWindow",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "Window",
+          "kind": "u"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        },
+        {
+          "type": "unsigned int",
+          "kind": "u"
+        },
+        {
+          "type": "unsigned int",
+          "kind": "u"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XConfigureWindow",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "Window",
+          "kind": "u"
+        },
+        {
+          "type": "unsigned int",
+          "kind": "u"
+        },
+        {
+          "type": "XWindowChanges*",
+          "kind": "changes",
+          "mask": 2,
+          "nullable": true
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XRaiseWindow",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "Window",
+          "kind": "u"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XLowerWindow",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "Window",
+          "kind": "u"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XGetWindowAttributes",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "Window",
+          "kind": "u"
+        },
+        {
+          "type": "XWindowAttributes*",
+          "kind": "out_attributes"
+        }
+      ],
+      "since": 1,
+      "output_if_true": true
+    },
+    {
+      "name": "XSetWindowBackground",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "Window",
+          "kind": "u"
+        },
+        {
+          "type": "unsigned long",
+          "kind": "u"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XClearWindow",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "Window",
+          "kind": "u"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XClearArea",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "Window",
+          "kind": "u"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        },
+        {
+          "type": "unsigned int",
+          "kind": "u"
+        },
+        {
+          "type": "unsigned int",
+          "kind": "u"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XCreateGC",
+      "returns": "GC",
+      "result": "gc",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "Drawable",
+          "kind": "u"
+        },
+        {
+          "type": "unsigned long",
+          "kind": "u"
+        },
+        {
+          "type": "XGCValues*",
+          "kind": "gc_values",
+          "mask": 2,
+          "nullable": true
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XFreeGC",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "GC",
+          "kind": "gc"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XSetForeground",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "GC",
+          "kind": "gc"
+        },
+        {
+          "type": "unsigned long",
+          "kind": "u"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XSetBackground",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "GC",
+          "kind": "gc"
+        },
+        {
+          "type": "unsigned long",
+          "kind": "u"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XSetLineAttributes",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "GC",
+          "kind": "gc"
+        },
+        {
+          "type": "unsigned int",
+          "kind": "u"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XSetFunction",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "GC",
+          "kind": "gc"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XDrawPoint",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "Drawable",
+          "kind": "u"
+        },
+        {
+          "type": "GC",
+          "kind": "gc"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XDrawLine",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "Drawable",
+          "kind": "u"
+        },
+        {
+          "type": "GC",
+          "kind": "gc"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XDrawLines",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "Drawable",
+          "kind": "u"
+        },
+        {
+          "type": "GC",
+          "kind": "gc"
+        },
+        {
+          "type": "XPoint*",
+          "kind": "points",
+          "count": 4,
+          "nullable": true
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XDrawRectangle",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "Drawable",
+          "kind": "u"
+        },
+        {
+          "type": "GC",
+          "kind": "gc"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        },
+        {
+          "type": "unsigned int",
+          "kind": "u"
+        },
+        {
+          "type": "unsigned int",
+          "kind": "u"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XFillRectangle",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "Drawable",
+          "kind": "u"
+        },
+        {
+          "type": "GC",
+          "kind": "gc"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        },
+        {
+          "type": "unsigned int",
+          "kind": "u"
+        },
+        {
+          "type": "unsigned int",
+          "kind": "u"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XFillPolygon",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "Drawable",
+          "kind": "u"
+        },
+        {
+          "type": "GC",
+          "kind": "gc"
+        },
+        {
+          "type": "XPoint*",
+          "kind": "points",
+          "count": 4,
+          "nullable": true
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XDrawArc",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "Drawable",
+          "kind": "u"
+        },
+        {
+          "type": "GC",
+          "kind": "gc"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        },
+        {
+          "type": "unsigned int",
+          "kind": "u"
+        },
+        {
+          "type": "unsigned int",
+          "kind": "u"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XFillArc",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "Drawable",
+          "kind": "u"
+        },
+        {
+          "type": "GC",
+          "kind": "gc"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        },
+        {
+          "type": "unsigned int",
+          "kind": "u"
+        },
+        {
+          "type": "unsigned int",
+          "kind": "u"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XDrawString",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "Drawable",
+          "kind": "u"
+        },
+        {
+          "type": "GC",
+          "kind": "gc"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        },
+        {
+          "type": "const char*",
+          "kind": "bytes",
+          "count": 6,
+          "nullable": true
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XDrawImageString",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "Drawable",
+          "kind": "u"
+        },
+        {
+          "type": "GC",
+          "kind": "gc"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        },
+        {
+          "type": "const char*",
+          "kind": "bytes",
+          "count": 6,
+          "nullable": true
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XCopyArea",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "Drawable",
+          "kind": "u"
+        },
+        {
+          "type": "Drawable",
+          "kind": "u"
+        },
+        {
+          "type": "GC",
+          "kind": "gc"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        },
+        {
+          "type": "unsigned int",
+          "kind": "u"
+        },
+        {
+          "type": "unsigned int",
+          "kind": "u"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XCreatePixmap",
+      "returns": "Pixmap",
+      "result": "u",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "Drawable",
+          "kind": "u"
+        },
+        {
+          "type": "unsigned int",
+          "kind": "u"
+        },
+        {
+          "type": "unsigned int",
+          "kind": "u"
+        },
+        {
+          "type": "unsigned int",
+          "kind": "u"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XFreePixmap",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "Pixmap",
+          "kind": "u"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XSelectInput",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "Window",
+          "kind": "u"
+        },
+        {
+          "type": "long",
+          "kind": "i"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XNextEvent",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "XEvent*",
+          "kind": "out_event"
+        }
+      ],
+      "since": 1,
+      "native": "wmb_api_next_event"
+    },
+    {
+      "name": "XPending",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XCheckMaskEvent",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "long",
+          "kind": "i"
+        },
+        {
+          "type": "XEvent*",
+          "kind": "out_event"
+        }
+      ],
+      "since": 1,
+      "output_if_true": true
+    },
+    {
+      "name": "XCheckTypedWindowEvent",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "Window",
+          "kind": "u"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        },
+        {
+          "type": "XEvent*",
+          "kind": "out_event"
+        }
+      ],
+      "since": 1,
+      "output_if_true": true
+    },
+    {
+      "name": "XPutBackEvent",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "XEvent*",
+          "kind": "event"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XSendEvent",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "Window",
+          "kind": "u"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        },
+        {
+          "type": "long",
+          "kind": "i"
+        },
+        {
+          "type": "XEvent*",
+          "kind": "event"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XInternAtom",
+      "returns": "Atom",
+      "result": "u",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "const char*",
+          "kind": "string"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XGetAtomName",
+      "returns": "char*",
+      "result": "owned_string",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "Atom",
+          "kind": "u"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XChangeProperty",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "Window",
+          "kind": "u"
+        },
+        {
+          "type": "Atom",
+          "kind": "u"
+        },
+        {
+          "type": "Atom",
+          "kind": "u"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        },
+        {
+          "type": "const unsigned char*",
+          "kind": "property",
+          "count": 7,
+          "format": 4,
+          "nullable": true
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XDeleteProperty",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "Window",
+          "kind": "u"
+        },
+        {
+          "type": "Atom",
+          "kind": "u"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XGetWindowProperty",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "Window",
+          "kind": "u"
+        },
+        {
+          "type": "Atom",
+          "kind": "u"
+        },
+        {
+          "type": "long",
+          "kind": "i"
+        },
+        {
+          "type": "long",
+          "kind": "i"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        },
+        {
+          "type": "Atom",
+          "kind": "u"
+        },
+        {
+          "type": "Atom*",
+          "kind": "out_u"
+        },
+        {
+          "type": "int*",
+          "kind": "out_i"
+        },
+        {
+          "type": "unsigned long*",
+          "kind": "out_u"
+        },
+        {
+          "type": "unsigned long*",
+          "kind": "out_u"
+        },
+        {
+          "type": "unsigned char**",
+          "kind": "out_property",
+          "count": 9,
+          "format": 8
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XAllocColor",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "Colormap",
+          "kind": "u"
+        },
+        {
+          "type": "XColor*",
+          "kind": "color"
+        }
+      ],
+      "since": 1,
+      "output_if_true": true
+    },
+    {
+      "name": "XAllocNamedColor",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "Colormap",
+          "kind": "u"
+        },
+        {
+          "type": "const char*",
+          "kind": "string"
+        },
+        {
+          "type": "XColor*",
+          "kind": "out_color"
+        },
+        {
+          "type": "XColor*",
+          "kind": "out_color"
+        }
+      ],
+      "since": 1,
+      "output_if_true": true
+    },
+    {
+      "name": "XFreeColors",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "Colormap",
+          "kind": "u"
+        },
+        {
+          "type": "unsigned long*",
+          "kind": "pixels",
+          "count": 3,
+          "nullable": true
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        },
+        {
+          "type": "unsigned long",
+          "kind": "u"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XCreateFontCursor",
+      "returns": "Cursor",
+      "result": "u",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "unsigned int",
+          "kind": "u"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XDefineCursor",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "Window",
+          "kind": "u"
+        },
+        {
+          "type": "Cursor",
+          "kind": "u"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XFreeCursor",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "Cursor",
+          "kind": "u"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XStoreName",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "Window",
+          "kind": "u"
+        },
+        {
+          "type": "const char*",
+          "kind": "string",
+          "nullable": true
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XSetWMProtocols",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "Window",
+          "kind": "u"
+        },
+        {
+          "type": "Atom*",
+          "kind": "atoms",
+          "count": 3,
+          "nullable": true
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XSetWMNormalHints",
+      "returns": "void",
+      "result": "void",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "Window",
+          "kind": "u"
+        },
+        {
+          "type": "XSizeHints*",
+          "kind": "size_hints"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XQueryTree",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "Window",
+          "kind": "u"
+        },
+        {
+          "type": "Window*",
+          "kind": "out_u"
+        },
+        {
+          "type": "Window*",
+          "kind": "out_u"
+        },
+        {
+          "type": "Window**",
+          "kind": "out_windows",
+          "count": 5
+        },
+        {
+          "type": "unsigned int*",
+          "kind": "out_u"
+        }
+      ],
+      "since": 1,
+      "output_if_true": true
+    },
+    {
+      "name": "XGetInputFocus",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "Window*",
+          "kind": "out_u"
+        },
+        {
+          "type": "int*",
+          "kind": "out_i"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XSetInputFocus",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "Window",
+          "kind": "u"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        },
+        {
+          "type": "Time",
+          "kind": "u"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XQueryPointer",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "Window",
+          "kind": "u"
+        },
+        {
+          "type": "Window*",
+          "kind": "out_u"
+        },
+        {
+          "type": "Window*",
+          "kind": "out_u"
+        },
+        {
+          "type": "int*",
+          "kind": "out_i"
+        },
+        {
+          "type": "int*",
+          "kind": "out_i"
+        },
+        {
+          "type": "int*",
+          "kind": "out_i"
+        },
+        {
+          "type": "int*",
+          "kind": "out_i"
+        },
+        {
+          "type": "unsigned int*",
+          "kind": "out_u"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XWarpPointer",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "Window",
+          "kind": "u"
+        },
+        {
+          "type": "Window",
+          "kind": "u"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        },
+        {
+          "type": "unsigned int",
+          "kind": "u"
+        },
+        {
+          "type": "unsigned int",
+          "kind": "u"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XFree",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "void*",
+          "kind": "local_free"
+        }
+      ],
+      "since": 1,
+      "local": true
+    },
+    {
+      "name": "XGrabServer",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XUngrabServer",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XBell",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "Display*",
+          "kind": "display"
+        },
+        {
+          "type": "int",
+          "kind": "i"
+        }
+      ],
+      "since": 1
+    },
+    {
+      "name": "XVisualIDFromVisual",
+      "returns": "VisualID",
+      "result": "u",
+      "params": [
+        {
+          "type": "Visual*",
+          "kind": "visual"
+        }
+      ],
+      "since": 1,
+      "local": true
+    },
+    {
+      "name": "wmbYield",
+      "returns": "int",
+      "result": "i",
+      "params": [
+        {
+          "type": "uint32_t",
+          "kind": "u"
+        }
+      ],
+      "since": 1,
+      "native": "wmb_api_yield",
+      "local": true
+    },
+    {
+      "name": "wmbApiRevision",
+      "returns": "uint32_t",
+      "result": "u",
+      "params": [],
+      "since": 2,
+      "native": "wmb_api_revision"
+    }
+  ]
+}

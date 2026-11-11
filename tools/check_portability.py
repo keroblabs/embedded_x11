@@ -21,7 +21,8 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "patches/manifest.json"
 TARGETS = ("wmb_tinyx", "wmb_kdrive", "wmb_xlib", "wmb_xfont",
-           "wmb_transport_core", "wmb_jwm", "wmb_applications", "wmb_desktop")
+           "wmb_transport_core", "wmb_jwm", "wmb_applications", "wmb_desktop",
+           "wmb_api_runtime", "wmb_metrics")
 NATIVE_HEADER = re.compile(
     r"^(?:sys/|linux/|netinet/|xcb/|SDL|"
     r"(?:netdb|pwd|grp|unistd|signal|fcntl|dirent|termios|poll|pthread|dlfcn)\.h$|"
@@ -186,7 +187,7 @@ def compile_entries(build: Path) -> list[Compile]:
         if any(file.is_relative_to(ROOT / path) for path in (
             "framework", "hal", "linux_hosted/sdl_drivers", "linux_hosted/sdl_library",
         )) and any(flag in item["command"] for flag in (
-            "-DWMB_DEVEL", "-DWMB_INPROC", "_XSERVER64", "/generated/tinyx/",
+            "-DWMB_DEVEL", "-DWMB_INPROC", "-DWMB_APP_OPAQUE", "_XSERVER64", "/generated/tinyx/",
         )):
             raise RuntimeError(f"Windowing ABI flags leaked below the contract: {file}")
         matches = [target for target in TARGETS if f"/{target}.dir/" in item["command"]]
@@ -242,7 +243,7 @@ def audit_sources(entries: list[Compile], build: Path) -> None:
     roots = (ROOT, build, *sorted({entry.file.parent for entry in font_entries}))
 
     def scan(entry: Compile) -> set[str]:
-        if entry.target in ("wmb_xlib", "wmb_jwm") and any(
+        if entry.target in ("wmb_xlib", "wmb_jwm", "wmb_api_runtime") and any(
             token in " ".join(entry.arguments) for token in ("-DWMB_DEVEL", "_XSERVER64", "/generated/tinyx")
         ):
             raise RuntimeError(f"Server ABI leaked into client: {entry.file}")
@@ -331,24 +332,36 @@ def audit_reference(entries: list[Compile], patches: list[Patch], overlay: Path)
     print(f"PASS native compilation/preprocessing and one/zero/empty variants: {checked} sources plus included headers")
 
 
-def forbidden_symbols(output: str) -> set[str]:
+def imported_symbols(output: str) -> set[str]:
     symbols = set()
     for line in output.splitlines():
         fields = line.split()
         if len(fields) >= 2 and fields[-2] == "U":
             symbol = fields[-1].split("@", 1)[0]
-            if NATIVE_SYMBOL.fullmatch(symbol):
-                symbols.add(symbol)
+            symbols.add(symbol)
     return symbols
+
+
+def forbidden_symbols(output: str) -> set[str]:
+    return {symbol for symbol in imported_symbols(output) if NATIVE_SYMBOL.fullmatch(symbol)}
 
 
 def audit_symbols(build: Path) -> None:
     targets = json.loads((build / "portability-targets.json").read_text())
     for path in [*targets["archives"], targets["probe"]]:
-        symbols = forbidden_symbols(run(["nm", "-u", path]).decode())
+        output = run(["nm", "-u", path]).decode()
+        symbols = forbidden_symbols(output)
         if symbols:
             raise RuntimeError(f"Native imports in {path}: {sorted(symbols)}")
+        if path in targets["archives"]:
+            raw_allocators = imported_symbols(output) & {
+                "malloc", "calloc", "realloc", "free", "strdup", "strndup",
+                "aligned_alloc", "posix_memalign", "wmb_alloc", "wmb_free",
+            }
+            if raw_allocators:
+                raise RuntimeError(f"Unattributed allocation imports in {path}: {sorted(raw_allocators)}")
     print("PASS native symbol boundary in every complete archive and the no-backend image")
+    print("PASS allocation attribution: no selected windowing archive bypasses owner accounting")
 
 
 def verify(build: Path) -> None:

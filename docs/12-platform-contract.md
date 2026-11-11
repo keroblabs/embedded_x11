@@ -313,6 +313,7 @@ hal_task_t *hal_task_create(const char *name, hal_task_entry_t entry,
 void        hal_task_destroy(hal_task_t *t);
 hal_task_t *hal_task_self(void);
 const char *hal_task_name(const hal_task_t *t);
+int hal_task_stack_usage(const hal_task_t *t, size_t *used, size_t *reserved);
 
 /* Round-robin yield.  Returns when the scheduler comes back around. */
 void hal_task_yield(void);
@@ -341,9 +342,10 @@ int hal_yield_timeout(uint32_t max_ms);
 | **The safety tick is currently disabled** | `hal_task_runtime_init` accepts `safety_tick_ms` and the port ignores it: scheduling is 100 % cooperative on every profile. This is [`90-`](90-decisions.md) D‑47, gated on the preconditions in D‑47.3. Write code as if the tick were armed — do not rely on a read‑modify‑write being atomic just because nothing can currently interrupt it |
 | **How to be preemption‑safe** | `fiber_critical_enter()` / `fiber_critical_exit()`. One call masks interrupts *and* suppresses the tick, it nests, and it is callable from an ISR. This is what `framework/library/buffer.c` uses under `USE_FIBER`, and it is the sanctioned primitive for any structure shared between two fibers or between a fiber and an ISR |
 | **Creation state** | **Blocked.** A new task runs only after `hal_task_wake()`. This lets a bring‑up sequence create everything and then release it in a controlled order ([`90-`](90-decisions.md) D‑43), and costs nothing — a created task could not run before its creator yielded anyway |
-| Re‑entrancy | None required. There is one thread |
+| Re-entrancy | Runtime/task APIs execute on the runtime owner only. P8 foreign tasks submit through the separate API gateway and never call these APIs |
 | **`hal_task_wake` never switches** | It marks the target runnable and returns to the caller. The same rule governs `fiber_notify()`, which the server fiber calls from inside its own dispatch loop ([`21-`](21-inprocess-transport.md) §5.5); a wake that transferred control immediately would suspend the server fiber mid‑request |
 | Stack overflow | Detected. Hosted: guard page below each stack. Target: `FIBER_CANARY` checked on every switch |
+| Stack measurement | `hal_task_stack_usage` returns sentinel-touched bytes and reservation for a live non-main task; negative for invalid/unknown bounds or canary failure. It includes hosted port context, not an MCU stack guarantee. Main's OS stack is unknown, never reported as zero |
 | Task count | Bounded at compile time (`FIBER_MAX`). `hal_task_create` returns NULL on exhaustion; callers must handle it |
 | Destruction | A task may destroy itself; `hal_task_destroy(hal_task_self())` never returns |
 | **`name` is borrowed, not copied** | `hal_task_create` stores the pointer. The string must outlive the task; a stack buffer is a use‑after‑return that `hal_task_name()` will happily hand back |

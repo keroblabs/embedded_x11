@@ -37,7 +37,7 @@ every document that cites it is updated.
 | Q6 | What is the target, and therefore the real memory numbers? | **P0** | P9 | BLOCKED |
 | Q7 | May `XNextEvent` block for an external caller? | P1 | P8 | **CLOSED** · D‑27 |
 | Q8 | Vtable as a typed struct or a flat slot array? | P2 | P8 | **CLOSED** · D‑28 |
-| Q9 | Do applications need `XImage` on target? | P2 | P8 | OPEN |
+| Q9 | Do applications need `XImage` on target? | P2 | Later extension | **DEFERRED** by the approved core-v1 scope, D-56 |
 | Q10 | Is XKB compiled in? | P1 | P4 | **CLOSED** · D‑39 |
 | Q11 | Fiber core or the platform's own scheduler on target? | P1 | P9 | **CLOSED** · D‑31 |
 | Q12 | Shadow framebuffer or direct scanout on target? | P1 | P9 | **CLOSED** · D‑35 |
@@ -48,13 +48,14 @@ every document that cites it is updated.
 | Q17 | Does `FatalError` need `setjmp`/`longjmp` on target? | P2 | P9 | **CLOSED** · D‑32 |
 | Q18 | What is the complete libc floor? | P1 | P9 | OPEN |
 | Q19 | How does JWM's `XOpenDisplay` know the server is ready? | P1 | P7 | **CLOSED** · D‑33 |
-| Q20 | Which `Display`‑dereferencing macros must the wrapper redefine? | P1 | P8 | OPEN · scheduled ([`40-`](40-implementation-plan.md) §9.1) |
+| Q20 | Which Display/Screen-dereferencing macros must the wrapper redefine? | P1 | P8 | **CLOSED**: 51 generated accessors, real opacity/compatibility tests, D-56 |
 | Q21 | Who schedules WMB once `wmb_main()` returns? | P1 | P9 | **CLOSED** · D‑44 |
 | Q22 | Who owns the timer list when `WaitFor.c` is not compiled? | P1 | P5 | **CLOSED** · D‑49 |
 
 Fourteen of the original twenty closed in the first review round; Q21 was opened by D‑42 and closed by D‑44, and Q22 was opened and closed by the D‑49
-review. The six below are what remains: one is a mechanical exercise (Q2), two are audits that must run before the code they govern is written (Q14, Q20),
-one is a measurement only the freestanding link can produce (Q18), one needs an application requirement we do not have yet (Q9), and one needs hardware (Q6).
+review. P8 additionally closes Q20 and settles its initial scope by deferring Q9.
+Q2/Q14 retain their owning phases' historical audit tracking below; Q18 needs
+the freestanding link and Q6 needs an actual target.
 
 ## 3. Details — Still Open
 
@@ -101,13 +102,17 @@ the target.
 **Current stance:** the host build is the focus, and nothing waits on this question until P9. Every target‑side decision that *could* be taken without
 knowing the hardware has been (D‑31, D‑35, D‑36, D‑44), which reduces Q6 to the numbers alone — no design question is blocked behind it.
 
-### Q9 — `XImage` on target · P2 · due P8
+### Q9 - `XImage` on target - DEFERRED, D-56
 
-`XCreateImage`/`XPutImage`/`XDestroyImage` are in the vtable draft. Keeping them is desirable — raster upload is how an application draws anything it
-rendered itself — but it is the most awkward marshalling case in the whole ABI, because an `XImage` carries both a `data` pointer and a table of function
-pointers (`f.get_pixel`, `f.put_pixel`, …) that are meaningless across an address‑space or link boundary.
+The user approved a bounded core-v1 ABI with all Display/Screen accessors, core
+drawing/property/event APIs and a safe foreign-call gateway. Rich image/font
+objects and callbacks are explicitly deferred append-only extensions, not
+advertised unimplemented slots. The original draft's image prototypes are not
+the implemented contract.
 
-**Provisional stance:** keep `XCreateImage`, `XPutImage` and `XDestroyImage`; leave `XGetImage` out until something asks for it.
+An `XImage` carries both data and function pointers, so a later extension needs
+an explicit ownership/copy/callback design. The questions below remain useful
+for that extension; they do not block P8's approved initial profile.
 
 **Closing requires** answering three concrete questions about the applications:
 
@@ -158,21 +163,20 @@ nm --undefined-only libwmb_runtime.a libwmb_hal.a libtinyx.a libx11_wmb.a libjwm
 Expected to surface surprises ([`11-`](11-portability-plan.md) R6) — which is exactly why P9a is worth running early, out of order, as soon as P6 is green.
 Census item C6.
 
-### Q20 — `Display`‑dereferencing macros in `Xlib.h` · P1 · due P8
+### Q20 - Display/Screen macro compatibility - CLOSED, D-56
 
 `DefaultScreen`, `RootWindow`, `BlackPixel`, `WhitePixel`, `DisplayWidth`, `DisplayHeight`, `DefaultDepth`, `DefaultVisual`, `DefaultColormap`,
 `DefaultGC`, `ScreenCount`, `DisplayString`, `ProtocolVersion`, `VendorRelease`, `QLength`, `NextRequest`, `LastKnownRequestProcessed`, `ConnectionNumber`,
-`AllPlanes`, … and their `*OfScreen` variants.
+and their `*OfScreen` variants.
 
-Each must become a vtable entry plus a `#undef`/`#define` in the wrapper's compatibility header, or an external application segfaults at first use.
+The canonical vendored header has **51** dereferencing accessors. `AllPlanes`
+is an ordinary scalar macro and needs no opaque-object accessor.
 
-**Closing requires:** an exhaustive enumeration from `X11/Xlib.h`, not a guess. Mechanical.
-
-**Scheduled.** It is now an explicit P8 deliverable with its own gate ([`40-`](40-implementation-plan.md) §9.1, §9.2; [`22-`](22-entry-point-abi.md) §5.2,
-A5). The enumeration is generated, not typed: every object‑like and function‑like macro in `X11/Xlib.h` whose expansion mentions the macro's `Display`
-argument is extracted mechanically, and the generator's output is checked in so that a future upstream header change shows up as a diff. The gate is that
-compiling a test translation unit which *uses* every enumerated macro against the wrapper's compatibility header produces no reference to a `Display`
-field — because in the wrapper, `Display` is opaque.
+[The inventory](xlib-display-macros.txt), compatibility functions and a TU using
+every entry are generated together. Both Display and Screen are truly
+incomplete in the SDK; C/C++ and defined-one/zero/empty profiles pass, and
+negative tests prove layout/private-header access fails. Unknown accessor
+additions fail generation instead of quietly becoming layout assumptions.
 
 ### Q22 — Timer ownership when `WaitFor.c` is excluded · **CLOSED** · D‑49
 
@@ -189,7 +193,7 @@ machinery moves verbatim into `waitfor_wmb.c`, raising its estimate from ~90 to 
 |---|---|
 | **P4** | Q2 (**P0**) |
 | **P5** | Q14 (**P0**) — audited in P4 |
-| **P8** | Q9, Q20 |
+| **P8** | Q20 closed; Q9 explicitly deferred from the approved core-v1 profile |
 | **P9** | Q6 (**P0**), Q18 |
 
 P7 no longer has an open question against it: Q4, Q5 and Q19 all closed. P9 is down to the target itself and the libc floor it produces.

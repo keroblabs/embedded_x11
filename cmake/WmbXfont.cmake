@@ -15,19 +15,19 @@ find_program(WMB_PATCH_EXECUTABLE patch)
 if(NOT WMB_PATCH_EXECUTABLE)
     message(FATAL_ERROR "The pinned font dependency requires the patch utility")
 endif()
-foreach(patch_name empty-directory pcf-unsigned-reads builtins-only)
+foreach(patch_name empty-directory pcf-unsigned-reads builtins-only allocation)
     set(font_patch "${WMB_SOURCE_ROOT}/cmake/patches/libxfont-1.5.4-${patch_name}.patch")
-    execute_process(COMMAND "${WMB_PATCH_EXECUTABLE}" --batch --dry-run --forward -p1 -i "${font_patch}"
+    execute_process(COMMAND "${WMB_PATCH_EXECUTABLE}" --batch --fuzz=0 --dry-run --forward -p1 -i "${font_patch}"
         WORKING_DIRECTORY "${XFONT_ROOT}" RESULT_VARIABLE patch_needed
         OUTPUT_QUIET ERROR_QUIET)
     if(patch_needed EQUAL 0)
-        execute_process(COMMAND "${WMB_PATCH_EXECUTABLE}" --batch --forward -p1 -i "${font_patch}"
+        execute_process(COMMAND "${WMB_PATCH_EXECUTABLE}" --batch --fuzz=0 --forward -p1 -i "${font_patch}"
             WORKING_DIRECTORY "${XFONT_ROOT}" RESULT_VARIABLE patch_result)
         if(NOT patch_result EQUAL 0)
             message(FATAL_ERROR "Could not apply the libXfont repair: ${patch_name}")
         endif()
     else()
-        execute_process(COMMAND "${WMB_PATCH_EXECUTABLE}" --batch --dry-run --reverse -p1 -i "${font_patch}"
+        execute_process(COMMAND "${WMB_PATCH_EXECUTABLE}" --batch --fuzz=0 --dry-run --reverse -p1 -i "${font_patch}"
             WORKING_DIRECTORY "${XFONT_ROOT}" RESULT_VARIABLE already_patched
             OUTPUT_QUIET ERROR_QUIET)
         if(NOT already_patched EQUAL 0)

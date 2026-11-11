@@ -44,6 +44,11 @@ Referenced by upstream code and therefore mandatory. Satisfiable by newlib‑nan
 | `<math.h>` | `sin` `cos` `sqrt` `floor` `ceil` — RENDER only |
 | freestanding | `<stdint.h>` `<stddef.h>` `<stdbool.h>` `<stdarg.h>` `<limits.h>` `<float.h>` |
 
+P8 additionally uses C11 `<stdatomic.h>` for API admission and generic allocation
+statistics, and `<errno.h>` for allocator failure reporting. P9 must census the
+actual target compiler's atomic/runtime lowering; hosted lock-free instructions
+are not proof that a different MCU requires no compiler support library.
+
 The exact list is a **Q6 deliverable** ([`11-`](11-portability-plan.md) §9.3), generated from the actual link and checked in as `docs/floor-symbols.txt`.
 §3.1 is the starting hypothesis; the freestanding compile refines it. Expecting it to be exactly right on the first attempt is the mistake this phase is
 structured to avoid — [`91-`](91-open-questions.md) Q18 lists the five categories it is most likely to be missing, of which the compiler runtime
@@ -276,7 +281,10 @@ port is checked against.
 
 ### 5.2 Static stacks
 
-No `mmap` on target. `hal_task_create` uses `fiber_create_static()` with stacks from a statically reserved pool:
+No `mmap` is planned on target. A P9 port must supply static/pool-backed task
+stacks; today's hosted `hal_task_create()` still uses the guard-page port
+allocator. The following is target placement design, not an already implemented
+target task pool:
 
 ```c
 static uint8_t stack_hal [WMB_STACK_HAL ] __attribute__((aligned(16)));
@@ -288,6 +296,40 @@ static uint8_t stack_app [WMB_APP_MAX][WMB_STACK_APP] __attribute__((aligned(16)
 Overflow detection is `FIBER_CANARY` checked on every switch — cheaper than a guard page and available without an MMU. It detects overflow *after* the fact
 rather than at the moment of the offending store, which is why stack sizing is validated on the host (where guard pages trap precisely) before the target
 build.
+
+#### P8 measured hosted stack data
+
+The final 10,000-managed-window workload used GCC 13.3, the glibc ucontext port,
+Debug, 800x480 RGB565. These are **sentinel-touched bytes including the hosted
+context**, not proposed MCU stack reservations:
+
+| Runtime task | Observed touched HWM (bytes) | Hosted reservation (bytes) |
+|---|---:|---:|
+| `xsrv` | 12,056 | 524,288 |
+| `jwm` | 3,944 | 524,288 |
+| Frozen-v1 SDK app | 3,912 | 262,144 |
+| Current SDK app | 3,912 | 262,144 |
+| Foreign Display worker `api0` | 2,312 | 262,144 |
+| Foreign Display worker `api1` | 2,184 | 262,144 |
+| Independent allocation tenant | 2,624 | 65,536 |
+| OS main/root stack | **Unknown bounds**, not zero | Platform-owned |
+
+The fresh port context/forged-frame footprint is 1,016 bytes. The canary is
+initialized separately after filling the stack sentinel and is checked on every
+switch; a corruption test reaches the actual scheduler fatal path. HWM is sampled
+before owned tasks are destroyed. It does not account for untouched automatic
+storage or predict another architecture's interrupt/register/libc frames.
+
+`FIBER_MAX` remains the shared value 8. The workload's root, server, WM, two
+SDK apps, two lazy gateway workers and one other tenant fit exactly; a different
+deployment must budget its own simultaneous tasks. These host reservations
+peak at 2,162,688 bytes plus seven guard pages and the OS main stack, outside
+the tracked WMB heap. After the temporary gateway workers close, the normal
+two-app desktop retains 1,572,864 reserved stack bytes.
+
+P9 must choose margins and verify the actual target ABI/workload. Do not copy
+the old 32-KiB external-stack or roughly 300-KiB total-stack estimates into a
+board linker script.
 
 ### 5.3 WMB brings its own scheduling
 
@@ -383,9 +425,9 @@ table, not a rewrite of the glyph path. `fonts/freetype/` stays dormant in the t
    ├────────────────────────────────┤
    │ .bss                           │
    ├────────────────────────────────┤
-   │ fiber stacks (§5.2)            │     ~300 KB
+   │ fiber stacks (§5.2)            │     target-specific; host measurements below
    ├────────────────────────────────┤  ← __heap_start
-   │ heap                           │     ≥ 4 MB (§8.1)
+   │ heap                           │     measured workload + target headroom (§8.1)
    ├────────────────────────────────┤  ← __heap_end
    │ shadow framebuffer (optional)  │     W×H×bpp/8
    └────────────────────────────────┘
@@ -393,24 +435,77 @@ table, not a rewrite of the glyph path. `fonts/freetype/` stays dormant in the t
 
 ### 8.1 Heap sizing
 
-The X server allocates per‑resource: windows, pixmaps, GCs, colormaps, fonts, client structures. Indicative:
+P8 replaces the old per-resource guesses with actual owner-tagged data.
+Owner 1 covers selected TinyX/KDrive/Xlib/font/transport/JWM/ABI allocations,
+including zlib's private decompression allocations. Counts include live payload
+and tracking-node bytes, **not** libc arena overhead, SDL, process RSS or the
+separately reserved port stacks.
 
-| Consumer | Estimate |
+| Measured workload/domain | Bytes / result |
 |---|---|
-| Server base structures, atoms, extension state | ~500 KB |
-| Per client (`ClientRec`, resource table) | ~16 KB × 4 |
-| Per window (`WindowRec`, `WindowOptRec`, borders) | ~1 KB × 50 |
-| Backing pixmaps for JWM decorations | $W \times H \times \text{bpp}/8$ per off‑screen surface |
-| libX11 per‑`Display` (`Display`, buffer, event queue, XID table) | ~64 KB × 4 |
-| **Total working set** | **~2 MB, headroom to 4 MB** |
+| 10,000 managed lifecycles, after 32 warmup cycles and quiescent sampling | **348,881 -> 348,881** settled WMB bytes; blocks/payload also unchanged |
+| Same workload WMB allocation HWM | **402,537 -> 402,537** |
+| Concurrent other owner | **102,400 payload**, 105,600 including tracking; no effect on WMB's peak |
+| After ordered WM/apps/server shutdown | 40,087 WMB bytes: 28,247 payload + 11,840 tracking; 370 reachable cache blocks |
+| 800x480 RGB565 HAL framebuffer | 768,000 bytes per surface, outside the WMB owner |
+| 800x480 XRGB8888 HAL framebuffer | 1,536,000 bytes per surface, outside the WMB owner |
+| Actual 3,600-second input endurance | **351,745 -> 351,745** live WMB bytes; peak **402,602 -> 402,602** |
 
-These are estimates and must be replaced by measurements from the host build's one‑hour stability run (gate H‑V9). The measurement, not the estimate, sizes
-the target heap.
+The 10,000 cycles include real create/map/JWM-parent/withdraw/destroy operations,
+not fake resource allocation or just unmapped windows. They complete in 41.008
+measured seconds with a busy workload-generating root loop; this is not an
+idle-CPU certificate. A sentinel/metadata OOM suite and the pinned font's real
+zlib/error paths are separately tested.
+
+The final 60-second instrumented native/HAL/gateway run and real separate
+current/v1 applications have zero Memcheck errors and zero lost bytes.
+Reachable caches are not leaks. Instrumented mode intentionally disables only
+inactive-stack HWM reads and does not certify normal timing or an allocation
+peak under a different traffic backlog.
+
+These are hosted workload facts, not a universal maximum. Screen size/format,
+application-owned resources, simultaneous Displays/windows, request buffers,
+allocator bookkeeping and target alignment change the requirement. Select target
+headroom and remeasure rather than asserting the old approximately 2-MB working
+set / 4-MB heap guess.
+
+The completed normal hour processed **174,625** SDL input injections:
+349,248 key events, 349,248 button events and 174,624 motion events reached the
+SDK window. It ran for **3,600,000 measured input milliseconds** and
+**3,604.442 independently measured wall seconds** including startup/cleanup.
+The certified native binary was unchanged throughout. Root-poll maximum gap was
+**8 ms**, WM callback maximum **113.870 ms**, and completed clock-draw maximum
+**1,009.947 ms**; both application loops progressed over 3.19 million times.
+No canary or starvation gate tripped, and cleanup drained all gateway calls.
+
+[The machine-readable host record](reference/p8-host-verification.json) includes
+the UTC interval, exact binary SHA-256, independent wall measurement, heap/stack
+data, matrix results and scope limits. The raw run/controller logs remain in
+the persistent hosted build. Interrupted or failed earlier attempts do not
+count toward this certificate.
 
 ### 8.2 Image size
 
-`.text` is dominated by `tinyx/fb/` (14.4 kLOC of macro‑expanded rendering, which expands badly) and `tinyx/mi/` (23.5 kLOC). A realistic first build will
-be 2–3 MB before `--gc-sections` and `-Os`. If that is too large, the reduction levers in order of value are:
+Actual GCC 13.3 hosted `size` output after the P8 implementation:
+
+| Linked executable / configuration | Text | Data | BSS | Sum (bytes) |
+|---|---:|---:|---:|---:|
+| Native ABI workload, Debug/RGB565 | 1,771,402 | 24,576 | 47,304 | 1,843,282 |
+| Native ABI workload, Release/XRGB8888 | 1,689,877 | 23,864 | 47,320 | 1,761,061 |
+| Host-only RPC harness, Debug/RGB565 | 1,832,698 | 24,616 | 47,624 | 1,904,938 |
+| Host-only RPC harness, Release/XRGB8888 | 1,722,028 | 23,912 | 47,608 | 1,793,548 |
+
+These images include their validation entry/workload, not dynamically linked
+SDL/libc's memory. They are not a target map or stripped file-size estimate.
+The host-only RPC row must not become an embedded dependency.
+
+The standalone/current **raw SDK archive is 15,924 bytes**, including archive
+index and object metadata; the native v2 table itself is 1,000 bytes on this
+64-bit data model (16-byte header + 123 pointers). P9 must measure its actual
+linker sections and relocations on the selected architecture.
+
+Rendering still dominates text. If target measurements are too large, reduction
+levers, in order of value, remain:
 
 1. `-Os` instead of `-O2` (typically 25–30 % on this kind of code)
 2. `--gc-sections` (removes the unreachable shadow blitters and `fb` variants)

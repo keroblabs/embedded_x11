@@ -108,6 +108,8 @@ void      fiber_critical_exit(void);
 fiber_t  *fiber_self(void);
 fiber_t  *fiber_main(void);
 bool_t    fiber_is_main(const fiber_t *f);
+/* Sentinel-touched stack HWM, including the port's forged context. Main is excluded. */
+int       fiber_stack_usage(const fiber_t *f, size_t *used, size_t *reserved);
 
 #ifdef __cplusplus
 }

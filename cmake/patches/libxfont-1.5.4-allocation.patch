@@ -1,0 +1,74 @@
+--- a/src/fontfile/gunzip.c
++++ b/src/fontfile/gunzip.c
+@@ -22,6 +22,22 @@
+ static int BufZipFileSkip ( BufFilePtr f, int c );
+ static int BufCheckZipHeader ( BufFilePtr f );
+ 
++#if defined(WMB_FONT_BUILTINS_ONLY)
++static voidpf
++WmbZipAllocate (voidpf opaque, unsigned int items, unsigned int size)
++{
++  (void)opaque;
++  return calloc(items, size);
++}
++
++static void
++WmbZipFree (voidpf opaque, voidpf address)
++{
++  (void)opaque;
++  free(address);
++}
++#endif
++
+ BufFilePtr
+ BufFilePushZIP (BufFilePtr f)
+ {
+@@ -29,10 +45,16 @@
+ 
+   x = malloc (sizeof (xzip_buf));
+   if (!x) return 0;
++#if defined(WMB_FONT_BUILTINS_ONLY)
++  x->z.zalloc = WmbZipAllocate;
++  x->z.zfree = WmbZipFree;
++  x->z.opaque = Z_NULL;
++#else
+   /* these are just for raw calloc/free */
+   x->z.zalloc = Z_NULL;
+   x->z.zfree = Z_NULL;
+   x->z.opaque = Z_NULL;
++#endif
+   x->f = f;
+ 
+   /* force inflateInit to allocate it's own history buffer */
+@@ -55,15 +77,31 @@
+   x->z.avail_in = 0;
+ 
+   if (BufCheckZipHeader(x->f)) {
++#if defined(WMB_FONT_BUILTINS_ONLY)
++    inflateEnd (&(x->z));
++    fputs("WMB font gzip: invalid compressed header\n", stderr);
++#endif
+     free(x);
+     return 0;
+   }
+ 
++#if defined(WMB_FONT_BUILTINS_ONLY)
++  {
++    BufFilePtr result = BufFileCreate((char *)x, BufZipFileFill, 0,
++                                     BufZipFileSkip, BufZipFileClose);
++    if (!result) {
++      inflateEnd (&(x->z));
++      free(x);
++    }
++    return result;
++  }
++#else
+   return BufFileCreate((char *)x,
+ 		       BufZipFileFill,
+ 		       0,
+ 		       BufZipFileSkip,
+ 		       BufZipFileClose);
++#endif
+ }
+ 
+ static int
